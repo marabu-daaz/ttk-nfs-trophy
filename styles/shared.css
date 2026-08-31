@@ -1,0 +1,30 @@
+/* =========================================
+   styles/shared.css
+   Gemeinsame Styles für Frontend & Admin
+========================================= */
+
+/* ----- SCROLL-ANIMATIONEN ----- */
+.reveal {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.6s ease-out;
+}
+
+.reveal.active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* ----- SCROLLBAR (einheitlich) ----- */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--bg-dark, #050f0a);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--bg-hover, #1f5130);
+    border-radius: 5px;
+}

@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFS Trophy - Admin Dashboard</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+    <!-- CSS Imports -->
+    <link rel="stylesheet" href="../styles/shared.css" />
+    <link rel="stylesheet" href="../styles/admin.css" />
+
+    <!-- 1. CDN-Bibliotheken (globale Scripts) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+    <!-- 2. Import-Map für ES-Module -->
+    <script type="importmap">
+    {
+        "imports": {
+            "xlsx": "https://esm.sh/xlsx@0.18.5"
+        }
+    }
+</script>
+
+    <!-- 3. Dein Haupt-Script -->
+    <script type="module" src="../src/admin/admin.js"></script>
+</head>
+
+<body>
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="login-screen">
+        <div class="login-box">
+            <h2>Admin Login</h2>
+            <form id="loginForm">
+                <input type="email" id="loginEmail" placeholder="E-Mail" required class="input-field">
+                <input type="password" id="loginPassword" placeholder="Passwort" required class="input-field">
+                <button type="submit" id="loginBtn" class="btn-outline" style="width: 100%;">Einloggen</button>
+                <div id="loginError" class="login-error"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- DASHBOARD CONTENT -->
+    <div id="appContent" style="display: none;">
+        <nav class="admin-nav">
+            <div class="nav-brand">NFS Trophy <span>Admin</span></div>
+            <div class="nav-links">
+                <a href="#" id="tabNennungen" class="active">Nennungen</a>
+                <a href="#" id="tabFinanzen">Finanzen</a>
+                <a href="#" id="tabSetup">Turnier-Setup</a>
+                <a href="#" id="tabArchiv">Archiv & Medien</a>
+                <button class="theme-toggle" id="themeToggle" title="Theme umschalten">🌙</button>
+                <button id="logoutBtn" class="btn-outline">Logout</button>
+            </div>
+        </nav>
+
+        <main class="admin-wrap">
+
+            <!-- 1. TAB: FINANZEN -->
+            <section id="finances" class="panel stats-panel hidden">
+                <div class="panel-header">
+                    <h2>Finanzen & Statistiken</h2>
+                    <div class="actions" style="display:flex; gap:10px;">
+                        <button id="exportPdfBtn" class="btn-outline" style="background: rgba(255,255,255,0.1);">📄 PDF
+                            Druckliste</button>
+                        <button id="exportAdminBtn" class="btn-outline">📊 Excel Export</button>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">Nenngeld (Erwartet)</div>
+                        <div class="stat-value" id="statTotalExpected">0 €</div>
+                    </div>
+                    <div class="stat-card success">
+                        <div class="stat-title">Bereits Kassiert</div>
+                        <div class="stat-value" id="statPaid">0 €</div>
+                    </div>
+                    <div class="stat-card warning">
+                        <div class="stat-title">Noch Ausständig</div>
+                        <div class="stat-value" id="statOutstanding">0 €</div>
+                    </div>
+                    <div class="stat-card" style="border-top-color: #4CAF50; background: rgba(76, 175, 80, 0.1);">
+                        <div class="stat-title">SALDO (Netto-Gewinn)</div>
+                        <div class="stat-value" id="statSaldo" style="color: #4CAF50;">0 €</div>
+                    </div>
+                </div>
+
+                <div class="stats-grid secondary-stats" style="margin-top: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-title">Spieler (Aktiv / WL / Anwesend)</div>
+                        <div class="stat-value" id="statPlayers">0 / 0 / 0</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Bewerbs-Starts</div>
+                        <div class="stat-value" id="statStarts">0</div>
+                    </div>
+                    <div class="stat-card alert">
+                        <div class="stat-title">Verlust durch Rabatte/VIP</div>
+                        <div class="stat-value" id="statLoss">0 €</div>
+                    </div>
+                </div>
+
+                <div class="panel-header"
+                    style="margin-top: 40px; border-top: 1px solid var(--border); padding-top: 30px;">
+                    <h2>Fun-Stats 🤓 <span
+                            style="font-size: 14px; font-weight: normal; color: var(--text-muted);">(Aktuelle
+                            Filter-Ansicht)</span></h2>
+                </div>
+                <div class="stats-grid" style="margin-bottom: 20px;">
+                    <div class="stat-card" style="border-top-color: #9c27b0;">
+                        <div class="stat-title">Stärkster Verein</div>
+                        <div class="stat-value" id="statTopVerein">-</div>
+                    </div>
+                    <div class="stat-card" style="border-top-color: #03a9f4;">
+                        <div class="stat-title">Ø RC-Punkte</div>
+                        <div class="stat-value" id="statAvgRc">0</div>
+                    </div>
+                    <div class="stat-card" style="border-top-color: #ff9800;">
+                        <div class="stat-title">Höchster RC-Wert</div>
+                        <div class="stat-value" id="statMaxRc" style="font-size: 24px;">-</div>
+                    </div>
+                </div>
+
+                <div class="panel-header"
+                    style="margin-top: 40px; border-top: 1px solid var(--border); padding-top: 30px;">
+                    <h2>Kassenbuch (Sonstige Einnahmen & Ausgaben)</h2>
+                </div>
+                <div class="frow" style="align-items: flex-end; margin-bottom: 20px;">
+                    <div style="flex:2;"><label>Verwendungszweck / Herkunft:</label><input type="text" id="buchDesc"
+                            class="input-field" style="width: 100%;"></div>
+                    <div style="flex:1;"><label>Betrag (€):</label><input type="number" id="buchAmount"
+                            class="input-field" style="width: 100%;" placeholder="0"></div>
+                    <div style="display: flex; gap: 8px;">
+                        <button id="addIncomeBtn" class="btn-outline"
+                            style="background: rgba(76, 175, 80, 0.2); color: #4CAF50; border-color: #4CAF50; font-weight: bold;">+
+                            Einnahme</button>
+                        <button id="addExpenseBtn" class="btn-outline"
+                            style="background: rgba(229, 115, 115, 0.2); color: var(--error); border-color: var(--error); font-weight: bold;">-
+                            Ausgabe</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Datum</th>
+                                <th>Typ</th>
+                                <th>Verwendungszweck</th>
+                                <th>Betrag</th>
+                                <th>Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="buchBody">
+                            <tr>
+                                <td colspan="5" class="loading-cell">Lade Kassenbuch...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 2. TAB: NENNUNGEN -->
+            <section id="dashboard" class="panel">
+                <div class="panel-header">
+                    <h2>Nennliste bearbeiten</h2>
+                    <div class="filters">
+                        <input type="text" id="searchInput" placeholder="Suchen (Name, Verein)..." class="input-field">
+                        <select id="filterBewerb" class="input-field">
+                            <option value="all">Alle Bewerbe</option>
+                        </select>
+                        <select id="sortOrder" class="input-field">
+                            <option value="time_desc">Neueste zuerst</option>
+                            <option value="name_asc">Alphabetisch (A-Z)</option>
+                            <option value="rc_desc">RC-Punkte (Absteigend)</option>
+                        </select>
+                        <button id="copyEmailsBtn" class="btn-outline" style="border-color: #03a9f4; color: #03a9f4;">📧
+                            E-Mails kopieren</button>
+                    </div>
+                </div>
+                <div class="table-responsive">
+                    <table class="admin-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Verein & RC</th>
+                                <th>Bewerbe & Status</th>
+                                <th>Tag (Rabatt)</th>
+                                <th>Nenngeld</th>
+                                <th>Bezahlt</th>
+                                <th>Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody">
+                            <tr>
+                                <td colspan="7" class="loading-cell">Lade Nennungen...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- 3. TAB: TURNIER-SETUP -->
+            <section id="setup" class="panel hidden">
+                <div class="panel-header">
+                    <h2>Aktuelles Turnier konfigurieren</h2>
+                </div>
+                <div style="max-width: 800px; display: flex; flex-direction: column; gap: 24px;">
+
+                    <div class="stat-card stat-card-toggle" style="border-top-color: var(--accent);">
+                        <label style="display: flex; align-items: center; gap: 12px; font-size: 16px; cursor: pointer;">
+                            <input type="checkbox" id="setupIsOpen"
+                                style="width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer;">
+                            <strong id="setupIsOpenLabel">Anmeldung auf der Website ist <span
+                                    style="color: var(--success);">GEÖFFNET</span></strong>
+                        </label>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px; margin-left: 34px;">
+                            <span id="setupIsOpenHint">Spieler können sich anmelden</span>
+                        </p>
+                    </div>
+                    <div class="frow">
+                        <div style="flex:1;"><label>Turnier Name:</label><input type="text" id="setupName"
+                                class="input-field" style="width: 100%;" placeholder="z.B. Herbst Trophy 2026"></div>
+                    </div>
+
+                    <div class="frow">
+                        <div style="flex:1;"><label>Datum (Text für Website):</label><input type="text"
+                                id="setupDateText" class="input-field" style="width: 100%;"
+                                placeholder="z.B. 14.-15. September 2026"></div>
+                        <div style="flex:1;"><label>Countdown Ende (Datum & Uhrzeit):</label><input
+                                type="datetime-local" id="setupDateIso" class="input-field" style="width: 100%;"></div>
+                    </div>
+
+                    <div class="frow">
+                        <div style="flex:1;"><label>Untertitel (Tagline):</label><input type="text" id="setupSubtitle"
+                                class="input-field" style="width: 100%;"></div>
+                    </div>
+
+                    <div class="frow">
+                        <div style="flex:1;"><label>Nenngeld Normal (€):</label><input type="number" id="setupFeeNormal"
+                                class="input-field" style="width: 100%;"></div>
+                        <div style="flex:1;"><label>Nenngeld NFS (€):</label><input type="number" id="setupFeeNfs"
+                                class="input-field" style="width: 100%;"></div>
+                    </div>
+
+                    <!-- TEXTE UND FACTS MANAGER -->
+                    <div class="stat-card"
+                        style="border-top-color: #e91e63; background: rgba(233, 30, 99, 0.05); margin-top: 10px;">
+                        <h3 style="color: #e91e63; margin-bottom: 15px;">✏️ Website-Texte & Facts</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Steuere die vier
+                            Fact-Kacheln und den Text zu den Bewerben auf der Startseite. (HTML-Tags wie &lt;strong&gt;
+                            oder &lt;br&gt; sind erlaubt).</p>
+                        <div class="frow">
+                            <div style="flex:1;"><label>Bewerbe Headline:</label><input type="text"
+                                    id="setupBewerbeHeadline" class="input-field" style="width: 100%;"
+                                    placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>"></div>
+                        </div>
+                        <div class="frow">
+                            <div style="flex:1;"><label>Bewerbe Beschreibung:</label><textarea id="setupBewerbeText"
+                                    class="input-field" style="width: 100%; height: 80px; resize: vertical;"
+                                    placeholder="Gespielt wird in 5 Vorrunden-Gruppen..."></textarea></div>
+                        </div>
+                        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 20px 0;">
+                        <div class="frow">
+                            <div style="flex:1;"><label>Kachel 1 Titel:</label><input type="text" id="setupFact1Title"
+                                    class="input-field" style="width: 100%;" placeholder="Spielgeräte"></div>
+                            <div style="flex:2;"><label>Kachel 1 Text:</label><input type="text" id="setupFact1Text"
+                                    class="input-field" style="width: 100%;"
+                                    placeholder="<strong>Tische DONIC blau</strong>Bälle Nittaku Premium 40+"></div>
+                        </div>
+                        <div class="frow">
+                            <div style="flex:1;"><label>Kachel 2 Titel:</label><input type="text" id="setupFact2Title"
+                                    class="input-field" style="width: 100%;" placeholder="Halle"></div>
+                            <div style="flex:2;"><label>Kachel 2 Text:</label><input type="text" id="setupFact2Text"
+                                    class="input-field" style="width: 100%;"
+                                    placeholder="<strong>TTK Naturfreunde Stadlau</strong>Klimatisiert"></div>
+                        </div>
+                        <div class="frow">
+                            <div style="flex:1;"><label>Kachel 3 Titel:</label><input type="text" id="setupFact3Title"
+                                    class="input-field" style="width: 100%;" placeholder="Anreise"></div>
+                            <div style="flex:2;"><label>Kachel 3 Text:</label><input type="text" id="setupFact3Text"
+                                    class="input-field" style="width: 100%;"
+                                    placeholder="<strong>S-Bahn</strong>Erzherzog-Karl-Str."></div>
+                        </div>
+                        <div class="frow">
+                            <div style="flex:1;"><label>Kachel 4 Titel:</label><input type="text" id="setupFact4Title"
+                                    class="input-field" style="width: 100%;" placeholder="Modus"></div>
+                            <div style="flex:2;"><label>Kachel 4 Text:</label><input type="text" id="setupFact4Text"
+                                    class="input-field" style="width: 100%;"
+                                    placeholder="<strong>5 Vorrundengruppen, KO</strong>3 Gewinnsätze"></div>
+                        </div>
+                    </div>
+
+                    <!-- BEWERBS-MANAGER -->
+                    <div class="stat-card"
+                        style="border-top-color: #03a9f4; background: rgba(3, 169, 244, 0.05); margin-top: 10px;">
+                        <h3 style="color: #03a9f4; margin-bottom: 15px;">🏓 Bewerbe & Startzeiten</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Definiere hier alle
+                            Bewerbe für dieses Turnier. Diese werden im Anmelde-Formular angezeigt.</p>
+
+                        <div id="bewerbeContainer">
+                            <!-- Hier werden die Bewerbe dynamisch reingeladen -->
+                        </div>
+
+                        <button id="addBewerbBtn" class="btn-outline"
+                            style="border-color: #03a9f4; color: #03a9f4; width: 100%; margin-top: 10px;">+ Weiteren
+                            Bewerb hinzufügen</button>
+                    </div>
+
+                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
+                        <label>ÖTTV Live-Ergebnis URL:</label>
+                        <input type="url" id="setupOettvUrl" class="input-field" style="width: 100%; margin-top: 8px;">
+                    </div>
+
+                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
+                        <label style="display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer;">
+                            <input type="checkbox" id="setupShowTtop"
+                                style="width: 18px; height: 18px; accent-color: var(--accent);">
+                            <strong>TTOP Bewerbe Button anzeigen</strong>
+                        </label>
+                        <div style="padding-top: 8px; padding-left: 28px;">
+                            <label style="font-size: 13px; color: var(--text-muted);">TTOP URL:</label>
+                            <input type="url" id="setupTtopUrl" class="input-field"
+                                style="width: 100%; margin-top: 4px;" placeholder="https://ttop.at/turnier/...">
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-left: 28px;">
+                            Zeigt einen zusätzlichen Button "TTOP Bewerbe" neben dem ÖTTV-Button an.
+                        </p>
+                    </div>
+
+                    <div class="stat-card" style="margin-top: 10px; background: rgba(0,0,0,0.3);">
+                        <h3 style="margin-bottom: 20px; font-size: 16px; text-align: center;">📱 QR-Codes für die Halle
+                        </h3>
+                        <div class="frow">
+                            <div style="flex:1; text-align:center;">
+                                <h4 style="color: var(--accent); margin-bottom: 10px;">Zur Anmeldung</h4>
+                                <div id="qrAnmeldung"
+                                    style="display:flex; justify-content:center; background: #fff; padding: 15px; border-radius: 8px; width: max-content; margin: 0 auto;">
+                                </div>
+                                <button id="downloadQrAnmeldungBtn" class="btn-outline btn-small"
+                                    style="margin-top: 15px;">⬇️ Download PNG</button>
+                            </div>
+                            <div style="flex:1; text-align:center;">
+                                <h4 style="color: var(--accent); margin-bottom: 10px;">Live-Ergebnisse</h4>
+                                <div id="qrErgebnisse"
+                                    style="display:flex; justify-content:center; background: #fff; padding: 15px; border-radius: 8px; width: max-content; margin: 0 auto; min-height: 180px; align-items:center;">
+                                </div>
+                                <p id="qrErgebnisseHint"
+                                    style="font-size: 12px; color: var(--error); margin-top: 10px;"></p>
+                                <button id="downloadQrErgebnisseBtn" class="btn-outline btn-small"
+                                    style="margin-top: 5px; display: none;">⬇️ Download PNG</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
+                        <label>Neue Ausschreibung (PDF) hochladen:</label>
+                        <input type="file" id="setupPdf" accept="application/pdf" class="input-field"
+                            style="width: 100%; margin-top: 8px; background: rgba(0,0,0,0.5);">
+                    </div>
+
+                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
+                        <button id="saveSetupBtn" class="btn-outline"
+                            style="background: var(--accent); color: #000; font-weight: bold; width: 100%; padding: 14px;">Turnier-Einstellungen
+                            speichern</button>
+                    </div>
+
+                    <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed var(--error);">
+                        <h3 style="color: var(--error); margin-bottom: 10px;">Gefahrenzone</h3>
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 250px;">
+                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Archiviert
+                                    das aktuelle Turnier und öffnet ein komplett neues, leeres Turnier.</p>
+                                <button id="createNewTournamentBtn" class="btn-outline"
+                                    style="border-color: #ff9800; color: #ff9800; font-weight: bold; width: 100%; padding: 14px;">🔄
+                                    Saisonwechsel (Neues Turnier)</button>
+                            </div>
+                            <div style="flex: 1; min-width: 250px;">
+                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Löscht das
+                                    aktuelle Turnier endgültig. Du fällst automatisch auf das vorherige Turnier zurück.
+                                </p>
+                                <button id="deleteTournamentBtn" class="btn-outline"
+                                    style="border-color: var(--error); color: var(--error); font-weight: bold; width: 100%; padding: 14px;">🗑️
+                                    Aktuelles Turnier löschen</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 4. TAB: ARCHIV & MEDIEN -->
+            <section id="archiv" class="panel hidden">
+                <div class="panel-header">
+                    <h2>Archiv & Medien verwalten</h2>
+                </div>
+                <div style="max-width: 800px;">
+                    <label>Turnier auswählen:</label>
+                    <select id="archivSelect" class="input-field"
+                        style="width: 100%; margin-top: 8px; margin-bottom: 30px;"></select>
+
+                    <!-- Im Archiv-Tab, nach dem Turnier-Dropdown -->
+                    <div style="display:flex; gap:10px; margin-bottom:30px; flex-wrap:wrap;">
+                        <select id="archivSelect" class="input-field" style="flex:1; min-width:200px;"></select>
+                        <button id="editBewerbeBtn" class="btn-outline"
+                            style="border-color: #03a9f4; color: #03a9f4;">📝 Bewerbe nachtragen</button>
+                    </div>
+
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">🔗 ÖTTV-Link</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">Hinterlege den Link
+                            zu den offiziellen ÖTTV Ergebnissen für dieses Turnier.</p>
+                        <div class="frow" style="align-items: flex-end;">
+                            <div style="flex:1;"><input type="url" id="archivOettvUrl" class="input-field"
+                                    style="width: 100%;" placeholder="https://xttv.oettv.info/ed/index.php?..."></div>
+                            <div><button id="saveArchivOettvBtn" class="btn-outline">Speichern</button></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">📄 Ergebnis-PDFs</h3>
+                        <div class="frow" style="align-items: flex-end; margin-bottom: 20px;">
+                            <div style="flex:1;"><label>Bezeichnung (z.B. Raster Bewerb 1):</label><input type="text"
+                                    id="ergLabel" class="input-field" style="width: 100%;"></div>
+                            <div style="flex:1;"><label>PDF-Datei:</label><input type="file" id="ergFile"
+                                    accept="application/pdf" class="input-field" style="width: 100%; padding: 5px;">
+                            </div>
+                            <div><button id="uploadErgBtn" class="btn-outline">Hochladen</button></div>
+                        </div>
+                        <ul id="ergList" style="list-style: none; padding: 0; font-size: 14px;"></ul>
+                    </div>
+
+                    <!-- HALL OF FAME -->
+                    <div class="stat-card" style="margin-bottom: 20px;">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">🏆 Hall of Fame (Top 3)</h3>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Leere Felder werden
+                            auf der Website automatisch ausgeblendet.</p>
+                        <div id="hallOfFameContainer"></div>
+                        <button id="saveHallOfFameBtn" class="btn-outline"
+                            style="background: var(--accent); color: #000; font-weight: bold; margin-top: 15px; width: 100%; padding: 12px;">🏆
+                            Sieger speichern</button>
+                    </div>
+
+                    <div class="stat-card">
+                        <h3 style="color: var(--accent); margin-bottom: 15px;">📸 Fotos (Galerie)</h3>
+                        <div id="dropZone"
+                            style="border: 2px dashed var(--accent); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 10px; background: rgba(92,184,116,0.05); transition: all 0.3s;">
+                            <div style="font-size: 32px; margin-bottom: 10px;">📥</div>
+                            <div style="font-weight: 600; font-size: 16px;">Bilder hierher ziehen</div>
+                            <div style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">oder klicken, um
+                                Dateien auszuwählen</div>
+                            <input type="file" id="fotoFiles" accept="image/*" multiple style="display: none;">
+                        </div>
+                        <button id="uploadFotosBtn" class="btn-outline"
+                            style="width: 100%; margin-bottom: 15px; display: none;">Gewählte Bilder hochladen</button>
+                        <div id="fotoStatus"
+                            style="font-size: 13px; color: var(--accent); margin-bottom: 15px; text-align: center; font-weight: bold;">
+                        </div>
+                        <div id="fotoGallery" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                    </div>
+
+                </div>
+            </section>
+
+        </main>
+
+        <dialog id="editModal" class="admin-modal">
+            <div class="modal-header">
+                <h3>Spieler bearbeiten</h3><button id="closeModalBtn" class="close-btn">×</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editRegId">
+                <div class="frow">
+                    <div style="flex:1;"><label>RC Punkte:</label><input type="number" id="editRc" class="input-field"
+                            style="width: 100%;"></div>
+                    <div style="flex:1;"><label>Verein:</label><input type="text" id="editVerein" class="input-field"
+                            style="width: 100%;"></div>
+                </div>
+                <div style="margin-top: 20px;"><label>Wartelisten-Status pro Bewerb:</label>
+                    <div id="modalBewerbeList" style="margin-top: 8px;"></div>
+                </div>
+                <div style="margin-top: 24px; text-align: right;"><button id="saveModalBtn" class="btn-outline"
+                        style="background: var(--accent); color: #000; font-weight: bold;">Änderungen speichern</button>
+                </div>
+            </div>
+        </dialog>
+    </div>
+
+</body>
+
+</html>
