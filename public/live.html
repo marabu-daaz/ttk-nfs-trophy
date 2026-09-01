@@ -1,0 +1,3038 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Live-Ticker - NFS Trophy</title>
+    <meta name="description" content="Live-Ticker, Tabelle und Spielplan der NFS Trophy." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
+        rel="stylesheet" />
+
+    <style>
+        /* ==========================================
+           GLOBALE STYLES - Grün Theme mit Dark/Light
+        ========================================== */
+        :root {
+            --bg-body: #0a1a0f;
+            --bg-panel: #0f2416;
+            --bg-card: #14301a;
+            --bg-hover: #1a3d22;
+            --border: rgba(90, 200, 120, 0.12);
+            --border-strong: rgba(90, 200, 120, 0.25);
+            --text-main: #e8f5ec;
+            --text-muted: rgba(200, 240, 210, 0.55);
+            --text-dim: rgba(200, 240, 210, 0.3);
+            --accent: #4caf7a;
+            --accent-light: rgba(76, 175, 122, 0.15);
+            --success: #66bb8a;
+            --error: #ef5350;
+            --warning: #ffd54f;
+            --line: rgba(90, 200, 120, 0.08);
+            --shadow: rgba(0, 0, 0, 0.3);
+            --scroll-bg: #0a1a0f;
+            --scroll-thumb: #1a3d22;
+        }
+
+        [data-theme="light"] {
+            --bg-body: #f0f7f2;
+            --bg-panel: #ffffff;
+            --bg-card: #f5faf7;
+            --bg-hover: #e8f5ec;
+            --border: rgba(30, 60, 40, 0.12);
+            --border-strong: rgba(30, 60, 40, 0.25);
+            --text-main: #1a2e22;
+            --text-muted: rgba(30, 60, 40, 0.55);
+            --text-dim: rgba(30, 60, 40, 0.3);
+            --accent: #2e7d5e;
+            --accent-light: rgba(46, 125, 94, 0.12);
+            --shadow: rgba(0, 0, 0, 0.08);
+            --scroll-bg: #f0f7f2;
+            --scroll-thumb: #b8d5c4;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Stats-Tab ausblenden */
+        .live-tabs .tab-btn[data-tab="stats"] {
+            display: none;
+        }
+
+        /* Stats-Content ausblenden */
+        #tab-stats {
+            display: none !important;
+        }
+
+        body {
+            background: var(--bg-body);
+            color: var(--text-main);
+            font-family: 'Inter', system-ui, sans-serif;
+            font-weight: 300;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        .wrap {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 clamp(12px, 3vw, 40px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--scroll-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--scroll-thumb);
+            border-radius: 3px;
+        }
+
+        /* ----- NAVIGATION ----- */
+        nav {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            background: var(--bg-body);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            box-shadow: 0 2px 20px var(--shadow);
+            transition: background 0.3s;
+        }
+
+        nav .inner {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px clamp(12px, 3vw, 40px);
+            max-width: 1200px;
+            margin: 0 auto;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        nav .logo {
+            display: inline-flex;
+            align-items: center;
+            height: 36px;
+            text-decoration: none;
+            color: var(--text-main);
+            gap: 8px;
+        }
+
+        nav .logo img {
+            height: 32px;
+            width: auto;
+            display: block;
+        }
+
+        .nav-title {
+            font-family: 'Archivo', sans-serif;
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--accent);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .theme-toggle {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 6px 12px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ==========================================
+           LIVE-TICKER SPEZIFISCHE STYLES
+        ========================================== */
+        .live-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 16px 0 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .live-header .title h1 {
+            font-family: 'Archivo', sans-serif;
+            font-weight: 700;
+            font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }
+
+        .live-header .title h1 em {
+            font-style: normal;
+            color: var(--accent);
+        }
+
+        .live-header .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .live-header .status .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ef4444;
+            animation: pulse-dot 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+
+            0%,
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            50% {
+                opacity: 0.5;
+                transform: scale(0.8);
+            }
+        }
+
+        .live-header .status .dot.offline {
+            background: var(--text-muted);
+            animation: none;
+        }
+
+        .live-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        .live-controls select,
+        .live-controls input {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            min-width: 140px;
+            transition: border-color 0.2s;
+        }
+
+        .live-controls select:focus,
+        .live-controls input:focus {
+            border-color: var(--accent);
+        }
+
+        .live-controls select option {
+            background: var(--bg-panel);
+        }
+
+        .live-controls .refresh-btn {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            padding: 8px 14px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+
+        .live-controls .refresh-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .live-controls .refresh-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ----- TABS ----- */
+        .tabs-wrapper {
+            position: relative;
+            overflow-x: auto;
+            overflow-y: hidden;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            margin-bottom: 16px;
+        }
+
+        .tabs-wrapper::-webkit-scrollbar {
+            display: none;
+        }
+
+        .live-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-panel);
+            padding: 4px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            min-width: max-content;
+        }
+
+        .live-tabs .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            padding: 8px 14px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.25s;
+            font-family: inherit;
+            border-radius: 8px;
+            flex: 0 0 auto;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .live-tabs .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .live-tabs .tab-btn.active {
+            color: #fff;
+            background: var(--accent);
+            box-shadow: 0 4px 16px rgba(76, 175, 122, 0.25);
+        }
+
+        .swipe-indicator {
+            display: none;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-dim);
+            padding: 4px 0 8px;
+            letter-spacing: 0.06em;
+        }
+
+        @media (max-width: 768px) {
+            .swipe-indicator {
+                display: block;
+            }
+
+            .live-tabs .tab-btn {
+                padding: 6px 10px;
+                font-size: 11px;
+            }
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ----- TABELLE ----- */
+        .table-toolbar {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .table-toolbar input {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            padding: 8px 12px;
+            border-radius: 8px;
+            outline: none;
+            font-family: 'Inter', sans-serif;
+            font-size: 13px;
+            flex: 1;
+            min-width: 150px;
+            transition: border-color 0.2s;
+        }
+
+        .table-toolbar input:focus {
+            border-color: var(--accent);
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+        }
+
+        .live-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            min-width: 400px;
+        }
+
+        .live-table th {
+            text-align: left;
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .live-table td {
+            padding: 9px 12px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            color: var(--text-main);
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 13px;
+        }
+
+        .live-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .live-table tr:hover td {
+            background: var(--bg-hover);
+        }
+
+        .live-table tbody tr:nth-child(even) td {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .live-table tbody tr:nth-child(even):hover td {
+            background: var(--bg-hover);
+        }
+
+        .live-table .rank {
+            font-weight: 600;
+            font-family: 'Archivo', sans-serif;
+            color: var(--text-muted);
+            width: 32px;
+            text-align: center;
+            font-size: 13px;
+        }
+
+        .live-table .rank.gold {
+            color: #fbbf24;
+        }
+
+        .live-table .rank.silver {
+            color: #94a3b8;
+        }
+
+        .live-table .rank.bronze {
+            color: #cd7f32;
+        }
+
+        .live-table .name {
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .live-table .verein {
+            color: var(--text-muted);
+            font-size: 11px;
+        }
+
+        .live-table .stats {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-size: 12px;
+        }
+
+        .live-table .highlight-fav {
+            background: rgba(76, 175, 122, 0.15) !important;
+            border-left: 3px solid var(--accent);
+        }
+
+        .live-table .highlight-fav td {
+            background: rgba(76, 175, 122, 0.10) !important;
+        }
+
+        .live-table .highlight-fav:hover td {
+            background: rgba(76, 175, 122, 0.20) !important;
+        }
+
+        /* ----- SPIELPLAN (Mein Plan) ----- */
+        .match-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+
+        .match-card:hover {
+            border-color: var(--border-strong);
+            background: var(--bg-hover);
+        }
+
+        .match-card .match-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+            min-width: 140px;
+        }
+
+        .match-card .match-info .round {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .match-card .match-info .players {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .match-card .match-info .players .vs {
+            color: var(--text-muted);
+            font-weight: 300;
+            margin: 0 6px;
+        }
+
+        .match-card .match-status {
+            font-size: 11px;
+            font-weight: 500;
+            padding: 3px 12px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+
+        .match-card .match-status.played {
+            color: var(--success);
+            background: rgba(102, 187, 138, 0.12);
+            border: 1px solid rgba(102, 187, 138, 0.2);
+        }
+
+        .match-card .match-status.running {
+            color: var(--warning);
+            background: rgba(255, 213, 79, 0.12);
+            border: 1px solid rgba(255, 213, 79, 0.2);
+        }
+
+        .match-card .match-status.queue {
+            color: var(--accent);
+            background: var(--accent-light);
+            border: 1px solid rgba(76, 175, 122, 0.15);
+        }
+
+        .match-card .match-status.open {
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--border);
+        }
+
+        .match-card .match-result {
+            font-weight: 600;
+            font-family: 'Archivo', sans-serif;
+            font-size: 17px;
+            color: var(--text-main);
+        }
+
+        .match-card .match-result.win {
+            color: var(--success);
+        }
+
+        .match-card .match-result.loss {
+            color: var(--error);
+        }
+
+        .match-card .match-details {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+
+        .match-right {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 3px;
+        }
+
+        @media (max-width: 600px) {
+            .match-card {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 4px;
+            }
+
+            .match-card .match-info {
+                flex: 1;
+                min-width: unset;
+            }
+
+            .match-card .match-info .round {
+                font-size: 10px;
+                color: var(--text-muted);
+                order: 3;
+                text-align: right;
+            }
+
+            .match-card .match-info .players {
+                font-size: 13px;
+                order: 1;
+            }
+
+            .match-right {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .match-card .match-status {
+                order: 2;
+                align-self: flex-start;
+            }
+
+            .match-card .match-result {
+                font-size: 15px;
+            }
+
+            .match-card .match-details {
+                text-align: left;
+                font-size: 10px;
+            }
+        }
+
+        /* ----- PLAYER STATS DASHBOARD ----- */
+        .player-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+            gap: 8px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 16px;
+        }
+
+        .player-stats .stat-item {
+            text-align: center;
+        }
+
+        .player-stats .stat-item .label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+        }
+
+        .player-stats .stat-item .value {
+            font-family: 'Archivo', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        .player-stats .stat-item .value.gold {
+            color: #fbbf24;
+        }
+
+        .player-stats .stat-item .value.silver {
+            color: #94a3b8;
+        }
+
+        .player-stats .stat-item .value.bronze {
+            color: #cd7f32;
+        }
+
+        .player-stats .stat-item .value.win {
+            color: var(--success);
+        }
+
+        .player-stats .stat-item .value.loss {
+            color: var(--error);
+        }
+
+        .player-info-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 10px;
+            padding: 6px 12px;
+            background: var(--bg-body);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 13px;
+        }
+
+        .player-info-row .pot-info {
+            color: var(--accent);
+        }
+
+        /* ----- LIVE TISCH ----- */
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }
+
+        .table-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .table-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--border-strong);
+            transition: background 0.3s;
+        }
+
+        .table-card.running::before {
+            background: var(--warning);
+            box-shadow: 0 0 20px rgba(255, 213, 79, 0.3);
+        }
+
+        .table-card.available::before {
+            background: var(--text-muted);
+            opacity: 0.2;
+        }
+
+        .table-card:hover {
+            border-color: var(--border-strong);
+            transform: translateY(-2px);
+        }
+
+        .table-card .table-nr {
+            font-size: 10px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+
+        .table-card .table-players {
+            font-size: 14px;
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+
+        .table-card .table-players .vs {
+            color: var(--text-muted);
+            font-weight: 300;
+            margin: 0 4px;
+        }
+
+        .table-card .table-time {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-variant-numeric: tabular-nums;
+            font-family: 'Archivo', monospace;
+        }
+
+        .table-card .table-time .running-time {
+            color: var(--warning);
+            font-weight: 600;
+        }
+
+        .table-card .table-empty {
+            color: var(--text-muted);
+            font-size: 13px;
+            padding: 3px 0;
+        }
+
+        .table-card .fav-badge {
+            display: inline-block;
+            background: var(--accent);
+            color: #000;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 1px 6px;
+            border-radius: 10px;
+            margin-left: 4px;
+            vertical-align: middle;
+        }
+
+        /* ----- MATCH HISTORIE (Live-Tab) ----- */
+        .history-list {
+            margin-top: 16px;
+        }
+
+        .history-list h4 {
+            font-family: 'Archivo', sans-serif;
+            font-size: 15px;
+            color: var(--text-muted);
+            margin-bottom: 10px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            font-size: 13px;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-item .h-players {
+            font-weight: 500;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        .history-item .h-result {
+            font-weight: 600;
+            color: var(--accent);
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .history-item .h-round {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: right;
+        }
+
+        @media (max-width: 600px) {
+            .history-item {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 2px;
+            }
+
+            .history-item .h-players {
+                font-size: 12px;
+                min-width: unset;
+            }
+
+            .history-item .h-result {
+                text-align: left;
+                font-size: 12px;
+                min-width: unset;
+            }
+
+            .history-item .h-round {
+                text-align: left;
+                font-size: 10px;
+            }
+        }
+
+        /* ----- WARTESCHLANGE ----- */
+        .queue-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .queue-list li {
+            padding: 8px 14px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 13px;
+            background: var(--bg-panel);
+            border-radius: 8px;
+            margin-bottom: 4px;
+            transition: background 0.2s;
+        }
+
+        .queue-list li:hover {
+            background: var(--bg-hover);
+        }
+
+        .queue-list li:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .queue-list .queue-pos {
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            min-width: 30px;
+        }
+
+        .queue-list .queue-fav {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ----- TÖPFE ----- */
+        .pot-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 12px;
+        }
+
+        .pot-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
+            transition: border-color 0.2s;
+        }
+
+        .pot-card:hover {
+            border-color: var(--border-strong);
+        }
+
+        .pot-card .pot-title {
+            font-family: 'Archivo', sans-serif;
+            font-weight: 600;
+            font-size: 15px;
+            color: var(--accent);
+            margin-bottom: 10px;
+        }
+
+        .pot-card .pot-title .seed-range {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        .pot-card .pot-player {
+            padding: 5px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            align-items: center;
+        }
+
+        .pot-card .pot-player:last-child {
+            border-bottom: none;
+        }
+
+        .pot-card .pot-player .seed {
+            color: var(--text-muted);
+            font-size: 11px;
+            min-width: 26px;
+        }
+
+        .pot-card .pot-player .fav {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ----- STATS ----- */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .stat-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 14px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--shadow);
+        }
+
+        .stat-card .stat-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.06em;
+        }
+
+        .stat-card .stat-value {
+            font-family: 'Archivo', sans-serif;
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 2px;
+        }
+
+        .stat-card .stat-value.warning {
+            color: var(--warning);
+        }
+
+        .stat-card .stat-value.success {
+            color: var(--success);
+        }
+
+        .stat-card .stat-value.error {
+            color: var(--error);
+        }
+
+        .stats-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            margin-top: 14px;
+        }
+
+        @media (max-width: 768px) {
+            .stats-2col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .stats-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px;
+        }
+
+        .stats-box h4 {
+            font-family: 'Archivo', sans-serif;
+            font-size: 14px;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .stats-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .stats-box ul li {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 12px;
+        }
+
+        .stats-box ul li:last-child {
+            border-bottom: none;
+        }
+
+        .stats-box ul li .highlight {
+            color: var(--accent);
+            font-weight: 500;
+            font-family: 'Archivo', monospace;
+        }
+
+        /* ----- SYSTEM-ERKLÄRUNG ----- */
+        .system-box {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 800px;
+        }
+
+        .system-box h3 {
+            font-family: 'Archivo', sans-serif;
+            font-weight: 600;
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: var(--accent);
+        }
+
+        .system-box p {
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 14px;
+            font-size: 14px;
+        }
+
+        .system-box ol {
+            color: var(--text-muted);
+            line-height: 1.8;
+            padding-left: 18px;
+            font-size: 14px;
+        }
+
+        .system-box ol li {
+            margin-bottom: 3px;
+        }
+
+        .system-box .highlight {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .system-box .note {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 12px;
+        }
+
+        /* ----- LOADING ----- */
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 0;
+            color: var(--text-muted);
+            gap: 10px;
+            font-size: 14px;
+        }
+
+        .loading-spinner .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid var(--border);
+            border-top: 3px solid var(--accent);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* ----- TOAST ----- */
+        .toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-width: 320px;
+        }
+
+        .toast {
+            padding: 12px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            font-weight: 500;
+            line-height: 1.5;
+            box-shadow: 0 10px 40px var(--shadow);
+            animation: slideIn 0.3s ease forwards;
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--border);
+            background: var(--bg-panel);
+            color: var(--text-main);
+        }
+
+        .toast:not(.error) {
+            border-left: 4px solid var(--success);
+        }
+
+        .toast.error {
+            border-left: 4px solid var(--error);
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(120%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeOut {
+            to {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+        }
+
+        .toast.fade-out {
+            animation: fadeOut 0.3s ease forwards;
+        }
+
+        /* ----- RESPONSIVE ----- */
+        @media (max-width: 768px) {
+            .live-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+                margin: 12px 0 16px;
+            }
+
+            .live-controls {
+                flex-direction: column;
+            }
+
+            .live-controls select,
+            .live-controls input {
+                width: 100%;
+                min-width: unset;
+            }
+
+            .table-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .pot-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .player-stats {
+                grid-template-columns: repeat(3, 1fr);
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            nav .inner {
+                padding: 8px 12px;
+            }
+
+            .nav-title {
+                font-size: 14px;
+            }
+
+            .theme-toggle {
+                padding: 4px 10px;
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .live-table {
+                font-size: 11px;
+                min-width: 380px;
+            }
+
+            .live-table th,
+            .live-table td {
+                padding: 6px 8px;
+            }
+
+            .player-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .table-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .pot-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .live-header .title h1 {
+                font-size: 1.2rem;
+            }
+
+            .live-tabs .tab-btn {
+                padding: 5px 10px;
+                font-size: 10px;
+            }
+        }
+
+        /* ----- PRINT STYLES ----- */
+        @media print {
+
+            nav,
+            .live-controls,
+            .table-toolbar,
+            .refresh-btn,
+            .theme-toggle,
+            .live-tabs,
+            .swipe-indicator {
+                display: none !important;
+            }
+
+            .tab-content {
+                display: block !important;
+            }
+
+            .tab-content:not(.active) {
+                display: none !important;
+            }
+
+            .live-header .status .dot {
+                animation: none !important;
+            }
+
+            body {
+                background: white !important;
+                color: black !important;
+            }
+
+            .table-wrap,
+            .stat-card,
+            .stats-box,
+            .system-box {
+                border-color: #ccc !important;
+                background: white !important;
+            }
+
+            .live-table th {
+                background: #f0f0f0 !important;
+                color: black !important;
+            }
+
+            .live-table td {
+                color: black !important;
+            }
+
+            .stat-card .stat-value {
+                color: #2e7d5e !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav>
+        <div class="inner">
+            <a href="/" class="logo" aria-label="NFS Trophy">
+                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='50' viewBox='0 0 200 50'%3E%3Crect width='200' height='50' fill='%230a1a0f'/%3E%3Ctext x='20' y='32' font-family='Arial' font-size='24' font-weight='bold' fill='%234caf7a'%3ENFS Trophy%3C/text%3E%3C/svg%3E"
+                    alt="NFS Trophy" style="height:30px; width:auto;" />
+                <span class="nav-title">🏓 Live</span>
+            </a>
+            <div class="nav-actions">
+                <button class="theme-toggle" id="themeToggle" title="Dark/Light Mode">🌓</button>
+            </div>
+        </div>
+    </nav>
+
+    <main class="wrap" style="padding-top: 12px;">
+
+        <!-- HEADER -->
+        <div class="live-header">
+            <div class="title">
+                <h1>Live-Ticker<br><em id="tournamentName">NFS Trophy</em></h1>
+            </div>
+            <div class="status">
+                <span class="dot" id="statusDot"></span>
+                <span id="statusText">Lade Daten...</span>
+                <span id="lastUpdate" style="font-size:11px; color:var(--text-dim);"></span>
+            </div>
+        </div>
+
+        <!-- CONTROLS -->
+        <div class="live-controls">
+            <select id="bewerbSelect">
+                <option value="">Bewerb laden...</option>
+            </select>
+            <input type="text" id="favPlayerInput" placeholder="🔍 Favorit (Name)" />
+            <button class="refresh-btn" id="refreshBtn">🔄 Aktualisieren</button>
+        </div>
+
+        <!-- TABS mit Swipe-Indikator -->
+        <div class="swipe-indicator">👈 Swipe für mehr Tabs 👉</div>
+        <div class="tabs-wrapper">
+            <div class="live-tabs">
+                <button class="tab-btn active" data-tab="table">📊 Tabelle</button>
+                <button class="tab-btn" data-tab="meinplan">🔍 Mein Plan</button>
+                <button class="tab-btn" data-tab="live">🏓 Live</button>
+                <button class="tab-btn" data-tab="queue">⏳ Warteschlange</button>
+                <button class="tab-btn" data-tab="pots">🏺 Töpfe</button>
+                <button class="tab-btn" data-tab="stats">📊 Stats</button>
+                <button class="tab-btn" data-tab="system">📖 System</button>
+            </div>
+        </div>
+
+        <!-- TAB: TABELLE -->
+        <div class="tab-content active" id="tab-table">
+            <div class="table-toolbar">
+                <input type="text" id="tableSearch" placeholder="🔍 Spieler suchen..." />
+            </div>
+            <div id="tableContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Tabelle...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: MEIN PLAN -->
+        <div class="tab-content" id="tab-meinplan">
+            <div id="meinplanContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Spielplan...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: LIVE -->
+        <div class="tab-content" id="tab-live">
+            <div id="liveContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Live-Spiele...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: WARTESCHLANGE -->
+        <div class="tab-content" id="tab-queue">
+            <div id="queueContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Warteschlange...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: TÖPFE -->
+        <div class="tab-content" id="tab-pots">
+            <div id="potsContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Töpfe...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: STATS -->
+        <div class="tab-content" id="tab-stats">
+            <div id="statsContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade Statistiken...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB: SYSTEM -->
+        <div class="tab-content" id="tab-system">
+            <div id="systemContainer">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <span>Lade System-Erklärung...</span>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" class="toast-container"></div>
+
+    <!-- SCRIPTS -->
+    <script type="importmap">
+        {
+            "imports": {
+                "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2"
+            }
+        }
+    </script>
+
+    <script type="module">
+        // ============================================================
+        // LIVE-TICKER - MIT SUPABASE PROJEKT B
+        // ============================================================
+
+        import { createClient } from "@supabase/supabase-js";
+        import { SUPABASE_URL_B, SUPABASE_ANON_KEY_B } from "../config.js";
+
+        console.log('✅ Config geladen:');
+        console.log('SUPABASE_URL_B:', SUPABASE_URL_B);
+        console.log('SUPABASE_ANON_KEY_B vorhanden:', !!SUPABASE_ANON_KEY_B);
+
+        const supabase = createClient(SUPABASE_URL_B, SUPABASE_ANON_KEY_B);
+
+        // ============================================================
+        // STATE
+        // ============================================================
+        let state = {
+            players: [],
+            matches: [],
+            settings: [],
+            bewerbe: [],
+            selectedBewerb: '',
+            favoritePlayer: null,
+            tournamentName: 'NFS Trophy',
+            loading: false,
+            lastUpdate: null,
+            startTime: null,
+            theme: 'dark',
+        };
+
+        // DOM refs
+        const $ = (id) => document.getElementById(id);
+        const bewerbSelect = $('bewerbSelect');
+        const favInput = $('favPlayerInput');
+        const refreshBtn = $('refreshBtn');
+        const statusDot = $('statusDot');
+        const statusText = $('statusText');
+        const lastUpdateEl = $('lastUpdate');
+        const tournamentNameEl = $('tournamentName');
+        const themeToggle = $('themeToggle');
+
+        const containers = {
+            table: $('tableContainer'),
+            meinplan: $('meinplanContainer'),
+            live: $('liveContainer'),
+            queue: $('queueContainer'),
+            pots: $('potsContainer'),
+            stats: $('statsContainer'),
+            system: $('systemContainer'),
+        };
+
+        // ============================================================
+        // THEME
+        // ============================================================
+        function loadTheme() {
+            const saved = localStorage.getItem('theme') || 'dark';
+            state.theme = saved;
+            document.documentElement.setAttribute('data-theme', saved);
+            themeToggle.textContent = saved === 'dark' ? '☀️' : '🌙';
+        }
+
+        function toggleTheme() {
+            const newTheme = state.theme === 'dark' ? 'light' : 'dark';
+            state.theme = newTheme;
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        }
+
+        themeToggle.addEventListener('click', toggleTheme);
+        loadTheme();
+
+        // ============================================================
+        // HELPERS
+        // ============================================================
+        function esc(s) {
+            if (s === null || s === undefined) return '';
+            return String(s).replace(/[&<>"]/g, (c) => {
+                const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+                return map[c] || c;
+            });
+        }
+
+        function showToast(msg, isError = false) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = `toast ${isError ? 'error' : ''}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('fade-out');
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
+        function formatDuration(startIso) {
+            if (!startIso) return '';
+            const start = new Date(startIso);
+            const now = new Date();
+            const diff = Math.floor((now - start) / 1000);
+            if (diff < 0) return '';
+            const hours = Math.floor(diff / 3600);
+            const minutes = Math.floor((diff % 3600) / 60);
+            const seconds = diff % 60;
+            if (hours > 0) {
+                return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+            }
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function formatDurationSeconds(sec) {
+            if (!sec || sec <= 0) return '0:00';
+            const hours = Math.floor(sec / 3600);
+            const minutes = Math.floor((sec % 3600) / 60);
+            const seconds = Math.floor(sec % 60);
+            if (hours > 0) {
+                return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}s`;
+            }
+            return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        }
+
+        function parseDurationToSeconds(durStr) {
+            if (!durStr || durStr === '-' || durStr === '0m 0s') return 0;
+            let secs = 0;
+            try {
+                if (durStr.includes('h ')) {
+                    const parts = durStr.split('h ');
+                    const h = parseInt(parts[0]);
+                    const rest = parts[1].replace('s', '').split('m ');
+                    const m = parseInt(rest[0]);
+                    const s = parseInt(rest[1] || 0);
+                    secs = h * 3600 + m * 60 + s;
+                } else if (durStr.includes('m ')) {
+                    const parts = durStr.replace('s', '').split('m ');
+                    const m = parseInt(parts[0]);
+                    const s = parseInt(parts[1] || 0);
+                    secs = m * 60 + s;
+                }
+            } catch (e) { }
+            return secs;
+        }
+
+        window.selectPlayer = function (playerId) {
+            const player = state.players.find(p => String(p.id) === String(playerId));
+            if (player) {
+                state.favoritePlayer = player;
+                favInput.value = player.name;
+                const url = new URL(window.location);
+                url.searchParams.set('fav', playerId);
+                window.history.replaceState({}, '', url);
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.querySelector('[data-tab="meinplan"]').classList.add('active');
+                document.getElementById('tab-meinplan').classList.add('active');
+                renderAll();
+            }
+        };
+
+        // ============================================================
+        // CORE LOGIC
+        // ============================================================
+
+        async function loadData() {
+            try {
+                state.loading = true;
+                setStatus('loading', 'Lade Daten...');
+
+                console.log('📡 Lade Daten von Supabase...');
+
+                const { data: players, error: playersError } = await supabase
+                    .from('players')
+                    .select('*')
+                    .eq('is_present', true)
+                    .order('name');
+
+                if (playersError) throw playersError;
+                state.players = players || [];
+                console.log(`✅ ${state.players.length} Spieler geladen`);
+
+                const { data: settings, error: settingsError } = await supabase
+                    .from('settings')
+                    .select('*');
+
+                if (settingsError) throw settingsError;
+                state.settings = settings || [];
+                console.log(`✅ ${state.settings.length} Settings geladen`);
+
+                const metaName = state.settings.find(s => s.key === 'meta_name')?.value || 'NFS Trophy';
+                state.tournamentName = metaName;
+                if (tournamentNameEl) tournamentNameEl.textContent = metaName;
+
+                const bewerbeSet = new Set();
+                state.players.forEach(p => {
+                    if (p.bewerbe) {
+                        p.bewerbe.split(',').forEach(b => {
+                            const trimmed = b.trim();
+                            if (trimmed) bewerbeSet.add(trimmed);
+                        });
+                    }
+                });
+                state.bewerbe = Array.from(bewerbeSet).map(name => ({ name }));
+                console.log(`✅ ${state.bewerbe.length} Bewerbe gefunden`);
+
+                if (state.bewerbe.length > 0) {
+                    const lastBewerb = localStorage.getItem('last_bewerb');
+                    if (lastBewerb && state.bewerbe.some(b => b.name === lastBewerb)) {
+                        state.selectedBewerb = lastBewerb;
+                    } else {
+                        state.selectedBewerb = state.bewerbe[0].name;
+                    }
+                }
+
+                const { data: matches, error: mErr } = await supabase
+                    .from('matches')
+                    .select('*');
+
+                if (mErr) {
+                    console.warn('⚠️ Keine Matches gefunden:', mErr);
+                    state.matches = [];
+                } else {
+                    state.matches = matches || [];
+                    console.log(`✅ ${state.matches.length} Matches geladen`);
+
+                    state.matches = state.matches.map(m => {
+                        const p1 = state.players.find(p => p.id === m.player1_id);
+                        const p2 = state.players.find(p => p.id === m.player2_id);
+                        return {
+                            ...m,
+                            player1_name: p1 ? p1.name : 'Unbekannt',
+                            player2_name: p2 ? p2.name : 'Unbekannt',
+                            player1_rc: p1 ? p1.rc_points : 0,
+                            player2_rc: p2 ? p2.rc_points : 0,
+                            player1_club: p1 ? p1.club_short : '',
+                            player2_club: p2 ? p2.club_short : '',
+                        };
+                    });
+                }
+
+                const urlParams = new URLSearchParams(window.location.search);
+                const favId = urlParams.get('fav');
+                if (favId) {
+                    const fav = state.players.find(p => String(p.id) === favId);
+                    if (fav) {
+                        state.favoritePlayer = fav;
+                        favInput.value = fav.name;
+                    }
+                }
+
+                state.startTime = new Date();
+                populateBewerbSelect();
+                renderAll();
+                setStatus('online', 'Live');
+                state.lastUpdate = new Date();
+                lastUpdateEl.textContent = `Stand: ${state.lastUpdate.toLocaleTimeString('de-AT')}`;
+
+            } catch (err) {
+                console.error('❌ Fehler beim Laden:', err);
+                showToast(`Fehler beim Laden der Daten: ${err.message}`, true);
+                setStatus('offline', 'Fehler');
+            } finally {
+                state.loading = false;
+            }
+        }
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+
+        function renderAll() {
+            renderTable();
+            renderMeinPlan();
+            renderLive();
+            renderQueue();
+            renderPots();
+            renderStats();
+            renderSystem();
+        }
+
+        // ----- TABELLE -----
+        function renderTable() {
+            const container = containers.table;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const playersInBewerb = state.players.filter(p => {
+                if (!p.bewerbe) return false;
+                return p.bewerbe.split(',').some(b => b.trim() === bewerbName);
+            });
+
+            if (playersInBewerb.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Noch keine Spieler für diesen Bewerb.
+                    </div>
+                `;
+                return;
+            }
+
+            const matchesInBewerb = state.matches.filter(m => m.bewerb === bewerbName);
+            const ranking = calculateRanking(playersInBewerb, matchesInBewerb);
+
+            if (!ranking || ranking.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Noch keine Ergebnisse für diesen Bewerb.
+                    </div>
+                `;
+                return;
+            }
+
+            const searchInput = document.getElementById('tableSearch');
+            const searchTerm = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+            let filteredRanking = ranking;
+            if (searchTerm) {
+                filteredRanking = ranking.filter(p =>
+                    p.name.toLowerCase().includes(searchTerm) ||
+                    (p.verein && p.verein.toLowerCase().includes(searchTerm))
+                );
+            }
+
+            let html = `<div class="table-wrap"><table class="live-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Verein</th>
+                        <th class="stats">Sp</th>
+                        <th class="stats">Sg</th>
+                        <th class="stats">SV</th>
+                        <th class="stats">BV</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
+            filteredRanking.forEach((p, idx) => {
+                if (!p.stats) {
+                    p.stats = {
+                        matches: 0, wins: 0, sets_won: 0, sets_lost: 0, balls_won: 0, balls_lost: 0,
+                        tie_symbol: ''
+                    };
+                }
+
+                const isFav = state.favoritePlayer && p.id === state.favoritePlayer.id;
+                const rankClass = idx === 0 ? 'gold' : idx === 1 ? 'silver' : idx === 2 ? 'bronze' : '';
+                const rowClass = isFav ? 'highlight-fav' : '';
+                const actualRank = ranking.indexOf(p) + 1;
+
+                html += `
+                    <tr class="${rowClass}" data-player-id="${p.id}" onclick="selectPlayer('${p.id}')">
+                        <td class="rank ${rankClass}">${actualRank}</td>
+                        <td class="name">${esc(p.name)}</td>
+                        <td class="verein">${esc(p.verein || '-')}</td>
+                        <td class="stats">${p.stats.matches || 0}</td>
+                        <td class="stats">${p.stats.wins || 0}${p.stats.tie_symbol || ''}</td>
+                        <td class="stats">${p.stats.sets_won || 0}:${p.stats.sets_lost || 0}</td>
+                        <td class="stats">${p.stats.balls_won || 0}:${p.stats.balls_lost || 0}</td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div>`;
+            html += `<p style="font-size:11px; color:var(--text-muted); margin-top:8px;">
+                ⚔️ = Platzierung durch direkten Vergleich (Minitabelle) entschieden.
+                💡 Klicke auf einen Spieler für seinen Spielplan.
+            </p>`;
+
+            container.innerHTML = html;
+        }
+
+        // ============================================================
+        // RANKING BERECHNUNG (KORREKT)
+        // ============================================================
+        function calculateRanking(players, matches) {
+            // Initialisiere Statistiken für alle Spieler
+            const stats = {};
+            players.forEach(p => {
+                stats[p.id] = {
+                    id: p.id,
+                    name: p.name,
+                    verein: p.club_short || '',
+                    rc: p.rc_points || 0,
+                    matches: 0,
+                    wins: 0,
+                    sets_won: 0,
+                    sets_lost: 0,
+                    balls_won: 0,
+                    balls_lost: 0,
+                    opponents: [],
+                    opponentMatches: {},
+                    tie_symbol: '',
+                    stats: {
+                        matches: 0, wins: 0, sets_won: 0, sets_lost: 0, balls_won: 0, balls_lost: 0,
+                        tie_symbol: ''
+                    }
+                };
+            });
+
+            // Spiele auswerten
+            matches.forEach(m => {
+                if (!m.is_played) return;
+                const p1 = stats[m.player1_id];
+                const p2 = stats[m.player2_id];
+                if (!p1 || !p2) return;
+
+                const s1 = m.sets_p1 || 0;
+                const s2 = m.sets_p2 || 0;
+                const b1 = m.points_p1 || 0;
+                const b2 = m.points_p2 || 0;
+
+                p1.matches += 1;
+                p2.matches += 1;
+                p1.stats.matches += 1;
+                p2.stats.matches += 1;
+
+                p1.sets_won += s1;
+                p1.sets_lost += s2;
+                p2.sets_won += s2;
+                p2.sets_lost += s1;
+                p1.stats.sets_won += s1;
+                p1.stats.sets_lost += s2;
+                p2.stats.sets_won += s2;
+                p2.stats.sets_lost += s1;
+
+                p1.balls_won += b1;
+                p1.balls_lost += b2;
+                p2.balls_won += b2;
+                p2.balls_lost += b1;
+                p1.stats.balls_won += b1;
+                p1.stats.balls_lost += b2;
+                p2.stats.balls_won += b2;
+                p2.stats.balls_lost += b1;
+
+                p1.opponents.push(m.player2_id);
+                p2.opponents.push(m.player1_id);
+                p1.opponentMatches[m.player2_id] = { sets_p1: s1, sets_p2: s2 };
+                p2.opponentMatches[m.player1_id] = { sets_p1: s2, sets_p2: s1 };
+
+                if (s1 > s2) {
+                    p1.wins += 1;
+                    p1.stats.wins += 1;
+                } else {
+                    p2.wins += 1;
+                    p2.stats.wins += 1;
+                }
+            });
+
+            // Hilfsfunktion: Prüft, ob alle in der Gruppe gegeneinander gespielt haben
+            function allPlayedEachOther(group) {
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        const hasMatch = group[i].opponentMatches[group[j].id] !== undefined ||
+                            group[j].opponentMatches[group[i].id] !== undefined;
+                        if (!hasMatch) return false;
+                    }
+                }
+                return true;
+            }
+
+            // Minitabelle: Sortiert eine vollständig verbundene Gruppe anhand der direkten Duelle
+            function sortByMiniTable(group) {
+                const miniStats = {};
+                group.forEach(p => {
+                    miniStats[p.id] = {
+                        ...p,
+                        miniWins: 0,
+                        miniSetsWon: 0,
+                        miniSetsLost: 0,
+                        miniBallsWon: 0,
+                        miniBallsLost: 0
+                    };
+                });
+
+                // Zähle die direkten Duelle innerhalb der Gruppe
+                for (let i = 0; i < group.length; i++) {
+                    for (let j = i + 1; j < group.length; j++) {
+                        const p1 = group[i];
+                        const p2 = group[j];
+                        const match = p1.opponentMatches[p2.id];
+                        if (match) {
+                            const s1 = match.sets_p1;
+                            const s2 = match.sets_p2;
+                            if (s1 > s2) {
+                                miniStats[p1.id].miniWins += 1;
+                            } else {
+                                miniStats[p2.id].miniWins += 1;
+                            }
+                            miniStats[p1.id].miniSetsWon += s1;
+                            miniStats[p1.id].miniSetsLost += s2;
+                            miniStats[p2.id].miniSetsWon += s2;
+                            miniStats[p2.id].miniSetsLost += s1;
+                            // Bälle in der Minitabelle sind nicht notwendig, da die direkten Duelle
+                            // bereits durch Siege und Sätze abgebildet werden.
+                            // Falls doch Gleichstand, wird später RC herangezogen.
+                        }
+                    }
+                }
+
+                // Rekursive Sortierung der Minitabelle mit denselben Kriterien:
+                // Mini-Siege, dann Mini-SV, dann Mini-BV, dann RC
+                // Dazu nutzen wir die gleiche `sortGroup`-Funktion, aber mit den Mini-Werten.
+                // Da die Gruppe vollständig verbunden ist, können wir die Minitabelle
+                // einfach nach diesen Kriterien sortieren.
+                const sorted = Object.values(miniStats).sort((a, b) => {
+                    if (a.miniWins !== b.miniWins) return b.miniWins - a.miniWins;
+                    const aSv = a.miniSetsWon / (a.miniSetsLost || 1);
+                    const bSv = b.miniSetsWon / (b.miniSetsLost || 1);
+                    if (aSv !== bSv) return bSv - aSv;
+                    const aBv = a.balls_won / (a.balls_lost || 1);
+                    const bBv = b.balls_won / (b.balls_lost || 1);
+                    if (aBv !== bBv) return bBv - aBv;
+                    return a.rc - b.rc;
+                });
+
+                // ⚔️-Symbol für alle setzen, da die Minitabelle angewendet wurde
+                sorted.forEach(p => {
+                    p.tie_symbol = ' ⚔️';
+                    p.stats.tie_symbol = ' ⚔️';
+                });
+
+                return sorted;
+            }
+
+            // Rekursive Hauptsortierfunktion
+            function sortGroup(group) {
+                if (group.length <= 1) return group;
+
+                // 1. Nach Siegen gruppieren
+                const winsMap = {};
+                group.forEach(p => {
+                    const w = p.wins;
+                    if (!winsMap[w]) winsMap[w] = [];
+                    winsMap[w].push(p);
+                });
+
+                let result = [];
+                const sortedWins = Object.keys(winsMap).sort((a, b) => b - a);
+                for (const w of sortedWins) {
+                    let subgroup = winsMap[w];
+                    if (subgroup.length === 1) {
+                        result.push(subgroup[0]);
+                        continue;
+                    }
+
+                    // Prüfen, ob alle in dieser Sieg-Gruppe gegeneinander gespielt haben
+                    if (allPlayedEachOther(subgroup)) {
+                        const sortedByMini = sortByMiniTable(subgroup);
+                        result = result.concat(sortedByMini);
+                        continue;
+                    }
+
+                    // Nach SV sortieren
+                    const sortedBySV = [...subgroup].sort((a, b) => {
+                        const aSv = a.sets_won / (a.sets_lost || 1);
+                        const bSv = b.sets_won / (b.sets_lost || 1);
+                        return bSv - aSv;
+                    });
+
+                    // Gruppen mit gleichem SV bilden
+                    let i = 0;
+                    let svGroups = [];
+                    while (i < sortedBySV.length) {
+                        let j = i + 1;
+                        const iSv = sortedBySV[i].sets_won / (sortedBySV[i].sets_lost || 1);
+                        while (j < sortedBySV.length) {
+                            const jSv = sortedBySV[j].sets_won / (sortedBySV[j].sets_lost || 1);
+                            if (jSv === iSv) j++;
+                            else break;
+                        }
+                        svGroups.push(sortedBySV.slice(i, j));
+                        i = j;
+                    }
+
+                    for (const svGroup of svGroups) {
+                        if (svGroup.length === 1) {
+                            result.push(svGroup[0]);
+                            continue;
+                        }
+
+                        // Prüfen, ob diese SV-Gruppe gegeneinander gespielt hat
+                        if (allPlayedEachOther(svGroup)) {
+                            const sortedByMini = sortByMiniTable(svGroup);
+                            result = result.concat(sortedByMini);
+                            continue;
+                        }
+
+                        // Nach BV sortieren
+                        const sortedByBV = [...svGroup].sort((a, b) => {
+                            const aBv = a.balls_won / (a.balls_lost || 1);
+                            const bBv = b.balls_won / (b.balls_lost || 1);
+                            return bBv - aBv;
+                        });
+
+                        // Gruppen mit gleichem BV bilden
+                        let k = 0;
+                        let bvGroups = [];
+                        while (k < sortedByBV.length) {
+                            let l = k + 1;
+                            const kBv = sortedByBV[k].balls_won / (sortedByBV[k].balls_lost || 1);
+                            while (l < sortedByBV.length) {
+                                const lBv = sortedByBV[l].balls_won / (sortedByBV[l].balls_lost || 1);
+                                if (lBv === kBv) l++;
+                                else break;
+                            }
+                            bvGroups.push(sortedByBV.slice(k, l));
+                            k = l;
+                        }
+
+                        for (const bvGroup of bvGroups) {
+                            if (bvGroup.length === 1) {
+                                result.push(bvGroup[0]);
+                                continue;
+                            }
+
+                            // Prüfen, ob diese BV-Gruppe gegeneinander gespielt hat
+                            if (allPlayedEachOther(bvGroup)) {
+                                const sortedByMini = sortByMiniTable(bvGroup);
+                                result = result.concat(sortedByMini);
+                                continue;
+                            }
+
+                            // Nach RC sortieren (niedriger zuerst)
+                            const sortedByRC = [...bvGroup].sort((a, b) => a.rc - b.rc);
+
+                            // Gruppen mit gleichem RC bilden
+                            let m = 0;
+                            let rcGroups = [];
+                            while (m < sortedByRC.length) {
+                                let n = m + 1;
+                                const mRc = sortedByRC[m].rc;
+                                while (n < sortedByRC.length) {
+                                    if (sortedByRC[n].rc === mRc) n++;
+                                    else break;
+                                }
+                                rcGroups.push(sortedByRC.slice(m, n));
+                                m = n;
+                            }
+
+                            for (const rcGroup of rcGroups) {
+                                if (rcGroup.length === 1) {
+                                    result.push(rcGroup[0]);
+                                    continue;
+                                }
+
+                                // Prüfen, ob diese RC-Gruppe gegeneinander gespielt hat
+                                if (allPlayedEachOther(rcGroup)) {
+                                    const sortedByMini = sortByMiniTable(rcGroup);
+                                    result = result.concat(sortedByMini);
+                                } else {
+                                    // Alle Werte gleich – bleiben in der Reihenfolge
+                                    result = result.concat(rcGroup);
+                                }
+                            }
+                        }
+                    }
+                }
+                return result;
+            }
+
+            // Starte mit allen Spielern
+            const allPlayers = Object.values(stats);
+            const sorted = sortGroup(allPlayers);
+
+            // Stats synchronisieren
+            sorted.forEach(p => {
+                p.stats.matches = p.matches;
+                p.stats.wins = p.wins;
+                p.stats.sets_won = p.sets_won;
+                p.stats.sets_lost = p.sets_lost;
+                p.stats.balls_won = p.balls_won;
+                p.stats.balls_lost = p.balls_lost;
+                p.stats.tie_symbol = p.tie_symbol || '';
+            });
+
+            return sorted;
+        }
+
+        // ----- MEIN PLAN -----
+        function renderMeinPlan() {
+            const container = containers.meinplan;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const playersInBewerb = state.players.filter(p => {
+                if (!p.bewerbe) return false;
+                return p.bewerbe.split(',').some(b => b.trim() === bewerbName);
+            });
+
+            if (playersInBewerb.length === 0) {
+                container.innerHTML =
+                    `<div style="text-align:center; padding:30px 0; color:var(--text-muted);">Keine Spieler in diesem Bewerb.</div>`;
+                return;
+            }
+
+            let html = `
+                <div style="margin-bottom:16px;">
+                    <select id="meinPlanPlayer" style="width:100%; max-width:350px; padding:8px 12px; background:var(--bg-panel); border:1px solid var(--border); border-radius:8px; color:var(--text-main); font-family:inherit; font-size:13px; outline:none;">
+                        <option value="">- Bitte wählen -</option>
+            `;
+
+            playersInBewerb.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
+                const selected = state.favoritePlayer && p.id === state.favoritePlayer.id ? 'selected' : '';
+                html += `<option value="${p.id}" ${selected}>${esc(p.name)}</option>`;
+            });
+
+            html += `</select></div>`;
+
+            const favId = state.favoritePlayer ? state.favoritePlayer.id : null;
+
+            if (favId) {
+                const player = state.players.find(p => p.id === favId);
+                const matchesInBewerb = state.matches.filter(m => m.bewerb === bewerbName);
+                const ranking = calculateRanking(playersInBewerb, matchesInBewerb);
+                const playerRank = ranking.find(p => p.id === favId);
+
+                if (player && playerRank) {
+                    const rank = ranking.indexOf(playerRank) + 1;
+                    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+                    const totalMatches = playerRank.stats.matches || 0;
+                    const wins = playerRank.stats.wins || 0;
+                    const losses = totalMatches - wins;
+
+                    let pot = '-',
+                        seed = '-';
+                    try {
+                        if (player.pot_data) {
+                            const potData = JSON.parse(player.pot_data);
+                            pot = potData[bewerbName] || '-';
+                        }
+                        if (player.seed_data) {
+                            const seedData = JSON.parse(player.seed_data);
+                            seed = seedData[bewerbName] || '-';
+                        }
+                    } catch (e) { }
+
+                    html += `
+                        <div class="player-info-row">
+                            <span class="rank-info">Aktueller Rang: <strong>#${rank}</strong></span>
+                            <span class="pot-info">Topf ${pot} (Setzung ${seed})</span>
+                        </div>
+                        <div class="player-stats">
+                            <div class="stat-item"><div class="label">Rang</div><div class="value ${rankClass}">#${rank}</div></div>
+                            <div class="stat-item"><div class="label">Spiele</div><div class="value">${totalMatches}</div></div>
+                            <div class="stat-item"><div class="label">Siege</div><div class="value win">${wins}</div></div>
+                            <div class="stat-item"><div class="label">Niederlagen</div><div class="value loss">${losses}</div></div>
+                            <div class="stat-item"><div class="label">SV</div><div class="value">${playerRank.stats.sets_won || 0}:${playerRank.stats.sets_lost || 0}</div></div>
+                            <div class="stat-item"><div class="label">BV</div><div class="value">${playerRank.stats.balls_won || 0}:${playerRank.stats.balls_lost || 0}</div></div>
+                            <div class="stat-item"><div class="label">RC</div><div class="value">${player.rc_points || 0}</div></div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (favId) {
+                const playerMatches = state.matches.filter(m =>
+                    m.bewerb === bewerbName &&
+                    (m.player1_id === favId || m.player2_id === favId)
+                );
+
+                if (playerMatches.length === 0) {
+                    html +=
+                        `<div style="text-align:center; padding:16px 0; color:var(--text-muted);">Noch keine Matches für diesen Spieler.</div>`;
+                } else {
+                    html += `<div class="match-list">`;
+                    playerMatches.forEach(m => {
+                        const isP1 = m.player1_id === favId;
+                        const oppName = isP1 ? m.player2_name : m.player1_name;
+                        const statusClass = m.is_played ? 'played' : (m.table_number ? 'running' : (m
+                            .queue_pos ? 'queue' : 'open'));
+                        const statusText = m.is_played ? '✅ Beendet' : (m.table_number ? '🟠 Läuft' : (m
+                            .queue_pos ? `⏳ #${m.queue_pos}` : '⚪ Offen'));
+                        const result = m.is_played ? (isP1 ? m.sets_p1 : m.sets_p2) : '-';
+                        const resultOpp = m.is_played ? (isP1 ? m.sets_p2 : m.sets_p1) : '-';
+                        const isWin = m.is_played && result > resultOpp;
+                        const myName = isP1 ? m.player1_name : m.player2_name;
+
+                        let setDetailsHtml = '';
+                        if (m.is_played && m.set_details && m.set_details !== '-') {
+                            const sets = m.set_details.split(',');
+                            const mySets = isP1 ? sets : sets.map(s => {
+                                const parts = s.trim().split(':');
+                                return parts.length === 2 ? `${parts[1]}:${parts[0]}` : s;
+                            });
+                            setDetailsHtml = `<div class="match-details">${esc(mySets.join(', '))}</div>`;
+                        }
+
+                        html += `
+                            <div class="match-card">
+                                <div class="match-info">
+                                    <div class="round">${esc(m.round_name)}</div>
+                                    <div class="players">
+                                        <span>${esc(myName)}</span>
+                                        <span class="vs">vs</span>
+                                        <span>${esc(oppName)}</span>
+                                    </div>
+                                </div>
+                                <div class="match-right">
+                                    <div class="match-status ${statusClass}">${statusText}</div>
+                                    ${m.is_played ? `
+                                        <div class="match-result ${isWin ? 'win' : 'loss'}">${result}:${resultOpp}</div>
+                                        ${setDetailsHtml}
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                }
+            } else {
+                html +=
+                    `<div style="text-align:center; padding:16px 0; color:var(--text-muted);">Wähle einen Spieler aus, um seinen Spielplan zu sehen.</div>`;
+            }
+
+            container.innerHTML = html;
+
+            const select = document.getElementById('meinPlanPlayer');
+            if (select) {
+                select.addEventListener('change', (e) => {
+                    const val = e.target.value;
+                    if (val) {
+                        const player = state.players.find(p => p.id === val);
+                        if (player) {
+                            state.favoritePlayer = player;
+                            favInput.value = player.name;
+                            const url = new URL(window.location);
+                            url.searchParams.set('fav', val);
+                            window.history.replaceState({}, '', url);
+                            renderMeinPlan();
+                            renderTable();
+                        }
+                    } else {
+                        state.favoritePlayer = null;
+                        favInput.value = '';
+                        const url = new URL(window.location);
+                        url.searchParams.delete('fav');
+                        window.history.replaceState({}, '', url);
+                        renderMeinPlan();
+                        renderTable();
+                    }
+                });
+            }
+        }
+
+        // ----- LIVE -----
+        function renderLive() {
+            const container = containers.live;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const activeMatches = state.matches.filter(m =>
+                m.bewerb === bewerbName &&
+                !m.is_played &&
+                m.table_number !== null &&
+                m.table_number !== undefined
+            );
+
+            const maxTable = 5;
+
+            let html = `<div class="table-grid">`;
+            for (let t = 1; t <= maxTable; t++) {
+                const match = activeMatches.find(m => m.table_number === t);
+                const isFav = match && state.favoritePlayer &&
+                    (match.player1_id === state.favoritePlayer.id || match.player2_id === state.favoritePlayer.id);
+
+                if (match) {
+                    const duration = match.start_time ? formatDuration(match.start_time) : '';
+                    html += `
+                        <div class="table-card running">
+                            <div class="table-nr">🏓 Tisch ${t}</div>
+                            <div class="table-players">
+                                <span>${esc(match.player1_name)}</span>
+                                <span class="vs">vs</span>
+                                <span>${esc(match.player2_name)}</span>
+                                ${isFav ? '<span class="fav-badge">⭐</span>' : ''}
+                            </div>
+                            <div class="table-time">
+                                ${duration ? `<span class="running-time">⏱ ${duration}</span>` : '🔄 Startet gleich'}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html += `
+                        <div class="table-card available">
+                            <div class="table-nr">🏓 Tisch ${t}</div>
+                            <div class="table-empty">🟢 Frei</div>
+                        </div>
+                    `;
+                }
+            }
+            html += `</div>`;
+
+            // Match Historie (letzte 5 beendete Spiele)
+            const recentMatches = state.matches
+                .filter(m => m.bewerb === bewerbName && m.is_played)
+                .sort((a, b) => new Date(b.end_time) - new Date(a.end_time))
+                .slice(0, 5);
+
+            if (recentMatches.length > 0) {
+                html += `<div class="history-list"><h4>⏱️ Zuletzt beendet</h4>`;
+                recentMatches.forEach(m => {
+                    const details = m.set_details && m.set_details !== '-' ? `(${esc(m.set_details)})` : '';
+                    html += `
+                        <div class="history-item">
+                            <span class="h-players">${esc(m.player1_name)} vs ${esc(m.player2_name)}</span>
+                            <span class="h-result">${m.sets_p1 || 0}:${m.sets_p2 || 0} ${details}</span>
+                            <span class="h-round">${esc(m.round_name)}</span>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+
+            container.innerHTML = html;
+
+            if (activeMatches.length > 0 && !window._liveTimer) {
+                window._liveTimer = setInterval(() => renderLive(), 1000);
+            } else if (activeMatches.length === 0 && window._liveTimer) {
+                clearInterval(window._liveTimer);
+                window._liveTimer = null;
+            }
+        }
+
+        // ----- WARTESCHLANGE -----
+        function renderQueue() {
+            const container = containers.queue;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const queuedMatches = state.matches.filter(m =>
+                m.bewerb === bewerbName &&
+                !m.is_played &&
+                m.queue_pos !== null &&
+                m.queue_pos !== undefined
+            ).sort((a, b) => (a.queue_pos || 999) - (b.queue_pos || 999));
+
+            if (queuedMatches.length === 0) {
+                container.innerHTML =
+                    `<div style="text-align:center; padding:30px 0; color:var(--text-muted);">Die Warteschlange ist aktuell leer.</div>`;
+                return;
+            }
+
+            let html = `<ul class="queue-list">`;
+            queuedMatches.forEach(m => {
+                const isFav = state.favoritePlayer &&
+                    (m.player1_id === state.favoritePlayer.id || m.player2_id === state.favoritePlayer.id);
+                html += `
+                    <li>
+                        <span class="queue-pos">#${m.queue_pos}</span>
+                        <span>
+                            ${esc(m.player1_name)} vs ${esc(m.player2_name)}
+                            ${isFav ? ' <span class="queue-fav">⭐ Favorit</span>' : ''}
+                        </span>
+                        <span style="font-size:11px; color:var(--text-muted);">${esc(m.round_name)}</span>
+                    </li>
+                `;
+            });
+            html += `</ul>`;
+
+            container.innerHTML = html;
+        }
+
+        // ----- TÖPFE -----
+        function renderPots() {
+            const container = containers.pots;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const playersInBewerb = state.players.filter(p => {
+                if (!p.bewerbe) return false;
+                return p.bewerbe.split(',').some(b => b.trim() === bewerbName);
+            });
+
+            if (playersInBewerb.length < 8) {
+                container.innerHTML =
+                    `<div style="text-align:center; padding:30px 0; color:var(--text-muted);">Für Topf-Einteilung werden mindestens 8 Spieler benötigt. Aktuell: ${playersInBewerb.length}</div>`;
+                return;
+            }
+
+            const sorted = [...playersInBewerb].sort((a, b) => (b.rc_points || 0) - (a.rc_points || 0));
+            const count = sorted.length;
+            const potSize = Math.floor(count / 4);
+
+            const pots = { 1: [], 2: [], 3: [], 4: [] };
+            sorted.forEach((p, idx) => {
+                const seed = idx + 1;
+                let potNum;
+                if (seed <= potSize) potNum = 1;
+                else if (seed <= 2 * potSize) potNum = 2;
+                else if (seed <= 3 * potSize) potNum = 3;
+                else potNum = 4;
+                pots[potNum].push({ ...p, seed });
+            });
+
+            let html = `<div class="pot-grid">`;
+            for (let i = 1; i <= 4; i++) {
+                const pot = pots[i];
+                const startSeed = (i - 1) * potSize + 1;
+                const endSeed = i < 4 ? i * potSize : count;
+
+                html += `
+                    <div class="pot-card">
+                        <div class="pot-title">
+                            Topf ${i}
+                            <span class="seed-range">(Setzung ${startSeed}–${endSeed})</span>
+                        </div>
+                `;
+
+                pot.forEach(p => {
+                    const isFav = state.favoritePlayer && p.id === state.favoritePlayer.id;
+                    html += `
+                        <div class="pot-player">
+                            <span class="seed">#${p.seed}</span>
+                            <span class="${isFav ? 'fav' : ''}">${isFav ? '⭐ ' : ''}${esc(p.name)}</span>
+                            <span style="color:var(--text-muted); font-size:11px;">${esc(p.rc_points || '?')} RC</span>
+                        </div>
+                    `;
+                });
+
+                html += `</div>`;
+            }
+            html += `</div>`;
+
+            container.innerHTML = html;
+        }
+
+        // ----- STATS -----
+        function renderStats() {
+            const container = containers.stats;
+            if (!container) return;
+
+            const bewerbName = state.selectedBewerb;
+            if (!bewerbName) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Bitte wähle einen Bewerb aus.
+                    </div>
+                `;
+                return;
+            }
+
+            const playersInBewerb = state.players.filter(p => {
+                if (!p.bewerbe) return false;
+                return p.bewerbe.split(',').some(b => b.trim() === bewerbName);
+            });
+
+            const matchesInBewerb = state.matches.filter(m => m.bewerb === bewerbName);
+            const playedMatches = matchesInBewerb.filter(m => m.is_played);
+            const ranking = calculateRanking(playersInBewerb, matchesInBewerb);
+
+            if (playedMatches.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align:center; padding:30px 0; color:var(--text-muted);">
+                        Noch keine beendeten Spiele für Statistiken.
+                    </div>
+                `;
+                return;
+            }
+
+            // --- STATS BERECHNEN ---
+            let totalSets = 0,
+                totalBalls = 0;
+            let count30 = 0,
+                count31 = 0,
+                count32 = 0;
+            let countReverseSweeps = 0,
+                countDonut = 0;
+            let allDurations = [];
+            let playerTimes = {};
+            let playerMatchesCount = {};
+            let upsetList = [];
+            let playerWins = {};
+            let playerDonuts = {};
+            let playerSweeps = {};
+            let playerFiveSets = {};
+            let setScores = {};
+
+            playedMatches.forEach(m => {
+                const s1 = m.sets_p1 || 0;
+                const s2 = m.sets_p2 || 0;
+                totalSets += s1 + s2;
+                totalBalls += (m.points_p1 || 0) + (m.points_p2 || 0);
+
+                if (s1 + s2 === 3) count30++;
+                else if (s1 + s2 === 4) count31++;
+                else if (s1 + s2 >= 5) count32++;
+
+                if ((s1 === 3 && s2 === 2) || (s2 === 3 && s1 === 2)) {
+                    if (m.set_details && m.set_details !== '-') {
+                        const sets = m.set_details.split(',');
+                        if (sets.length >= 5) {
+                            const p1Sets = sets.map(s => parseInt(s.split(':')[0]) > parseInt(s.split(':')[1]) ? 1 :
+                                0);
+                            const p1FirstTwo = p1Sets[0] + p1Sets[1];
+                            if (p1FirstTwo === 0 && s1 === 3) countReverseSweeps++;
+                            else if (p1FirstTwo === 2 && s2 === 3) countReverseSweeps++;
+                        }
+                    }
+                }
+
+                if (m.set_details && m.set_details !== '-') {
+                    const sets = m.set_details.split(',');
+                    sets.forEach(s => {
+                        const trimmed = s.trim();
+                        if (trimmed === '11:0' || trimmed === '0:11') {
+                            countDonut++;
+                            const winnerId = trimmed === '11:0' ? m.player1_id : m.player2_id;
+                            playerDonuts[winnerId] = (playerDonuts[winnerId] || 0) + 1;
+                        }
+                        setScores[trimmed] = (setScores[trimmed] || 0) + 1;
+                    });
+                }
+
+                const durSec = parseDurationToSeconds(m.duration_str);
+                if (durSec > 0) {
+                    allDurations.push({ sec: durSec, p1: m.player1_name, p2: m.player2_name, score: `${s1}:${s2}` });
+                    playerTimes[m.player1_id] = (playerTimes[m.player1_id] || 0) + durSec;
+                    playerTimes[m.player2_id] = (playerTimes[m.player2_id] || 0) + durSec;
+                    playerMatchesCount[m.player1_id] = (playerMatchesCount[m.player1_id] || 0) + 1;
+                    playerMatchesCount[m.player2_id] = (playerMatchesCount[m.player2_id] || 0) + 1;
+                }
+
+                if (s1 > s2) {
+                    playerWins[m.player1_id] = (playerWins[m.player1_id] || 0) + 1;
+                } else if (s2 > s1) {
+                    playerWins[m.player2_id] = (playerWins[m.player2_id] || 0) + 1;
+                }
+
+                if (s1 === 3 && s2 === 0) {
+                    playerSweeps[m.player1_id] = (playerSweeps[m.player1_id] || 0) + 1;
+                } else if (s2 === 3 && s1 === 0) {
+                    playerSweeps[m.player2_id] = (playerSweeps[m.player2_id] || 0) + 1;
+                }
+
+                if (s1 + s2 >= 5) {
+                    playerFiveSets[m.player1_id] = (playerFiveSets[m.player1_id] || 0) + 1;
+                    playerFiveSets[m.player2_id] = (playerFiveSets[m.player2_id] || 0) + 1;
+                }
+
+                const p1 = state.players.find(p => p.id === m.player1_id);
+                const p2 = state.players.find(p => p.id === m.player2_id);
+                if (p1 && p2 && p1.rc_points > 0 && p2.rc_points > 0) {
+                    if (s1 > s2 && p1.rc_points < p2.rc_points) {
+                        upsetList.push({
+                            winner: p1.name, loser: p2.name, wRc: p1.rc_points, lRc: p2.rc_points,
+                            diff: p2.rc_points - p1.rc_points, score: `${s1}:${s2}`
+                        });
+                    } else if (s2 > s1 && p2.rc_points < p1.rc_points) {
+                        upsetList.push({
+                            winner: p2.name, loser: p1.name, wRc: p2.rc_points, lRc: p1.rc_points,
+                            diff: p1.rc_points - p2.rc_points, score: `${s2}:${s1}`
+                        });
+                    }
+                }
+            });
+
+            const avgDuration = allDurations.length > 0 ? allDurations.reduce((sum, d) => sum + d.sec, 0) / allDurations
+                .length : 0;
+
+            const sortedDurations = [...allDurations].sort((a, b) => b.sec - a.sec);
+            const longest5 = sortedDurations.slice(0, 5);
+            const shortest5 = sortedDurations.slice(-5).reverse();
+
+            const playerAvgTimes = Object.entries(playerTimes).map(([id, total]) => {
+                const p = state.players.find(p => String(p.id) === String(id));
+                const matches = playerMatchesCount[id] || 0;
+                return {
+                    name: p ? p.name : 'Unbekannt',
+                    avg: matches > 0 ? total / matches : 0,
+                    matches: matches
+                };
+            }).filter(p => p.avg > 0 && p.matches > 0);
+
+            const fastest = [...playerAvgTimes].sort((a, b) => a.avg - b.avg).slice(0, 5);
+            const slowest = [...playerAvgTimes].sort((a, b) => b.avg - a.avg).slice(0, 5);
+
+            const topWins = Object.entries(playerWins)
+                .map(([id, wins]) => {
+                    const p = state.players.find(p => String(p.id) === String(id));
+                    return { name: p ? p.name : 'Unbekannt', wins };
+                })
+                .sort((a, b) => b.wins - a.wins)
+                .slice(0, 5);
+
+            const topDonuts = Object.entries(playerDonuts)
+                .map(([id, count]) => {
+                    const p = state.players.find(p => String(p.id) === String(id));
+                    return { name: p ? p.name : 'Unbekannt', count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            const topSweeps = Object.entries(playerSweeps)
+                .map(([id, count]) => {
+                    const p = state.players.find(p => String(p.id) === String(id));
+                    return { name: p ? p.name : 'Unbekannt', count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            const topFiveSets = Object.entries(playerFiveSets)
+                .map(([id, count]) => {
+                    const p = state.players.find(p => String(p.id) === String(id));
+                    return { name: p ? p.name : 'Unbekannt', count };
+                })
+                .sort((a, b) => b.count - a.count)
+                .slice(0, 5);
+
+            const topSetScores = Object.entries(setScores)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5);
+
+            const biggestUpset = upsetList.length > 0 ? upsetList.reduce((a, b) => a.diff > b.diff ? a : b) : null;
+
+            let html = `
+                <div class="stats-grid">
+                    <div class="stat-card"><div class="stat-label">Beendete Spiele</div><div class="stat-value">${playedMatches.length}</div></div>
+                    <div class="stat-card"><div class="stat-label">Gespielte Sätze</div><div class="stat-value">${totalSets}</div></div>
+                    <div class="stat-card"><div class="stat-label">Gespielte Bälle</div><div class="stat-value">${totalBalls}</div></div>
+                    <div class="stat-card"><div class="stat-label">Ø Spieldauer</div><div class="stat-value">${formatDurationSeconds(avgDuration)}</div></div>
+                    <div class="stat-card"><div class="stat-label">3:0 Siege</div><div class="stat-value warning">${count30}</div></div>
+                    <div class="stat-card"><div class="stat-label">3:1 Siege</div><div class="stat-value">${count31}</div></div>
+                    <div class="stat-card"><div class="stat-label">3:2 Krimis</div><div class="stat-value warning">${count32}</div></div>
+                    <div class="stat-card"><div class="stat-label">2:0 auf 2:3</div><div class="stat-value success">${countReverseSweeps}</div></div>
+                    <div class="stat-card"><div class="stat-label">11:0 Sätze</div><div class="stat-value error">${countDonut}</div></div>
+                    <div class="stat-card"><div class="stat-label">Teilnehmer</div><div class="stat-value">${playersInBewerb.length}</div></div>
+                </div>
+            `;
+
+            if (biggestUpset) {
+                html += `
+                    <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:14px; text-align:center;">
+                        <div style="font-size:10px; text-transform:uppercase; color:var(--text-muted); letter-spacing:0.06em;">😱 Größtes Upset</div>
+                        <div style="font-size:15px; font-weight:600; margin-top:4px;">
+                            ${esc(biggestUpset.winner)} (${biggestUpset.wRc} RC) schlägt ${esc(biggestUpset.loser)} (${biggestUpset.lRc} RC) mit ${biggestUpset.score}
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:400;"> (Differenz ${biggestUpset.diff} RC)</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `<div class="stats-2col">`;
+
+            html += `<div class="stats-box"><h4>🐢 Längste Matches</h4><ul>`;
+            longest5.forEach((d, i) => {
+                html +=
+                    `<li><span>${i + 1}. ${esc(d.p1)} vs ${esc(d.p2)}</span><span class="highlight">${formatDurationSeconds(d.sec)}</span></li>`;
+            });
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>⚡ Kürzeste Matches</h4><ul>`;
+            shortest5.forEach((d, i) => {
+                html +=
+                    `<li><span>${i + 1}. ${esc(d.p1)} vs ${esc(d.p2)}</span><span class="highlight">${formatDurationSeconds(d.sec)}</span></li>`;
+            });
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>🏃 Schnellste Spieler (Ø pro Match)</h4><ul>`;
+            if (fastest.length > 0) {
+                fastest.forEach((p, i) => {
+                    html +=
+                        `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${formatDurationSeconds(p.avg)}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Noch keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>🐌 Langsamste Spieler (Ø pro Match)</h4><ul>`;
+            if (slowest.length > 0) {
+                slowest.forEach((p, i) => {
+                    html +=
+                        `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${formatDurationSeconds(p.avg)}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Noch keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `</div>`;
+
+            html += `<div class="stats-2col" style="margin-top:14px;">`;
+
+            html += `<div class="stats-box"><h4>🏆 Meiste Siege</h4><ul>`;
+            if (topWins.length > 0) {
+                topWins.forEach((p, i) => {
+                    html += `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${p.wins}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>🍩 Meiste 11:0 Sätze</h4><ul>`;
+            if (topDonuts.length > 0) {
+                topDonuts.forEach((p, i) => {
+                    html +=
+                        `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${p.count}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Keine 11:0 Sätze</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>💪 Meiste 3:0 Siege</h4><ul>`;
+            if (topSweeps.length > 0) {
+                topSweeps.forEach((p, i) => {
+                    html +=
+                        `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${p.count}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>🎯 Meiste 5-Satz-Krimis</h4><ul>`;
+            if (topFiveSets.length > 0) {
+                topFiveSets.forEach((p, i) => {
+                    html +=
+                        `<li><span>${i + 1}. ${esc(p.name)}</span><span class="highlight">${p.count}</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `<div class="stats-box"><h4>🎯 Häufigste Satz-Ergebnisse</h4><ul>`;
+            if (topSetScores.length > 0) {
+                topSetScores.forEach(([score, count]) => {
+                    html += `<li><span>${esc(score)}</span><span class="highlight">${count}x</span></li>`;
+                });
+            } else {
+                html += `<li style="color:var(--text-muted);">Keine Daten</li>`;
+            }
+            html += `</ul></div>`;
+
+            html += `</div>`;
+
+            container.innerHTML = html;
+        }
+
+        // ----- SYSTEM-ERKLÄRUNG -----
+        function renderSystem() {
+            const container = containers.system;
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="system-box">
+                    <h3>🏓 Das Turniersystem</h3>
+                    <p>Das Turnier wird nach dem <strong>UEFA Champions League System</strong> (einem adaptierten Schweizer System) ausgetragen.</p>
+                    <p>Das Teilnehmerfeld wird nach RC-Punkten in <strong>4 gleich große Töpfe</strong> unterteilt. Jeder Spieler absolviert im Laufe des Turniers exakt <strong>4 Spiele</strong>. Dabei trifft man in jeder Runde auf genau einen Gegner aus jedem Topf (Topf 1 bis Topf 4), wodurch die Spielstärke der Gegner für alle Teilnehmer optimal ausbalanciert ist.</p>
+
+                    <hr style="border:0; border-top:1px solid var(--border); margin:16px 0;">
+
+                    <h3 style="font-size:17px;">📋 Regelwerk zur Reihung (Tabelle)</h3>
+                    <p>Bei Punktgleichheit (gleiche Anzahl an Siegen) wird die Reihung wie folgt ermittelt:</p>
+                    <ol>
+                        <li><span class="highlight">Siege (Punkte):</span> Die Anzahl der gewonnenen Begegnungen.</li>
+                        <li>
+                            <span class="highlight">Minitabelle (Direktes Duell):</span> <strong>Nur wenn alle Spieler einer aktuellen Vergleichsgruppe (z.B. gleiche Siege, gleiches Satzverhältnis etc.) tatsächlich gegeneinander gespielt haben</strong>, wird eine interne Minitabelle (Vergleich der Partien untereinander) herangezogen. Der Sieger dieser Minitabelle wird vorgereiht (in der Tabelle mit <strong>⚔️</strong> markiert). Die Minitabelle wird ihrerseits mit denselben Kriterien (Mini-Siege, Mini-SV, Mini-BV, RC) aufgelöst.
+                        </li>
+                        <li>
+                            <span class="highlight">Satzverhältnis (SV):</span> Das Verhältnis aus gewonnenen zu verlorenen Sätzen.
+                        </li>
+                        <li>
+                            <span class="highlight">Ballverhältnis (BV):</span> Das Verhältnis aus gewonnenen zu verlorenen Punkten.
+                        </li>
+                        <li>
+                            <span class="highlight">RC-Rating:</span> Der Spieler mit dem niedrigeren RC-Rating wird bei weiterhin gleichen Werten vorgereiht.
+                        </li>
+                    </ol>
+                    <p class="note">
+                        💡 <strong>Hinweis:</strong> Das direkte Duell wird immer dann als Tie-Breaker herangezogen, wenn <strong>alle</strong> Spieler einer aktuellen Vergleichsgruppe tatsächlich gegeneinander gespielt haben – unabhängig von der Gruppengröße. Dies wird auf jeder Stufe (Siege, SV, BV, RC) überprüft.
+                    </p>
+                </div>
+            `;
+        }
+
+        // ----- BEWERBE DROPDOWN -----
+        function populateBewerbSelect() {
+            bewerbSelect.innerHTML = '';
+            if (state.bewerbe.length === 0) {
+                bewerbSelect.innerHTML = '<option value="">Keine Bewerbe</option>';
+                return;
+            }
+
+            state.bewerbe.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b.name;
+                opt.textContent = b.name;
+                if (b.name === state.selectedBewerb) {
+                    opt.selected = true;
+                }
+                bewerbSelect.appendChild(opt);
+            });
+        }
+
+        // ============================================================
+        // STATUS
+        // ============================================================
+        function setStatus(type, text) {
+            statusDot.className = 'dot';
+            if (type === 'online') statusDot.classList.add('online');
+            else if (type === 'offline') statusDot.classList.add('offline');
+            else if (type === 'loading') statusDot.classList.add('loading');
+            statusText.textContent = text;
+        }
+
+        // ============================================================
+        // TABS
+        // ============================================================
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                const tabId = btn.dataset.tab;
+                const content = document.getElementById(`tab-${tabId}`);
+                if (content) content.classList.add('active');
+                document.querySelector('.tabs-wrapper').scrollLeft = 0;
+            });
+        });
+
+        // ============================================================
+        // EVENTS
+        // ============================================================
+
+        bewerbSelect.addEventListener('change', () => {
+            state.selectedBewerb = bewerbSelect.value;
+            if (state.selectedBewerb) {
+                localStorage.setItem('last_bewerb', state.selectedBewerb);
+            }
+            renderAll();
+        });
+
+        favInput.addEventListener('change', () => {
+            const query = favInput.value.toLowerCase().trim();
+            if (!query) {
+                state.favoritePlayer = null;
+                const url = new URL(window.location);
+                url.searchParams.delete('fav');
+                window.history.replaceState({}, '', url);
+                renderAll();
+                return;
+            }
+
+            const found = state.players.find(p => p.name.toLowerCase().includes(query));
+            if (found) {
+                state.favoritePlayer = found;
+                const url = new URL(window.location);
+                url.searchParams.set('fav', found.id);
+                window.history.replaceState({}, '', url);
+                favInput.value = found.name;
+                renderAll();
+            } else {
+                showToast('Spieler nicht gefunden.', true);
+            }
+        });
+
+        refreshBtn.addEventListener('click', async () => {
+            refreshBtn.disabled = true;
+            refreshBtn.textContent = '🔄 Lade...';
+            await loadData();
+            refreshBtn.textContent = '🔄 Aktualisieren';
+            refreshBtn.disabled = false;
+            showToast('Daten aktualisiert!');
+        });
+
+        document.addEventListener('input', (e) => {
+            if (e.target.id === 'tableSearch') {
+                renderTable();
+            }
+        });
+
+        // ============================================================
+        // INIT
+        // ============================================================
+        loadData();
+
+        setInterval(() => {
+            if (!state.loading) loadData();
+        }, 30000);
+
+        console.log('🏓 NFS Trophy Live-Ticker geladen!');
+        console.log('📊 Version: 12.0 (Finale Ranking-Logik)');
+    </script>
+
+</body>
+
+</html>
