@@ -140,6 +140,39 @@ export async function saveSetup() {
     try {
         const updatedBewerbeList = getBewerbeFromDOM();
 
+        // --- NEU: Zeitplan & Sponsoren Zeilen auslesen ---
+        const scheduleData = [];
+        document.querySelectorAll('.schedule-row').forEach(row => {
+            const time = row.querySelector('.sched-time').value.trim();
+            const text = row.querySelector('.sched-text').value.trim();
+            if (time || text) scheduleData.push({ time, text });
+        });
+
+        const sponsorsData = [];
+        for (const row of document.querySelectorAll('.sponsor-row')) {
+            const link = row.querySelector('.spon-link').value.trim();
+            const fileInput = row.querySelector('.spon-file');
+            let logoPath = row.querySelector('.spon-logo-path').value.trim();
+
+            // Wenn neue Datei gewählt → hochladen
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
+                const { data: up, error: upErr } = await supabase.storage
+                    .from('sponsoren')
+                    .upload(`${Date.now()}_${safeName}`, file);
+                if (upErr) {
+                    console.error('Sponsor-Upload fehlgeschlagen:', upErr);
+                    showToast('Sponsor-Bild konnte nicht hochgeladen werden: ' + upErr.message, true);
+                } else if (up) {
+                    logoPath = up.path;
+                }
+            }
+
+            if (logoPath) sponsorsData.push({ logoPath, link });
+        }
+
+        // infoObj um unsere neuen Felder ergänzen
         const infoObj = {
             bewerbeHeadline: document.getElementById('setupBewerbeHeadline')?.value.trim() || '',
             bewerbeText: document.getElementById('setupBewerbeText')?.value.trim() || '',
@@ -150,16 +183,17 @@ export async function saveSetup() {
             fact3Title: document.getElementById('setupFact3Title')?.value.trim() || '',
             fact3Text: document.getElementById('setupFact3Text')?.value.trim() || '',
             fact4Title: document.getElementById('setupFact4Title')?.value.trim() || '',
-            fact4Text: document.getElementById('setupFact4Text')?.value.trim() || ''
+            fact4Text: document.getElementById('setupFact4Text')?.value.trim() || '',
+
+            // --- HIER DIE NEUEN FELDER ---
+            showSchedule: document.getElementById('setupShowSchedule')?.checked || false,
+            schedule: scheduleData,
+            showSponsors: document.getElementById('setupShowSponsors')?.checked || false,
+            sponsors: sponsorsData
         };
 
-        // ============================================
-        // TTOP WERTE KORREKT SPEICHERN
-        // ============================================
         const showTtop = document.getElementById('setupShowTtop')?.checked || false;
         const ttopUrl = document.getElementById('setupTtopUrl')?.value.trim() || '';
-
-        console.log('💾 Speichere TTOP:', { showTtop, ttopUrl });
 
         const updateData = {
             is_open: document.getElementById('setupIsOpen')?.checked || false,
@@ -171,10 +205,7 @@ export async function saveSetup() {
             fee_normal: parseInt(document.getElementById('setupFeeNormal')?.value, 10) || DEFAULT_FEE_NORMAL,
             fee_nfs: parseInt(document.getElementById('setupFeeNfs')?.value, 10) || DEFAULT_FEE_NFS,
             bewerbe: JSON.stringify(updatedBewerbeList),
-            turnier_info: infoObj,
-            // ============================================
-            // DAS FEHLTE!
-            // ============================================
+            turnier_info: JSON.stringify(infoObj),
             show_ttop_button: showTtop,
             ttop_url: ttopUrl
         };
@@ -189,16 +220,11 @@ export async function saveSetup() {
             }
         }
 
-        const { error } = await supabase
-            .from('tournaments')
-            .update(updateData)
-            .eq('id', activeTournamentId);
-
+        const { error } = await supabase.from('tournaments').update(updateData).eq('id', activeTournamentId);
         if (error) throw error;
 
         setupBewerbeList = updatedBewerbeList;
         generateQRCodes(updateData.oettv_url);
-
         if (pdfInput) pdfInput.value = '';
 
         btn.textContent = "Einstellungen gespeichert!";
@@ -265,24 +291,85 @@ export async function deleteTournament(allTournaments) {
 }
 
 export function initSetupEvents() {
-    document.getElementById('addBewerbBtn')?.addEventListener('click', () => {
-        setupBewerbeList.push({ name: `Neuer Bewerb`, time: "Sa 09:00", min_rc: 0, prize: "", capacity: 20, duration: 3 });
-        renderSetupBewerbe();
-    });
+    // Event-Delegation: einmalig binden, funktioniert auch bei neu gerenderten Elementen
+    if (!window.__setupEventsBound) {
+        window.__setupEventsBound = true;
 
-    document.getElementById('saveSetupBtn')?.addEventListener('click', saveSetup);
-    document.getElementById('createNewTournamentBtn')?.addEventListener('click', createNewTournament);
-    document.getElementById('deleteTournamentBtn')?.addEventListener('click', () => deleteTournament(allTournaments));
+        document.addEventListener('click', (e) => {
+            if (e.target.closest('#addScheduleBtn')) {
+                e.preventDefault();
+                renderScheduleRow();
+            }
+            if (e.target.closest('#addSponsorBtn')) {
+                e.preventDefault();
+                renderSponsorRow();
+            }
+            if (e.target.closest('#addBewerbBtn')) {
+                e.preventDefault();
+                setupBewerbeList.push({
+                    name: `Neuer Bewerb`,
+                    time: "Sa 09:00",
+                    min_rc: 0,
+                    prize: "",
+                    capacity: 20,
+                    duration: 3
+                });
+                renderSetupBewerbe();
+            }
+            if (e.target.closest('#saveSetupBtn')) {
+                e.preventDefault();
+                saveSetup();
+            }
+            if (e.target.closest('#createNewTournamentBtn')) {
+                e.preventDefault();
+                createNewTournament();
+            }
+            if (e.target.closest('#deleteTournamentBtn')) {
+                e.preventDefault();
+                deleteTournament(allTournaments);
+            }
+            if (e.target.closest('#downloadQrAnmeldungBtn')) {
+                e.preventDefault();
+                downloadQR('qrAnmeldung', 'QR_Anmeldung.png');
+            }
+            if (e.target.closest('#downloadQrErgebnisseBtn')) {
+                e.preventDefault();
+                downloadQR('qrErgebnisse', 'QR_Ergebnisse.png');
+            }
+        });
+    }
+}
 
-    document.getElementById('downloadQrAnmeldungBtn')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        downloadQR('qrAnmeldung', 'QR_Anmeldung.png');
-    });
+export function renderScheduleRow(time = '', text = '') {
+    const container = document.getElementById('scheduleContainer');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'frow schedule-row';
+    div.innerHTML = `
+        <div style="flex:1;"><input type="text" class="input-field sched-time" placeholder="z.B. 08:00" value="${esc(time)}" style="width: 100%;"></div>
+        <div style="flex:3;"><input type="text" class="input-field sched-text" placeholder="z.B. Hallenöffnung" value="${esc(text)}" style="width: 100%;"></div>
+        <button class="btn-outline remove-btn" style="border-color: var(--error); color: var(--error); padding: 8px 12px; margin-left: 8px;">X</button>
+    `;
+    div.querySelector('.remove-btn').addEventListener('click', (e) => { e.preventDefault(); div.remove(); });
+    container.appendChild(div);
+}
 
-    document.getElementById('downloadQrErgebnisseBtn')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        downloadQR('qrErgebnisse', 'QR_Ergebnisse.png');
-    });
+export function renderSponsorRow(logoPath = '', link = '', logoUrl = '') {
+    const container = document.getElementById('sponsorsContainer');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'frow sponsor-row';
+    div.innerHTML = `
+        <div style="flex:2;">
+            <input type="file" class="input-field spon-file" accept="image/*" style="width:100%;">
+            <input type="hidden" class="spon-logo-path" value="${esc(logoPath)}">
+            ${logoUrl ? `<img src="${esc(logoUrl)}" style="max-height:40px;margin-top:6px;">` : ''}
+        </div>
+        <div style="flex:2;"><input type="url" class="input-field spon-link" placeholder="Website-Link (https://...)" value="${esc(link)}" style="width: 100%;"></div>
+        <button class="btn-outline remove-btn" style="border-color: var(--error); color: var(--error); padding: 8px 12px; margin-left: 8px;">X</button>
+    `;
+    div.querySelector('.remove-btn').addEventListener('click', (e) => { e.preventDefault(); div.remove(); });
+    container.appendChild(div);
 }
 
 export function getSetupBewerbeList() { return setupBewerbeList; }

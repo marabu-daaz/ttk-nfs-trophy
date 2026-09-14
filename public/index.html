@@ -28,8 +28,10 @@
                 <li><a href="#bewerbe">Bewerbe</a></li>
                 <li><a href="#anmelden">Anmelden</a></li>
                 <li><a href="#nennstand">Nennstand</a></li>
+                <li><a href="#zeitplan">Zeitplan</a></li>
                 <li><a href="#ergebnisse">Ergebnisse</a></li>
                 <li><a href="#archiv">Archiv</a></li>
+                <li><a href="#sponsoren">Sponsoren</a></li>
                 <li><a href="#kontakt">Kontakt</a></li>
             </ul>
         </div>
@@ -135,12 +137,22 @@
                         <div class="bewerb-checks" id="bewerbChecks"></div>
                     </div>
                     <div class="field"><label>Anmerkung</label><input id="notiz" /></div>
-                    <label class="check"><input type="checkbox" id="receipt" /> Ich benötige eine Zahlungsbestätigung
-                        für das
-                        Nenngeld.</label>
-                    <label class="check"><input type="checkbox" id="agb" required /> Ich akzeptiere die Turnierordnung
-                        (ÖTTV) und
-                        bin mit der Veröffentlichung von Fotos, Namen und Ergebnissen im Internet einverstanden.</label>
+                    <label class="check">
+                        <input type="checkbox" id="receipt" />
+                        <span>Ich benötige eine Zahlungsbestätigung für das Nenngeld.</span>
+                    </label>
+                    <label class="check">
+                        <input type="checkbox" id="agb" required />
+                        <span>
+                            Ich akzeptiere die <a href="#datenschutz"
+                                style="text-decoration:underline; color:inherit;">Datenschutzerklärung</a>
+                            und die Turnierordnung (ÖTTV). Ich bin mit der Weitergabe meiner Daten an den Verband sowie
+                            der
+                            Veröffentlichung von Fotos, Videos, Namen und Ergebnissen im Internet und in
+                            Social-Media-Kanälen
+                            einverstanden.
+                        </span>
+                    </label>
                     <button type="submit" class="submit" id="submitBtn">Nennung absenden</button>
 
                 </form>
@@ -167,6 +179,19 @@
                 <div class="loading" style="grid-column:1/-1;">Lade Nennstand</div>
             </div>
             <p class="stand-meta" id="standMeta"></p>
+        </div>
+    </section>
+
+    <section class="block" id="zeitplan" style="display:none;">
+        <div class="wrap">
+            <div class="sec-head" style="margin-bottom: 24px;">
+                <div class="eyebrow mono">Ablauf</div>
+                <h2 style="font-size: clamp(1.6rem, 3vw, 2.2rem);">Der <em>Zeitplan</em></h2>
+            </div>
+            <div id="timelineGrid"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 8px;">
+                <!-- Wird per JS gefüllt -->
+            </div>
         </div>
     </section>
 
@@ -240,6 +265,37 @@
         </div>
     </section>
 
+    <section class="block" id="rekorde">
+        <div class="wrap">
+            <div class="sec-head">
+                <div class="eyebrow mono">Ewige Bestenliste</div>
+                <h2>Die Rekord-<br><em>Halter</em></h2>
+                <p>Die erfolgreichsten Spieler über alle bisherigen Ausgaben der NFS Trophy.</p>
+            </div>
+
+            <div id="rekordeGrid"
+                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
+                <div class="loading" style="grid-column: 1/-1;">Berechne Bestenliste...</div>
+            </div>
+        </div>
+    </section>
+
+    <section class="block" id="sponsoren" style="display:none; padding: 60px 0; border-bottom: none;">
+        <div class="wrap">
+            <div style="text-align: center; margin-bottom: 40px;">
+                <div class="eyebrow mono" style="color: var(--green-neon); margin-bottom: 12px;">Unsere Partner</div>
+                <h2
+                    style="font-family: 'Archivo', sans-serif; font-weight: 700; font-size: clamp(1.8rem, 4vw, 2.8rem); letter-spacing: -0.02em; margin: 0;">
+                    Partner & <em style="font-style: normal; color: var(--green-soft);">Sponsoren</em>
+                </h2>
+            </div>
+            <div id="sponsorenGrid"
+                style="display: flex; gap: 48px; justify-content: center; align-items: center; flex-wrap: wrap;">
+                <!-- Wird per JS gefüllt -->
+            </div>
+        </div>
+    </section>
+
     <section class="block" id="kontakt" style="border-bottom:none;">
         <div class="wrap contact-grid">
             <div>
@@ -285,9 +341,10 @@
                 style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
                 <div class="sec-head" style="margin-bottom:0;">
                     <div class="eyebrow mono">Rechtliches</div>
-                    <h2 style="margin-bottom:0; display:flex; align-items:center; gap:12px;">
+                    <h2
+                        style="margin-bottom:0; display:flex; align-items:center; gap:12px; font-size: clamp(1.4rem, 2.5vw, 1.9rem); text-transform: none; letter-spacing: 0;">
                         <span class="toggle-icon" id="impressumIcon"
-                            style="font-size:18px; color:var(--green-neon);">▶</span>
+                            style="font-size:16px; color:var(--green-neon);">▶</span>
                         Impressum
                     </h2>
                 </div>
@@ -315,6 +372,76 @@
         </div>
     </section>
 
+    <section class="block" id="datenschutz" style="border-bottom:none;padding-top:0;">
+        <div class="wrap">
+            <div class="archive-header" id="datenschutzHeader"
+                style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
+                <div class="sec-head" style="margin-bottom:0;">
+                    <div class="eyebrow mono">Rechtliches</div>
+                    <h2
+                        style="margin-bottom:0; display:flex; align-items:center; gap:12px; font-size: clamp(1.4rem, 2.5vw, 1.9rem); text-transform: none; letter-spacing: 0;">
+                        <span class="toggle-icon" id="datenschutzIcon"
+                            style="font-size:16px; color:var(--green-neon);">▶</span>
+                        Datenschutzerklärung
+                    </h2>
+                </div>
+            </div>
+            <div class="impressum" id="datenschutzContent" style="display:none; margin-top:24px;">
+                <div class="imp-block">
+                    <div class="k mono">Verantwortlicher</div>
+                    <p>TTK Naturfreunde Stadlau<br>Erzherzog-Karl-Straße 108<br>1220 Wien<br>
+                        E-Mail: <a href="mailto:christianritter1310@gmail.com">christianritter1310@gmail.com</a></p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Erhobene Daten</div>
+                    <p>Im Zuge einer Turniernennung werden folgende personenbezogene Daten verarbeitet: Vorname,
+                        Nachname,
+                        E-Mail-Adresse, optional Telefonnummer, Verein, RC-Punkte sowie die gewählten Bewerbe. Die Daten
+                        dienen ausschließlich der Organisation und Durchführung des Turniers sowie der Kontaktaufnahme
+                        bei
+                        Rückfragen.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Speicherung & Weitergabe</div>
+                    <p>Die Daten werden auf Servern der Supabase Inc. (EU-Region) gespeichert. Zur Durchführung des
+                        Turniers und zur Ranglistenwertung werden die notwendigen Daten (Name, Verein, RC-Punkte,
+                        Geburtsjahr, Ergebnisse) an den Österreichischen Tischtennis-Verband (ÖTTV) bzw. den zuständigen
+                        Landesverband übermittelt und dort gemäß deren Statuten verarbeitet. Eine Weitergabe an sonstige
+                        Dritte erfolgt nicht. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung),
+                        lit. c DSGVO (rechtliche Verpflichtung gegenüber dem Verband) sowie lit. a DSGVO (Einwilligung)
+                        für Veröffentlichungen.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Fotos & Videos</div>
+                    <p>Während des Turniers entstehen Foto- und Videoaufnahmen. Diese können zur Berichterstattung über
+                        das Turnier veröffentlicht werden – auf dieser Website, auf Social-Media-Kanälen des
+                        Veranstalters
+                        und des Verbands sowie in Print- und Online-Medien. Eine Veröffentlichung erfolgt ausschließlich
+                        im
+                        Rahmen der sportlichen Berichterstattung. Mit der Anmeldung wird die Einwilligung hierzu erteilt
+                        (Art. 6 Abs. 1 lit. a DSGVO). Die Einwilligung kann jederzeit per E-Mail widerrufen werden;
+                        bereits
+                        veröffentlichte Inhalte werden sodann nach Möglichkeit entfernt.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Speicherdauer</div>
+                    <p>Personenbezogene Daten werden bis zum Ablauf der gesetzlichen Aufbewahrungsfristen bzw. bis zum
+                        Widerruf der Einwilligung gespeichert. Archivdaten (Ergebnisse, Siegerlisten) bleiben zum Zweck
+                        der
+                        sportlichen Dokumentation bestehen.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Deine Rechte</div>
+                    <p>Du hast das Recht auf Auskunft, Berichtigung, Löschung, Einschränkung der Verarbeitung,
+                        Datenübertragbarkeit sowie Widerspruch. Anfragen richtest du bitte an <a
+                            href="mailto:christianritter1310@gmail.com">christianritter1310@gmail.com</a>. Bei
+                        Beschwerden kannst du dich an die österreichische Datenschutzbehörde wenden (<a
+                            href="https://www.dsb.gv.at" target="_blank" rel="noreferrer">dsb.gv.at</a>).</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
     <div class="lightbox" id="lightbox">
         <button class="lb-close" id="lbClose" aria-label="Schließen">×</button>
         <button class="lb-nav lb-prev" id="lbPrev" aria-label="Zurück">‹</button>
@@ -331,10 +458,14 @@
                 alt="NFS Trophy" />
             <div class="meta">
                 <div>© <span id="year"></span> TTK Naturfreunde Stadlau</div>
-                <div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
                     <a href="#impressum" id="footerImpressumLink"
                         style="text-decoration:none;border-bottom:1px solid var(--line-strong);cursor:pointer;">
                         Impressum
+                    </a>
+                    <a href="#datenschutz" id="footerDatenschutzLink"
+                        style="text-decoration:none;border-bottom:1px solid var(--line);cursor:pointer;opacity:0.65;font-size:12px;">
+                        Datenschutz
                     </a>
                 </div>
                 <div style="margin-top:8px;font-size:12px;opacity:.7;">Website von Alexander Si<br><a

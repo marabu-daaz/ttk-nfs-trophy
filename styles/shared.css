@@ -28,3 +28,9 @@
     background: var(--bg-hover, #1f5130);
     border-radius: 5px;
 }
+
+/* Aktiven Menüpunkt hervorheben */
+#navList a.active {
+    color: var(--accent);
+    font-weight: 600;
+}

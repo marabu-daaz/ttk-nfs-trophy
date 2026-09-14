@@ -502,6 +502,18 @@ export function openBewerbeEditor() {
     document.body.appendChild(modal);
     modal.showModal();
 
+    // WICHTIG: Modal beim Schließen aus dem DOM entfernen (Memory-Leak verhindern)
+    modal.addEventListener('close', () => {
+        modal.remove();
+        window.removeEventListener('keydown', escHandler);
+    });
+
+    // Optional: ESC sauber abfangen (zusätzlich zur nativen Funktionalität)
+    const escHandler = (e) => {
+        if (e.key === 'Escape' && modal.open) modal.close();
+    };
+    window.addEventListener('keydown', escHandler);
+
     // Event: Bewerb hinzufügen
     modal.querySelector('#addBewerbEditorBtn').addEventListener('click', () => {
         const list = modal.querySelector('#bewerbeEditorList');

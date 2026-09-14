@@ -25,3 +25,7 @@ export function publicPdfUrl(path) {
 export function publicFotoUrl(path) {
     return getPublicUrl('fotos', path);
 }
+
+export function publicSponsorUrl(path) {
+    return getPublicUrl('sponsoren', path);
+}

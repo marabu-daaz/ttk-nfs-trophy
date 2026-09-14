@@ -295,6 +295,50 @@
                         </div>
                     </div>
 
+                    <!-- ZEITPLAN MANAGER -->
+                    <div class="stat-card"
+                        style="border-top-color: #ff9800; background: rgba(255, 152, 0, 0.05); margin-top: 10px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="color: #ff9800; margin: 0;">⏱️ Zeitplan / Ablauf</h3>
+                            <label
+                                style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                                <input type="checkbox" id="setupShowSchedule"
+                                    style="accent-color: var(--accent); width: 18px; height: 18px;">
+                                <strong>Auf Website anzeigen</strong>
+                            </label>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Füge chronologische
+                            Punkte für den Turniertag hinzu.</p>
+
+                        <div id="scheduleContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                        <button id="addScheduleBtn" class="btn-outline"
+                            style="border-color: #ff9800; color: #ff9800; width: 100%; margin-top: 15px;">+ Neuen
+                            Zeitplan-Eintrag hinzufügen</button>
+                    </div>
+
+                    <!-- SPONSOREN MANAGER -->
+                    <div class="stat-card"
+                        style="border-top-color: #4caf50; background: rgba(76, 175, 80, 0.05); margin-top: 10px;">
+                        <div
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                            <h3 style="color: #4caf50; margin: 0;">🤝 Sponsoren & Partner</h3>
+                            <label
+                                style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
+                                <input type="checkbox" id="setupShowSponsors"
+                                    style="accent-color: var(--accent); width: 18px; height: 18px;">
+                                <strong>Auf Website anzeigen</strong>
+                            </label>
+                        </div>
+                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Bild-Links zu Logos
+                            und die Verlinkungen zur Sponsoren-Website für den Footer.</p>
+
+                        <div id="sponsorsContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
+                        <button id="addSponsorBtn" class="btn-outline"
+                            style="border-color: #4caf50; color: #4caf50; width: 100%; margin-top: 15px;">+ Neuen
+                            Sponsor hinzufügen</button>
+                    </div>
+
                     <!-- BEWERBS-MANAGER -->
                     <div class="stat-card"
                         style="border-top-color: #03a9f4; background: rgba(3, 169, 244, 0.05); margin-top: 10px;">
@@ -399,11 +443,7 @@
                 </div>
                 <div style="max-width: 800px;">
                     <label>Turnier auswählen:</label>
-                    <select id="archivSelect" class="input-field"
-                        style="width: 100%; margin-top: 8px; margin-bottom: 30px;"></select>
-
-                    <!-- Im Archiv-Tab, nach dem Turnier-Dropdown -->
-                    <div style="display:flex; gap:10px; margin-bottom:30px; flex-wrap:wrap;">
+                    <div style="display:flex; gap:10px; margin-top:8px; margin-bottom:30px; flex-wrap:wrap;">
                         <select id="archivSelect" class="input-field" style="flex:1; min-width:200px;"></select>
                         <button id="editBewerbeBtn" class="btn-outline"
                             style="border-color: #03a9f4; color: #03a9f4;">📝 Bewerbe nachtragen</button>

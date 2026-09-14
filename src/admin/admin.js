@@ -1,5 +1,5 @@
 // src/admin/admin.js
-import { supabase } from '../shared/supabase.js';
+import { supabase, publicSponsorUrl } from '../shared/supabase.js';
 import {
     esc,
     showToast,
@@ -16,7 +16,8 @@ import {
 import {
     setSetupTournamentId, setSetupTournaments, renderSetupBewerbe,
     generateQRCodes, initSetupEvents, getSetupBewerbeList,
-    setSetupBewerbeList, getBewerbeFromDOM, saveSetup
+    setSetupBewerbeList, getBewerbeFromDOM, saveSetup,
+    renderScheduleRow, renderSponsorRow
 } from './setup.js';
 // src/admin/admin.js - Import-Teil (ca. Zeile 15-20)
 import {
@@ -112,10 +113,6 @@ async function loadTournamentSetup() {
             return;
         }
 
-        document.getElementById('setupIsOpen')?.addEventListener('change', (e) => {
-            updateSetupIsOpenLabel(e.target.checked);
-        });
-
         allTournaments = data;
         activeTournamentId = data[0].id;
 
@@ -151,7 +148,6 @@ async function loadTournamentSetup() {
         populateArchivDropdown();
 
         // Events initialisieren
-        initSetupEvents();
         initArchiveEvents();
         initFotoUpload();
 
@@ -219,6 +215,35 @@ function fillSetupFields(t) {
     s('setupFact3Text', tInfo.fact3Text);
     s('setupFact4Title', tInfo.fact4Title);
     s('setupFact4Text', tInfo.fact4Text);
+
+    // --- HIER NEU: Zeitplan & Sponsoren LADEN ---
+    const showScheduleCheck = document.getElementById('setupShowSchedule');
+    const scheduleContainer = document.getElementById('scheduleContainer');
+    if (showScheduleCheck && scheduleContainer) {
+        showScheduleCheck.checked = tInfo.showSchedule || false;
+        scheduleContainer.innerHTML = ''; // Vorherige leeren
+        if (tInfo.schedule && tInfo.schedule.length > 0) {
+            tInfo.schedule.forEach(item => renderScheduleRow(item.time, item.text));
+        } else {
+            renderScheduleRow(); // Mindestens eine leere Zeile anzeigen
+        }
+    }
+
+    const showSponsorsCheck = document.getElementById('setupShowSponsors');
+    const sponsorsContainer = document.getElementById('sponsorsContainer');
+    if (showSponsorsCheck && sponsorsContainer) {
+        showSponsorsCheck.checked = tInfo.showSponsors || false;
+        sponsorsContainer.innerHTML = ''; // Vorherige leeren
+        if (tInfo.sponsors && tInfo.sponsors.length > 0) {
+            tInfo.sponsors.forEach(s => {
+                const logoPath = s.logoPath || '';
+                const logoUrl = s.logoUrl || (s.logoPath ? publicSponsorUrl(s.logoPath) : '');
+                renderSponsorRow(logoPath, s.link, logoUrl);
+            });
+        } else {
+            renderSponsorRow();
+        }
+    }
 }
 
 function updateSetupIsOpenLabel(isOpen) {
@@ -936,6 +961,12 @@ document.getElementById('logoutBtn')?.addEventListener('click', async () => {
 // ==========================================
 // 13. START
 // ==========================================
-checkSession();
-// Rufe am Ende der Datei auf:
+initSetupEvents();
 initTheme();
+
+// Einmalige Listener (nicht bei jedem Setup-Reload neu binden!)
+document.getElementById('setupIsOpen')?.addEventListener('change', (e) => {
+    updateSetupIsOpenLabel(e.target.checked);
+});
+
+checkSession();
