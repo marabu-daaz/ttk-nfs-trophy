@@ -29,7 +29,6 @@ import {
     openBewerbeEditor
 } from './archive.js';
 
-import * as XLSX from "xlsx";
 
 // ==========================================
 // THEME TOGGLE
@@ -769,8 +768,9 @@ function downloadReceipt(regId) {
 // ==========================================
 // 9. EXPORT FUNKTIONEN
 // ==========================================
-document.getElementById("exportAdminBtn")?.addEventListener("click", () => {
+document.getElementById("exportAdminBtn")?.addEventListener("click", async () => {
     try {
+        const XLSX = await import("xlsx");   // ← NEU: lazy
         const wb = XLSX.utils.book_new();
         const allBewerbe = Array.from(new Set(filteredData.flatMap(r => r.bewerbeArray))).sort();
 

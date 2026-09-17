@@ -151,7 +151,8 @@ header.hero {
     grid-template-columns: 1.25fr 1fr;
     gap: 48px;
     align-items: center;
-    padding: clamp(60px, 9vw, 120px) 0;
+    padding-block: clamp(60px, 9vw, 120px);
+    /* ← nur oben/unten */
 }
 
 @media(max-width:900px) {
@@ -804,6 +805,14 @@ aside.side .small {
     flex-direction: column;
     gap: 14px;
     background: rgba(0, 0, 0, .15);
+    min-width: 0;
+    overflow-wrap: break-word;
+}
+
+.file-card .btn {
+    max-width: 100%;
+    white-space: normal;
+    /* Buttons dürfen umbrechen */
 }
 
 .file-card .k {

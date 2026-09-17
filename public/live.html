@@ -4,7 +4,17 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="NFS Trophy" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Live-Ticker - NFS Trophy</title>
+    <meta property="og:title" content="Live-Ticker – NFS Trophy" />
+    <meta property="og:description" content="Live-Tabelle, Spielplan und Ergebnisse der NFS Trophy." />
+    <meta property="og:image" content="https://nfs-trophy.com/og-image.jpg" />
+    <meta property="og:type" content="website" />
     <meta name="description" content="Live-Ticker, Tabelle und Spielplan der NFS Trophy." />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -234,6 +244,10 @@
         .live-header .status .dot.offline {
             background: var(--text-muted);
             animation: none;
+        }
+
+        .live-header .status .dot.online {
+            background: #22c55e;
         }
 
         .live-controls {

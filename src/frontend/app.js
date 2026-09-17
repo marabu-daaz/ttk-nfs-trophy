@@ -1022,9 +1022,10 @@ function startCountdown(iso) {
 // ==========================================
 // EXPORT (Excel)
 // ==========================================
-document.getElementById("exportBtn")?.addEventListener("click", () => {
+document.getElementById("exportBtn")?.addEventListener("click", async () => {
     if (!activeTournament) return;
     try {
+        const XLSX = await import("xlsx");   // ← NEU: lazy
         const t = activeTournament;
         const myRegs = cachedRegs.filter(r => r.tournament_id === t.id);
         const wb = XLSX.utils.book_new();

@@ -7,6 +7,26 @@
     <title>NFS Trophy / TTK Naturfreunde Stadlau</title>
     <meta name="description"
         content="NFS Trophy. Tischtennisturnier des TTK Naturfreunde Stadlau in Wien. Anmeldung, Ausschreibungen, Ergebnisse." />
+    <!-- OpenGraph / WhatsApp / Slack / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="NFS Trophy" />
+    <meta property="og:title" content="NFS Trophy – TTK Naturfreunde Stadlau" />
+    <meta property="og:description"
+        content="RC-Ranglistenturnier in Wien-Donaustadt. Anmeldung, Ausschreibung und Live-Ergebnisse." />
+    <meta property="og:url" content="https://nfs-trophy.com/" />
+    <meta property="og:image" content="https://nfs-trophy.com/og-image.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="de_AT" />
+
+    <!-- Twitter / X -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="NFS Trophy – TTK Naturfreunde Stadlau" />
+    <meta name="twitter:description" content="RC-Ranglistenturnier in Wien-Donaustadt" />
+    <meta name="twitter:image" content="https://nfs-trophy.com/og-image.jpg" />
+
+    <!-- Theme-Farbe für Handy-Browserleiste -->
+    <meta name="theme-color" content="#0a1f14" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,6 +35,13 @@
     <!-- CSS Imports -->
     <link rel="stylesheet" href="/styles/shared.css" />
     <link rel="stylesheet" href="/styles/style.css" />
+
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="NFS Trophy" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 
 <body>
@@ -121,22 +148,44 @@
             <div class="form-wrap">
                 <form id="regForm">
                     <div class="frow">
-                        <div class="field"><label>Vorname *</label><input id="vorname" required /></div>
-                        <div class="field"><label>Nachname *</label><input id="nachname" required /></div>
+                        <div class="field">
+                            <label for="vorname">Vorname *</label>
+                            <input id="vorname" name="vorname" required autocomplete="given-name" />
+                        </div>
+                        <div class="field">
+                            <label for="nachname">Nachname *</label>
+                            <input id="nachname" name="nachname" required autocomplete="family-name" />
+                        </div>
                     </div>
                     <div class="frow">
-                        <div class="field"><label>E-Mail *</label><input id="email" type="email" required /></div>
-                        <div class="field"><label>Telefon</label><input id="telefon" /></div>
+                        <div class="field">
+                            <label for="email">E-Mail *</label>
+                            <input id="email" name="email" type="email" required autocomplete="email"
+                                inputmode="email" />
+                        </div>
+                        <div class="field">
+                            <label for="telefon">Telefon</label>
+                            <input id="telefon" name="telefon" type="tel" autocomplete="tel" inputmode="tel" />
+                        </div>
                     </div>
                     <div class="frow">
-                        <div class="field"><label>Verein</label><input id="verein" /></div>
-                        <div class="field"><label>RC-Punkte</label><input id="rc" /></div>
+                        <div class="field">
+                            <label for="verein">Verein</label>
+                            <input id="verein" name="verein" autocomplete="organization" />
+                        </div>
+                        <div class="field">
+                            <label for="rc">RC-Punkte</label>
+                            <input id="rc" name="rc" inputmode="numeric" pattern="[0-9]*" autocomplete="off" />
+                        </div>
                     </div>
                     <div class="field">
                         <label>Bewerbe * (Mehrfachauswahl möglich)</label>
                         <div class="bewerb-checks" id="bewerbChecks"></div>
                     </div>
-                    <div class="field"><label>Anmerkung</label><input id="notiz" /></div>
+                    <div class="field">
+                        <label for="notiz">Anmerkung</label>
+                        <input id="notiz" name="notiz" autocomplete="off" />
+                    </div>
                     <label class="check">
                         <input type="checkbox" id="receipt" />
                         <span>Ich benötige eine Zahlungsbestätigung für das Nenngeld.</span>
@@ -147,14 +196,11 @@
                             Ich akzeptiere die <a href="#datenschutz"
                                 style="text-decoration:underline; color:inherit;">Datenschutzerklärung</a>
                             und die Turnierordnung (ÖTTV). Ich bin mit der Weitergabe meiner Daten an den Verband sowie
-                            der
-                            Veröffentlichung von Fotos, Videos, Namen und Ergebnissen im Internet und in
-                            Social-Media-Kanälen
-                            einverstanden.
+                            der Veröffentlichung von Fotos, Videos, Namen und Ergebnissen im Internet und in
+                            Social-Media-Kanälen einverstanden.
                         </span>
                     </label>
                     <button type="submit" class="submit" id="submitBtn">Nennung absenden</button>
-
                 </form>
                 <aside class="side">
                     <h3>Nenngeld</h3>
@@ -203,7 +249,7 @@
             </div>
 
             <!-- ZEILE 1: Ausschreibung + Live-Ergebnisse -->
-            <div class="current-files" style="grid-template-columns: 1fr 1fr;">
+            <div class="current-files">
                 <!-- Ausschreibung -->
                 <div class="file-card">
                     <div class="k mono">Dokument</div>
@@ -226,7 +272,7 @@
             </div>
 
             <!-- ZEILE 2: Livestreams (Tisch 1 + Tisch 5) - JETZT SEPARAT -->
-            <div class="current-files" style="grid-template-columns: 1fr 1fr; margin-top: 20px;">
+            <div class="current-files" style="margin-top: 20px;">
                 <!-- Livestream Tisch 1 -->
                 <div class="file-card">
                     <div class="k mono">📺 Livestream</div>
