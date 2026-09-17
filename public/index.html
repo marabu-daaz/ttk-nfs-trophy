@@ -311,15 +311,25 @@
 
     <section class="block" id="rekorde">
         <div class="wrap">
-            <div class="sec-head">
-                <div class="eyebrow mono">Ewige Bestenliste</div>
-                <h2>Die Rekord-<br><em>Halter</em></h2>
-                <p>Die erfolgreichsten Spieler über alle bisherigen Ausgaben der NFS Trophy.</p>
+            <div class="archive-header" id="rekordeHeader"
+                style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
+                <div class="sec-head" style="margin-bottom:0;">
+                    <div class="eyebrow mono">Ewige Bestenliste</div>
+                    <h2
+                        style="margin-bottom:0; display:flex; align-items:center; gap:12px; font-size: clamp(2rem, 5vw, 3.4rem); text-transform: uppercase; letter-spacing: -0.03em;">
+                        <span class="toggle-icon" id="rekordeIcon"
+                            style="font-size:16px; color:var(--green-neon);">▶</span>
+                        Die Rekord-<em style="font-style: normal; color: var(--green-soft);">Halter</em>
+                    </h2>
+                    <p style="margin-top: 12px; color: var(--muted); font-size: 17px; line-height: 1.6;">Die
+                        erfolgreichsten Spieler über alle bisherigen Ausgaben der NFS Trophy.</p>
+                </div>
             </div>
-
-            <div id="rekordeGrid"
-                style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin-top: 30px;">
-                <div class="loading" style="grid-column: 1/-1;">Berechne Bestenliste...</div>
+            <div id="rekordeContent" style="display:none; margin-top:24px;">
+                <div id="rekordeGrid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
+                    <div class="loading" style="grid-column: 1/-1;">Berechne Bestenliste...</div>
+                </div>
             </div>
         </div>
     </section>

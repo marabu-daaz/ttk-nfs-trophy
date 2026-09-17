@@ -73,6 +73,7 @@ async function init() {
 function setupImpressumToggle() {
     setupAccordion('impressumHeader', 'impressumContent', 'impressumIcon', 'footerImpressumLink', 'impressum');
     setupAccordion('datenschutzHeader', 'datenschutzContent', 'datenschutzIcon', 'footerDatenschutzLink', 'datenschutz');
+    setupAccordion('rekordeHeader', 'rekordeContent', 'rekordeIcon', null, 'rekorde');   // ← NEU
 }
 
 /**
