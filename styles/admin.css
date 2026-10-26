@@ -2367,3 +2367,246 @@ dialog.modal[open] {
     min-width: 96px;
     justify-content: center;
 }
+
+/* =========================================
+   TURNIER-SETUP (Unter-Reiter, ruhiges Layout)
+========================================= */
+#view-setup {
+    max-width: 880px;
+}
+
+.subtabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.subtabs::-webkit-scrollbar {
+    display: none;
+}
+
+.subtabs button {
+    flex-shrink: 0;
+    border: 0;
+    background: none;
+    padding: 10px 14px;
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--muted);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.subtabs button:hover {
+    color: var(--text);
+}
+
+.subtabs button.on {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+}
+
+.subtabs .cnt {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--surface-3);
+    border-radius: 99px;
+    padding: 1px 7px;
+    margin-left: 4px;
+}
+
+.subtabs .cnt:empty {
+    display: none;
+}
+
+.setup-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.setup-panel .card + .card {
+    margin-top: 0;
+}
+
+.setup-group {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding: 22px;
+}
+
+.setup-group h3 {
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.group-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.group-sub {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: -8px;
+}
+
+.group-head .group-sub {
+    margin-top: 2px;
+}
+
+.field .opt {
+    font-weight: 400;
+    color: var(--muted);
+    margin-left: 4px;
+}
+
+.switch-text {
+    font-weight: 600;
+    font-size: 14px;
+}
+
+/* Bewerbe als aufklappbare Liste */
+.bw-items {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.bw-item {
+    border-bottom: 1px solid var(--border);
+}
+
+.bw-item:last-child {
+    border-bottom: 0;
+}
+
+.bw-sum {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px 8px 6px;
+}
+
+.bw-item.open .bw-sum {
+    background: var(--surface-2);
+}
+
+.bw-sum .order-btns {
+    flex-direction: column;
+    align-self: center;
+}
+
+.bw-toggle {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    border: 0;
+    background: none;
+    padding: 4px 6px;
+    text-align: left;
+    cursor: pointer;
+    border-radius: var(--radius-xs);
+}
+
+.bw-toggle:hover .bw-sum-name {
+    color: var(--accent);
+}
+
+.bw-sum-name {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.bw-sum-meta {
+    font-size: 13px;
+    color: var(--muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+.bw-edit {
+    display: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    padding: 4px 16px 18px 50px;
+    background: var(--surface-2);
+}
+
+.bw-item.open .bw-edit {
+    display: grid;
+}
+
+.bw-edit .span-all {
+    grid-column: 1 / -1;
+}
+
+/* Fakten-Kacheln 2×2 */
+.fact-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.fact-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 12px 12px 12px 40px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+
+.fact-nr {
+    position: absolute;
+    left: 12px;
+    top: 14px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--surface-3);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fact-card .input:first-of-type {
+    font-weight: 600;
+}
+
+@media (max-width: 720px) {
+    .bw-edit {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        padding-left: 16px;
+    }
+
+    .fact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .group-head {
+        flex-wrap: wrap;
+    }
+}

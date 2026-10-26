@@ -279,188 +279,195 @@
                         </div>
                     </div>
 
-                    <div class="settings-layout">
-                        <nav class="settings-nav">
-                            <a href="#set-allgemein">Allgemein</a>
-                            <a href="#set-bewerbe">Bewerbe</a>
-                            <a href="#set-website">Website-Texte</a>
-                            <a href="#set-zeitplan">Zeitplan</a>
-                            <a href="#set-sponsoren">Sponsoren</a>
-                            <a href="#set-links">Links &amp; Dokumente</a>
-                            <a href="#set-qr">QR-Codes</a>
-                            <a href="#set-gefahr">Gefahrenzone</a>
-                        </nav>
+                    <div class="subtabs" id="setupTabs" role="tablist" aria-label="Bereiche des Turnier-Setups">
+                        <button type="button" data-panel="allgemein" class="on">Allgemein</button>
+                        <button type="button" data-panel="bewerbe">Bewerbe <span class="cnt" id="setupBewerbeCount"></span></button>
+                        <button type="button" data-panel="website">Website</button>
+                        <button type="button" data-panel="links">Links &amp; QR</button>
+                        <button type="button" data-panel="saison">Saison</button>
+                    </div>
 
-                        <div>
-                            <div class="card settings-section" id="set-allgemein">
-                                <div class="card-head">
-                                    <h2>Allgemein</h2>
+                    <!-- ---------- ALLGEMEIN ---------- -->
+                    <div class="setup-panel" data-panel="allgemein">
+                        <div class="card setup-group">
+                            <div class="group-head">
+                                <div>
+                                    <h3>Anmeldung</h3>
+                                    <p class="group-sub" id="setupIsOpenHint"></p>
                                 </div>
-                                <div class="form-grid">
-                                    <div class="full repeat-row compact" style="justify-content:space-between;">
-                                        <div>
-                                            <strong id="setupIsOpenLabel">Anmeldung</strong>
-                                            <div class="small muted" id="setupIsOpenHint"></div>
-                                        </div>
-                                        <label class="switch"><input type="checkbox" id="setupIsOpen"><span class="track"></span></label>
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupName">Turniername</label>
-                                        <input type="text" id="setupName" class="input" placeholder="z.B. 9. NFS Trophy">
-                                    </div>
-                                    <div class="field">
-                                        <label for="setupDateText">Datum (Text auf der Website)</label>
-                                        <input type="text" id="setupDateText" class="input" placeholder="z.B. 14.–15. März 2027">
-                                    </div>
-                                    <div class="field">
-                                        <label for="setupDateIso">Turnierbeginn (Countdown)</label>
-                                        <input type="datetime-local" id="setupDateIso" class="input">
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupSubtitle">Untertitel</label>
-                                        <input type="text" id="setupSubtitle" class="input">
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupDeadline">Anmeldeschluss</label>
-                                        <div class="row">
-                                            <input type="datetime-local" id="setupDeadline" class="input grow">
-                                            <button type="button" class="btn" id="setupDeadlineClear">Entfernen</button>
-                                        </div>
-                                        <div class="help" id="setupDeadlineHint"></div>
-                                    </div>
-                                    <div class="field">
-                                        <label for="setupFeeNormal">Nenngeld pro Bewerb (€)</label>
-                                        <input type="number" id="setupFeeNormal" class="input" min="0">
-                                    </div>
-                                    <div class="field">
-                                        <label for="setupFeeNfs">Nenngeld NFS-Mitglieder (€)</label>
-                                        <input type="number" id="setupFeeNfs" class="input" min="0">
-                                    </div>
+                                <label class="switch switch-lg"><span id="setupIsOpenLabel" class="switch-text"></span><input type="checkbox" id="setupIsOpen"><span class="track"></span></label>
+                            </div>
+                            <div class="field">
+                                <label for="setupDeadline">Anmeldeschluss <span class="opt">optional</span></label>
+                                <div class="row">
+                                    <input type="datetime-local" id="setupDeadline" class="input grow">
+                                    <button type="button" class="btn ghost" id="setupDeadlineClear">Entfernen</button>
+                                </div>
+                                <div class="help" id="setupDeadlineHint"></div>
+                            </div>
+                        </div>
+
+                        <div class="card setup-group">
+                            <h3>Turnier</h3>
+                            <div class="form-grid">
+                                <div class="field full">
+                                    <label for="setupName">Name</label>
+                                    <input type="text" id="setupName" class="input" placeholder="z.B. 9. NFS Trophy">
+                                </div>
+                                <div class="field">
+                                    <label for="setupDateText">Datum auf der Website</label>
+                                    <input type="text" id="setupDateText" class="input" placeholder="z.B. 6.–7. März 2027">
+                                </div>
+                                <div class="field">
+                                    <label for="setupDateIso">Beginn (für Countdown &amp; Kalender)</label>
+                                    <input type="datetime-local" id="setupDateIso" class="input">
+                                </div>
+                                <div class="field full">
+                                    <label for="setupSubtitle">Untertitel <span class="opt">optional</span></label>
+                                    <input type="text" id="setupSubtitle" class="input" placeholder="RC-Ranglistenturnier in Wien-Donaustadt">
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="card settings-section" id="set-bewerbe">
-                                <div class="card-head">
-                                    <h2>Bewerbe &amp; Startzeiten</h2>
-                                    <span class="hint">Startzeit z.B. „Sa 09:30“ · RC-Grenzen werden im Anmeldeformular geprüft</span>
+                        <div class="card setup-group">
+                            <h3>Nenngeld pro Bewerb</h3>
+                            <div class="form-grid">
+                                <div class="field">
+                                    <label for="setupFeeNormal">Normal (€)</label>
+                                    <input type="number" id="setupFeeNormal" class="input" min="0">
                                 </div>
-                                <div class="repeat-list" id="bewerbeContainer"></div>
-                                <button id="addBewerbBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Bewerb hinzufügen</button>
-                            </div>
-
-                            <div class="card settings-section" id="set-website">
-                                <div class="card-head">
-                                    <h2>Website-Texte &amp; Fakten</h2>
-                                    <span class="hint">Einfache Formatierung erlaubt: &lt;strong&gt;, &lt;em&gt;, &lt;br&gt;</span>
-                                </div>
-                                <div class="form-grid">
-                                    <div class="field full">
-                                        <label for="setupBewerbeHeadline">Überschrift „Bewerbe“</label>
-                                        <input type="text" id="setupBewerbeHeadline" class="input" placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>">
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupBewerbeText">Beschreibung „Bewerbe“</label>
-                                        <textarea id="setupBewerbeText" class="input" placeholder="Gespielt wird in 5 Vorrunden-Gruppen…"></textarea>
-                                    </div>
-                                    <div class="field"><label for="setupFact1Title">Kachel 1 – Titel</label><input type="text" id="setupFact1Title" class="input" placeholder="Spielgeräte"></div>
-                                    <div class="field"><label for="setupFact1Text">Kachel 1 – Text</label><input type="text" id="setupFact1Text" class="input" placeholder="<strong>Tische DONIC</strong>Bälle Nittaku"></div>
-                                    <div class="field"><label for="setupFact2Title">Kachel 2 – Titel</label><input type="text" id="setupFact2Title" class="input" placeholder="Halle"></div>
-                                    <div class="field"><label for="setupFact2Text">Kachel 2 – Text</label><input type="text" id="setupFact2Text" class="input"></div>
-                                    <div class="field"><label for="setupFact3Title">Kachel 3 – Titel</label><input type="text" id="setupFact3Title" class="input" placeholder="Anreise"></div>
-                                    <div class="field"><label for="setupFact3Text">Kachel 3 – Text</label><input type="text" id="setupFact3Text" class="input"></div>
-                                    <div class="field"><label for="setupFact4Title">Kachel 4 – Titel</label><input type="text" id="setupFact4Title" class="input" placeholder="Modus"></div>
-                                    <div class="field"><label for="setupFact4Text">Kachel 4 – Text</label><input type="text" id="setupFact4Text" class="input"></div>
+                                <div class="field">
+                                    <label for="setupFeeNfs">NFS-Mitglieder (€)</label>
+                                    <input type="number" id="setupFeeNfs" class="input" min="0">
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <div class="card settings-section" id="set-zeitplan">
-                                <div class="card-head">
-                                    <h2>Zeitplan</h2>
-                                    <label class="switch"><input type="checkbox" id="setupShowSchedule"><span class="track"></span><span class="small">Auf Website zeigen</span></label>
+                    <!-- ---------- BEWERBE ---------- -->
+                    <div class="setup-panel" data-panel="bewerbe" hidden>
+                        <div class="card setup-group">
+                            <div class="group-head">
+                                <div>
+                                    <h3>Bewerbe</h3>
+                                    <p class="group-sub">Reihenfolge wie im Anmeldeformular. Zum Bearbeiten auf einen Bewerb klicken.</p>
                                 </div>
-                                <div class="repeat-list" id="scheduleContainer"></div>
-                                <button id="addScheduleBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Eintrag hinzufügen</button>
+                                <button id="addBewerbBtn" class="btn"><i data-icon="plus"></i>Bewerb</button>
                             </div>
+                            <div class="bw-items" id="bewerbeContainer"></div>
+                        </div>
+                    </div>
 
-                            <div class="card settings-section" id="set-sponsoren">
-                                <div class="card-head">
-                                    <h2>Sponsoren &amp; Partner</h2>
-                                    <label class="switch"><input type="checkbox" id="setupShowSponsors"><span class="track"></span><span class="small">Auf Website zeigen</span></label>
+                    <!-- ---------- WEBSITE ---------- -->
+                    <div class="setup-panel" data-panel="website" hidden>
+                        <div class="card setup-group">
+                            <h3>Abschnitt „Bewerbe“</h3>
+                            <p class="group-sub">Einfache Formatierung erlaubt: &lt;strong&gt;, &lt;em&gt;, &lt;br&gt;</p>
+                            <div class="form-grid">
+                                <div class="field full">
+                                    <label for="setupBewerbeHeadline">Überschrift</label>
+                                    <input type="text" id="setupBewerbeHeadline" class="input" placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>">
                                 </div>
-                                <div class="repeat-list" id="sponsorsContainer"></div>
-                                <button id="addSponsorBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Sponsor hinzufügen</button>
-                            </div>
-
-                            <div class="card settings-section" id="set-links">
-                                <div class="card-head">
-                                    <h2>Links &amp; Dokumente</h2>
-                                </div>
-                                <div class="form-grid">
-                                    <div class="field full">
-                                        <label for="setupOettvUrl">ÖTTV Live-Ergebnisse (URL)</label>
-                                        <input type="url" id="setupOettvUrl" class="input" placeholder="https://xttv.oettv.info/…">
-                                    </div>
-                                    <div class="full repeat-row compact" style="justify-content:space-between;">
-                                        <div>
-                                            <strong>„TTOP Bewerbe“-Button</strong>
-                                            <div class="small muted">Zusätzlicher Button neben dem ÖTTV-Link</div>
-                                        </div>
-                                        <label class="switch"><input type="checkbox" id="setupShowTtop"><span class="track"></span></label>
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupTtopUrl">TTOP-URL</label>
-                                        <input type="url" id="setupTtopUrl" class="input" placeholder="https://…">
-                                    </div>
-                                    <div class="field full">
-                                        <label for="setupPdf">Ausschreibung (PDF) ersetzen</label>
-                                        <input type="file" id="setupPdf" accept="application/pdf" class="input">
-                                        <div class="help" id="setupPdfCurrent"></div>
-                                    </div>
+                                <div class="field full">
+                                    <label for="setupBewerbeText">Beschreibung</label>
+                                    <textarea id="setupBewerbeText" class="input" rows="3" placeholder="Gespielt wird in 5 Vorrunden-Gruppen…"></textarea>
                                 </div>
                             </div>
+                        </div>
 
-                            <div class="card settings-section" id="set-qr">
-                                <div class="card-head">
-                                    <h2><i data-icon="qr"></i>QR-Codes für die Halle</h2>
+                        <div class="card setup-group">
+                            <h3>Fakten-Kacheln</h3>
+                            <p class="group-sub">Die vier Kacheln unter dem Countdown auf der Startseite.</p>
+                            <div class="fact-grid">
+                                <div class="fact-card"><span class="fact-nr">1</span><input type="text" id="setupFact1Title" class="input" placeholder="Titel, z.B. Spielgeräte"><input type="text" id="setupFact1Text" class="input" placeholder="<strong>Tische DONIC</strong>Bälle Nittaku"></div>
+                                <div class="fact-card"><span class="fact-nr">2</span><input type="text" id="setupFact2Title" class="input" placeholder="Titel, z.B. Halle"><input type="text" id="setupFact2Text" class="input" placeholder="Text"></div>
+                                <div class="fact-card"><span class="fact-nr">3</span><input type="text" id="setupFact3Title" class="input" placeholder="Titel, z.B. Anreise"><input type="text" id="setupFact3Text" class="input" placeholder="Text"></div>
+                                <div class="fact-card"><span class="fact-nr">4</span><input type="text" id="setupFact4Title" class="input" placeholder="Titel, z.B. Modus"><input type="text" id="setupFact4Text" class="input" placeholder="Text"></div>
+                            </div>
+                        </div>
+
+                        <div class="card setup-group">
+                            <div class="group-head">
+                                <h3>Zeitplan</h3>
+                                <label class="switch"><span class="small">Auf Website zeigen</span><input type="checkbox" id="setupShowSchedule"><span class="track"></span></label>
+                            </div>
+                            <div class="repeat-list" id="scheduleContainer"></div>
+                            <button id="addScheduleBtn" class="btn ghost" style="margin-top:8px;"><i data-icon="plus"></i>Eintrag</button>
+                        </div>
+
+                        <div class="card setup-group">
+                            <div class="group-head">
+                                <h3>Sponsoren &amp; Partner</h3>
+                                <label class="switch"><span class="small">Auf Website zeigen</span><input type="checkbox" id="setupShowSponsors"><span class="track"></span></label>
+                            </div>
+                            <div class="repeat-list" id="sponsorsContainer"></div>
+                            <button id="addSponsorBtn" class="btn ghost" style="margin-top:8px;"><i data-icon="plus"></i>Sponsor</button>
+                        </div>
+                    </div>
+
+                    <!-- ---------- LINKS & QR ---------- -->
+                    <div class="setup-panel" data-panel="links" hidden>
+                        <div class="card setup-group">
+                            <h3>Ausschreibung</h3>
+                            <div class="field">
+                                <label for="setupPdf">PDF ersetzen</label>
+                                <input type="file" id="setupPdf" accept="application/pdf" class="input">
+                                <div class="help" id="setupPdfCurrent"></div>
+                            </div>
+                        </div>
+
+                        <div class="card setup-group">
+                            <h3>Ergebnisse</h3>
+                            <div class="form-grid">
+                                <div class="field full">
+                                    <label for="setupOettvUrl">ÖTTV Live-Ergebnisse</label>
+                                    <input type="url" id="setupOettvUrl" class="input" placeholder="https://xttv.oettv.info/…">
                                 </div>
-                                <div class="qr-grid">
-                                    <div class="qr-box">
-                                        <strong>Zur Anmeldung</strong>
-                                        <div class="qr" id="qrAnmeldung"></div>
-                                        <button id="downloadQrAnmeldungBtn" class="btn sm"><i data-icon="download"></i>PNG</button>
-                                    </div>
-                                    <div class="qr-box">
-                                        <strong>Live-Ergebnisse (ÖTTV)</strong>
-                                        <div class="qr" id="qrErgebnisse"></div>
-                                        <div class="small muted" id="qrErgebnisseHint"></div>
-                                        <button id="downloadQrErgebnisseBtn" class="btn sm" style="display:none;"><i data-icon="download"></i>PNG</button>
-                                    </div>
+                                <div class="field full">
+                                    <label for="setupTtopUrl">TTOP-Link</label>
+                                    <input type="url" id="setupTtopUrl" class="input" placeholder="https://…">
+                                </div>
+                                <label class="switch full"><input type="checkbox" id="setupShowTtop"><span class="track"></span><span>Button „TTOP Bewerbe“ auf der Website zeigen</span></label>
+                            </div>
+                        </div>
+
+                        <div class="card setup-group">
+                            <h3><i data-icon="qr"></i>QR-Codes für die Halle</h3>
+                            <div class="qr-grid">
+                                <div class="qr-box">
+                                    <strong>Zur Anmeldung</strong>
+                                    <div class="qr" id="qrAnmeldung"></div>
+                                    <button id="downloadQrAnmeldungBtn" class="btn sm"><i data-icon="download"></i>PNG</button>
+                                </div>
+                                <div class="qr-box">
+                                    <strong>Live-Ergebnisse (ÖTTV)</strong>
+                                    <div class="qr" id="qrErgebnisse"></div>
+                                    <div class="small muted" id="qrErgebnisseHint"></div>
+                                    <button id="downloadQrErgebnisseBtn" class="btn sm" style="display:none;"><i data-icon="download"></i>PNG</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <div class="card settings-section danger-zone" id="set-gefahr">
-                                <div class="card-head">
-                                    <h3><i data-icon="alert"></i>Gefahrenzone</h3>
-                                </div>
-                                <div class="grid cols-2">
-                                    <div>
-                                        <p class="muted small" style="margin-bottom:10px;">Archiviert das aktuelle Turnier und legt ein neues, leeres Turnier an.</p>
-                                        <button id="createNewTournamentBtn" class="btn warn block"><i data-icon="refresh"></i>Saisonwechsel</button>
-                                    </div>
-                                    <div>
-                                        <p class="muted small" style="margin-bottom:10px;">Löscht das aktuelle Turnier endgültig. Das vorherige wird wieder aktiv.</p>
-                                        <button id="deleteTournamentBtn" class="btn danger block"><i data-icon="trash"></i>Turnier löschen</button>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- ---------- SAISON ---------- -->
+                    <div class="setup-panel" data-panel="saison" hidden>
+                        <div class="card setup-group">
+                            <h3>Neues Turnier</h3>
+                            <p class="group-sub">Archiviert das aktuelle Turnier und legt ein neues an. Bewerbe, Nenngeld und Website-Texte können übernommen werden.</p>
+                            <div><button id="createNewTournamentBtn" class="btn"><i data-icon="refresh"></i>Saisonwechsel starten</button></div>
+                        </div>
+                        <div class="card setup-group danger-zone">
+                            <h3><i data-icon="alert"></i>Turnier löschen</h3>
+                            <p class="group-sub">Löscht das aktuelle Turnier endgültig. Das vorherige wird wieder aktiv.</p>
+                            <div><button id="deleteTournamentBtn" class="btn danger"><i data-icon="trash"></i>Aktuelles Turnier löschen</button></div>
+                        </div>
+                    </div>
 
-                            <div class="save-bar">
-                                <span class="small" id="setupDirtyHint">Alles gespeichert</span>
-                                <div style="display:flex; gap:8px;">
-                                    <a class="btn" href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website ansehen</a>
-                                    <button id="saveSetupBtn" class="btn primary">Einstellungen speichern</button>
-                                </div>
-                            </div>
+                    <div class="save-bar">
+                        <span class="small" id="setupDirtyHint">Alles gespeichert</span>
+                        <div style="display:flex; gap:8px;">
+                            <a class="btn ghost" href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website</a>
+                            <button id="saveSetupBtn" class="btn primary">Speichern</button>
                         </div>
                     </div>
                 </section>

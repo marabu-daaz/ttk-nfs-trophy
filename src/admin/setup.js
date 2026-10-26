@@ -93,6 +93,7 @@ export function fillSetup(t) {
     }
 
     setupBewerbeList = parseBewerbe(t).map(b => ({ ...b, _orig: b.name }));
+    openBewerbe.clear();
     renderSetupBewerbe();
     generateQRCodes(t.oettv_url);
     updateDeadlineHint();
@@ -100,7 +101,7 @@ export function fillSetup(t) {
 }
 
 function updateOpenLabel(isOpen) {
-    $('setupIsOpenLabel').innerHTML = `Anmeldung ist <span style="color:var(${isOpen ? '--accent' : '--danger'})">${isOpen ? 'geöffnet' : 'geschlossen'}</span>`;
+    $('setupIsOpenLabel').innerHTML = `<span style="color:var(${isOpen ? '--accent' : '--danger'})">${isOpen ? 'Geöffnet' : 'Geschlossen'}</span>`;
     $('setupIsOpenHint').textContent = isOpen ? 'Spieler können sich auf der Website anmelden.' : 'Das Formular auf der Website ist deaktiviert.';
 }
 
@@ -115,7 +116,7 @@ export function setSetupOpenState(open) {
 function updateDeadlineHint() {
     const v = $('setupDeadline').value;
     const hint = $('setupDeadlineHint');
-    if (!v) { hint.textContent = 'Optional. Danach ist das Formular automatisch geschlossen.'; return; }
+    if (!v) { hint.textContent = 'Ab diesem Zeitpunkt ist das Anmeldeformular automatisch geschlossen.'; return; }
     const d = new Date(v);
     hint.textContent = d < new Date()
         ? '⚠️ Liegt in der Vergangenheit – die Anmeldung ist damit auf der Website geschlossen.'
@@ -125,30 +126,65 @@ function updateDeadlineHint() {
 // ==========================================
 // BEWERBE
 // ==========================================
+const openBewerbe = new Set();   // Index der aufgeklappten Bewerbe
+
+/** Zusammenfassung einer Bewerbs-Zeile („Sa 09:00 · 16 Plätze · ab 800 RC · 300 €“) */
+function bewerbSummary(b, regs) {
+    const parts = [];
+    if (b.time) parts.push(b.time);
+    parts.push(`${b.capacity || 20} Plätze`);
+    const min = parseInt(b.min_rc, 10) || 0, max = parseInt(b.max_rc, 10) || 0;
+    if (min && max) parts.push(`${min}–${max} RC`);
+    else if (min) parts.push(`ab ${min} RC`);
+    else if (max) parts.push(`bis ${max} RC`);
+    if (b.prize) parts.push(b.prize);
+    if (regs) parts.push(`${regs} ${regs === 1 ? 'Nennung' : 'Nennungen'}`);
+    return parts.join(' · ');
+}
+
 export function renderSetupBewerbe() {
     const container = $('bewerbeContainer');
+    const n = setupBewerbeList.length;
+    $('setupBewerbeCount').textContent = n || '';
     container.innerHTML = setupBewerbeList.map((b, index) => {
         const regs = b._orig ? countInBewerb(b._orig) : 0;
+        const open = openBewerbe.has(index);
         return `
-        <div class="repeat-row bewerb-row" data-index="${index}">
-            <div class="order-btns">
-                <button type="button" class="icon-btn" data-move="-1" title="Nach oben" ${index === 0 ? 'disabled' : ''}>${icon('arrowUp')}</button>
-                <button type="button" class="icon-btn" data-move="1" title="Nach unten" ${index === setupBewerbeList.length - 1 ? 'disabled' : ''}>${icon('arrowDown')}</button>
+        <div class="bw-item bewerb-row ${open ? 'open' : ''}" data-index="${index}">
+            <div class="bw-sum">
+                <div class="order-btns">
+                    <button type="button" class="icon-btn" data-move="-1" title="Nach oben" ${index === 0 ? 'disabled' : ''}>${icon('arrowUp')}</button>
+                    <button type="button" class="icon-btn" data-move="1" title="Nach unten" ${index === n - 1 ? 'disabled' : ''}>${icon('arrowDown')}</button>
+                </div>
+                <button type="button" class="bw-toggle" aria-expanded="${open}">
+                    <span class="bw-sum-name">${esc(b.name) || '<em>Ohne Namen</em>'}</span>
+                    <span class="bw-sum-meta">${esc(bewerbSummary(b, regs))}</span>
+                </button>
+                <button type="button" class="icon-btn" data-toggle title="${open ? 'Zuklappen' : 'Bearbeiten'}">${icon(open ? 'x' : 'edit')}</button>
+                <button type="button" class="icon-btn danger remove-bewerb-btn" title="Bewerb entfernen">${icon('trash')}</button>
             </div>
-            <div class="bewerb-editor">
-                <div class="field"><label>Name</label><input type="text" class="input bewerb-name" value="${esc(b.name)}"></div>
+            <div class="bw-edit">
+                <div class="field span-all"><label>Name</label><input type="text" class="input bewerb-name" value="${esc(b.name)}"></div>
                 <div class="field"><label>Startzeit</label><input type="text" class="input bewerb-time" value="${esc(b.time || '')}" placeholder="Sa 09:00"></div>
-                <div class="field"><label>Dauer (h)</label><input type="number" class="input bewerb-duration" value="${esc(b.duration || 3)}" min="1"></div>
+                <div class="field"><label>Dauer (Std.)</label><input type="number" class="input bewerb-duration" value="${esc(b.duration || 3)}" min="1"></div>
+                <div class="field"><label>Plätze</label><input type="number" class="input bewerb-cap" value="${esc(b.capacity || 20)}" min="1"></div>
                 <div class="field"><label>Min. RC</label><input type="number" class="input bewerb-rc" value="${esc(b.min_rc || '')}" min="0" placeholder="–"></div>
                 <div class="field"><label>Max. RC</label><input type="number" class="input bewerb-maxrc" value="${esc(b.max_rc || '')}" min="0" placeholder="–"></div>
-                <div class="field"><label>Plätze</label><input type="number" class="input bewerb-cap" value="${esc(b.capacity || 20)}" min="1"></div>
                 <div class="field"><label>Preisgeld</label><input type="text" class="input bewerb-prize" value="${esc(b.prize || '')}" placeholder="optional"></div>
-                <button type="button" class="icon-btn danger remove-bewerb-btn" title="Bewerb entfernen" style="margin-bottom:4px;">${icon('trash')}</button>
+                ${regs ? `<div class="help span-all">${regs} ${regs === 1 ? 'Nennung' : 'Nennungen'} – beim Umbenennen werden sie automatisch mitgenommen.</div>` : ''}
             </div>
-            ${regs ? `<div class="bewerb-regs small muted">${regs} ${regs === 1 ? 'Nennung' : 'Nennungen'} – beim Umbenennen werden sie automatisch mitgenommen.</div>` : ''}
         </div>`;
     }).join('') || '<div class="muted small">Noch keine Bewerbe.</div>';
     updateDirtyUi();
+}
+
+/** Zusammenfassung beim Tippen aktualisieren, ohne neu zu rendern (Fokus bleibt) */
+function refreshSummary(row) {
+    const idx = parseInt(row.dataset.index, 10);
+    const b = getBewerbeFromDOM()[idx];
+    if (!b) return;
+    row.querySelector('.bw-sum-name').textContent = b.name || 'Ohne Namen';
+    row.querySelector('.bw-sum-meta').textContent = bewerbSummary(b, b._orig ? countInBewerb(b._orig) : 0);
 }
 
 /** Liest die Bewerbe aus dem Formular (inkl. ursprünglichem Namen für Umbenennungen) */
@@ -298,7 +334,7 @@ export async function saveSetup() {
     const problem = validateBewerbe(bewerbeList);
     if (problem) {
         showToast(problem, true);
-        document.getElementById('set-bewerbe').scrollIntoView({ behavior: 'smooth' });
+        document.querySelector('#setupTabs [data-panel="bewerbe"]').click();
         return;
     }
     const renames = bewerbeList.filter(b => b._orig && b._orig !== b.name && countInBewerb(b._orig) > 0);
@@ -513,6 +549,7 @@ export function initSetupEvents() {
     on('addBewerbBtn', () => {
         setupBewerbeList = getBewerbeFromDOM();
         setupBewerbeList.push({ name: 'Neuer Bewerb', time: 'Sa 09:00', min_rc: 0, prize: '', capacity: 20, duration: 3, _orig: null });
+        openBewerbe.add(setupBewerbeList.length - 1);
         renderSetupBewerbe();
         const names = document.querySelectorAll('#bewerbeContainer .bewerb-name');
         names[names.length - 1]?.select();
@@ -527,11 +564,27 @@ export function initSetupEvents() {
         const row = e.target.closest('.bewerb-row');
         if (!row) return;
         const idx = parseInt(row.dataset.index, 10);
+        if (e.target.closest('.bw-toggle, [data-toggle]')) {
+            const open = !row.classList.contains('open');
+            row.classList.toggle('open', open);
+            open ? openBewerbe.add(idx) : openBewerbe.delete(idx);
+            row.querySelector('.bw-toggle').setAttribute('aria-expanded', String(open));
+            const t = row.querySelector('[data-toggle]');
+            t.innerHTML = icon(open ? 'x' : 'edit');
+            t.title = open ? 'Zuklappen' : 'Bearbeiten';
+            if (open) row.querySelector('.bewerb-name').focus();
+            return;
+        }
         const move = e.target.closest('[data-move]');
         if (move && !move.disabled) {
             setupBewerbeList = getBewerbeFromDOM();
             const to = idx + parseInt(move.dataset.move, 10);
             [setupBewerbeList[idx], setupBewerbeList[to]] = [setupBewerbeList[to], setupBewerbeList[idx]];
+            // Aufklapp-Status mitverschieben
+            const wasOpen = [openBewerbe.has(idx), openBewerbe.has(to)];
+            openBewerbe.delete(idx); openBewerbe.delete(to);
+            if (wasOpen[0]) openBewerbe.add(to);
+            if (wasOpen[1]) openBewerbe.add(idx);
             renderSetupBewerbe();
             return;
         }
@@ -544,6 +597,10 @@ export function initSetupEvents() {
                 return;
             }
             setupBewerbeList.splice(idx, 1);
+            // Indizes nach dem gelöschten Bewerb rücken eins nach vorne
+            const shifted = [...openBewerbe].filter(i => i !== idx).map(i => (i > idx ? i - 1 : i));
+            openBewerbe.clear();
+            shifted.forEach(i => openBewerbe.add(i));
             renderSetupBewerbe();
         }
     });
@@ -551,6 +608,25 @@ export function initSetupEvents() {
     $('setupIsOpen').addEventListener('change', e => updateOpenLabel(e.target.checked));
     $('setupDeadline').addEventListener('input', updateDeadlineHint);
     $('setupDeadlineClear').addEventListener('click', () => { $('setupDeadline').value = ''; updateDeadlineHint(); updateDirtyUi(); });
+
+    // Unter-Reiter (zuletzt gewählter bleibt in dieser Sitzung erhalten)
+    const showPanel = name => {
+        document.querySelectorAll('#setupTabs button').forEach(b => b.classList.toggle('on', b.dataset.panel === name));
+        document.querySelectorAll('#view-setup .setup-panel').forEach(p => { p.hidden = p.dataset.panel !== name; });
+        try { sessionStorage.setItem('setup-panel', name); } catch { /* egal */ }
+    };
+    $('setupTabs').addEventListener('click', e => {
+        const b = e.target.closest('button[data-panel]');
+        if (b) showPanel(b.dataset.panel);
+    });
+    let lastPanel = null;
+    try { lastPanel = sessionStorage.getItem('setup-panel'); } catch { /* egal */ }
+    if (lastPanel && document.querySelector(`#setupTabs [data-panel="${lastPanel}"]`)) showPanel(lastPanel);
+
+    $('bewerbeContainer').addEventListener('input', e => {
+        const row = e.target.closest('.bewerb-row');
+        if (row) refreshSummary(row);
+    });
 
     // Ungespeicherte Änderungen erkennen
     const view = $('view-setup');
