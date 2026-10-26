@@ -9,6 +9,7 @@ import * as dashboard from './dashboard.js';
 import * as registrations from './registrations.js';
 import * as bewerbe from './bewerbe.js';
 import * as checkin from './checkin.js';
+import * as audit from './audit.js';
 import { loadBookkeeping, setFinanceTournamentId, setFinanceChangeHandler, initFinanceView, renderFinance } from './finance.js';
 import { fillSetup, initSetupEvents, setSetupTournamentId, setSetupTournaments, setSetupSavedHandler, setSetupOpenState } from './setup.js';
 import { setArchiveTournamentId, setArchiveTournaments, populateArchivDropdown, initArchiveEvents, initFotoUpload } from './archive.js';
@@ -26,6 +27,7 @@ const VIEWS = {
     kasse: { title: 'Kasse', render: renderKasse },
     setup: { title: 'Turnier-Setup', render: null },
     archiv: { title: 'Archiv & Medien', render: null },
+    protokoll: { title: 'Protokoll', render: audit.render },
 };
 let currentView = null;
 
@@ -123,6 +125,15 @@ function showLogin() {
 }
 
 async function showApp() {
+    // Nur Konten aus der Admin-Liste (supabase/admins.sql) dürfen rein.
+    // Gibt es die Prüf-Funktion noch nicht, gilt wie bisher: eingeloggt = Admin.
+    const { data: isAdmin, error } = await supabase.rpc('is_admin');
+    if (!error && isAdmin === false) {
+        await supabase.auth.signOut();
+        showLogin();
+        $('loginError').textContent = 'Dieses Konto hat keinen Admin-Zugang.';
+        return;
+    }
     $('loginScreen').classList.add('hidden');
     $('appContent').classList.remove('hidden');
     if (!appInitialized) {
@@ -137,6 +148,7 @@ function initOnce() {
     registrations.initRegistrationsView();
     bewerbe.initBewerbeView();
     checkin.initCheckinView();
+    audit.initAuditView();
     initFinanceView();
     initSetupEvents();
     initArchiveEvents();

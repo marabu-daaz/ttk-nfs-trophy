@@ -65,6 +65,8 @@ create unique index if not exists registrations_tournament_person_uniq
 
 -- ----------------------------------------------------------------------------
 -- 3. WARTELISTE SERVERSEITIG berechnen
+--    HINWEIS: Nach supabase/admins.sql diesen Abschnitt nicht erneut ausführen –
+--    admins.sql (Schritt 4) enthält die aktuelle Version mit is_admin().
 -- ----------------------------------------------------------------------------
 -- Bisher berechnet nur der Browser, ob ein Bewerb voll ist. Jeder kann aber mit
 -- dem öffentlichen Key direkt "waitlist: false" senden, und zwei gleichzeitige

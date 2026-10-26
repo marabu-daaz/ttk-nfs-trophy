@@ -13,6 +13,8 @@ alter table public.registrations
 
 
 -- 2) Anmeldeschluss auch serverseitig durchsetzen
+--    HINWEIS: Nach supabase/admins.sql diesen Abschnitt nicht erneut ausführen –
+--    admins.sql (Schritt 4) enthält die aktuelle Version mit is_admin().
 --    Der Anmeldeschluss wird im Turnier-Setup gesetzt (turnier_info.registrationDeadline).
 --    Die Website prüft ihn bereits – dieser Trigger verhindert zusätzlich, dass jemand
 --    nach Ablauf direkt über die Datenbank-Schnittstelle nennt. Admins sind ausgenommen.

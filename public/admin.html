@@ -97,6 +97,7 @@
                 <div class="nav-label">Verwaltung</div>
                 <a href="#/setup" data-view="setup"><i data-icon="sliders"></i>Turnier-Setup</a>
                 <a href="#/archiv" data-view="archiv"><i data-icon="archive"></i>Archiv &amp; Medien</a>
+                <a href="#/protokoll" data-view="protokoll"><i data-icon="clock"></i>Protokoll</a>
                 <a href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website öffnen</a>
             </nav>
 
@@ -541,6 +542,33 @@
                     </div>
                 </section>
 
+                <!-- ========== PROTOKOLL ========== -->
+                <section class="view hidden" id="view-protokoll">
+                    <div class="page-head">
+                        <div>
+                            <h1>Protokoll</h1>
+                            <div class="sub">Wer hat wann was geändert – für das aktuelle Turnier</div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn" data-action="refresh"><i data-icon="refresh"></i>Aktualisieren</button>
+                        </div>
+                    </div>
+                    <div class="toolbar">
+                        <div class="search input-icon">
+                            <i data-icon="search"></i>
+                            <input type="search" id="auditSearch" class="input" placeholder="Name, Feld oder Person suchen…">
+                        </div>
+                        <div class="segmented" id="auditFilter">
+                            <button data-v="all" class="on">Alle</button>
+                            <button data-v="reg">Nennungen</button>
+                            <button data-v="kasse">Kasse</button>
+                            <button data-v="turnier">Turnier</button>
+                        </div>
+                    </div>
+                    <div class="card" id="auditList"></div>
+                    <button class="btn block" id="auditMore" style="margin-top:12px;" hidden>Ältere Einträge laden</button>
+                </section>
+
             </main>
         </div>
     </div>
@@ -583,6 +611,10 @@
                     </div>
                     <div class="field full"><label for="rfNotiz">Anmerkung</label><textarea id="rfNotiz" class="input" rows="2"></textarea></div>
                 </div>
+                <details class="history" id="rfHistoryWrap">
+                    <summary>Verlauf</summary>
+                    <div id="rfHistory"></div>
+                </details>
                 <datalist id="vereinList"></datalist>
             </div>
             <div class="modal-foot">

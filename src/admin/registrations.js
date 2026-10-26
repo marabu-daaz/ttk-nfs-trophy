@@ -9,6 +9,7 @@ import {
     feeFor, autoTag, updateRegistration, deleteRegistration, waitlistFields,
 } from './state.js';
 import { icon, euro, relTime, confirmDialog, withBusy } from './ui.js';
+import { historyFor } from './audit.js';
 
 const filters = { search: '', bewerb: 'all', status: 'all', sort: 'time_desc' };
 let filtered = [];
@@ -265,8 +266,30 @@ export function openRegModal(reg = null, preset = {}) {
     }).join('') || '<div class="muted small">Noch keine Bewerbe im Turnier-Setup angelegt.</div>';
 
     updateFeePreview();
+    loadHistory(reg);
     document.getElementById('regModal').showModal();
     $('rfVorname').focus();
+}
+
+/** Verlauf der Nennung aus dem Änderungsprotokoll */
+async function loadHistory(reg) {
+    const wrap = document.getElementById('rfHistoryWrap');
+    const box = document.getElementById('rfHistory');
+    wrap.hidden = !reg;
+    wrap.open = false;
+    if (!reg) return;
+    box.innerHTML = '<div class="muted small">Lade…</div>';
+    const items = await historyFor(reg.id);
+    if (editing?.id !== reg.id) return; // Dialog inzwischen für jemand anderen geöffnet
+    if (items === null) {
+        box.innerHTML = '<div class="muted small">Protokoll noch nicht eingerichtet (supabase/audit-log.sql).</div>';
+        return;
+    }
+    box.innerHTML = items.length ? items.map(({ e, d }) => `
+        <div class="history-row">
+            <span class="muted small">${new Date(e.created_at).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' })} · ${esc(e.actor && e.actor.includes('@') ? e.actor.split('@')[0] : e.actor || '')}</span>
+            <span>${d.changes.length ? d.changes.map(c => `<b>${esc(c.label)}:</b> ${c.from !== null ? esc(c.from) + ' → ' : ''}${esc(c.to)}`).join(' · ') : esc(d.title)}</span>
+        </div>`).join('') : '<div class="muted small">Noch keine Einträge.</div>';
 }
 
 /** RC-Grenzen eines Bewerbs als Zusatztext („ · bis 1500 RC“) */

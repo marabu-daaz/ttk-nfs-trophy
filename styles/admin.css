@@ -140,7 +140,8 @@ svg.icon {
     font-variant-numeric: tabular-nums;
 }
 
-.hidden {
+.hidden,
+[hidden] {
     display: none !important;
 }
 
@@ -1832,6 +1833,99 @@ table.table {
 .file-list li .grow {
     flex: 1;
     min-width: 0;
+}
+
+/* ----- PROTOKOLL ----- */
+.audit-day {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+    padding: 14px 0 6px;
+}
+
+.audit-day:first-child {
+    padding-top: 0;
+}
+
+.audit-item {
+    display: grid;
+    grid-template-columns: 32px 1fr auto;
+    gap: 12px;
+    align-items: start;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+}
+
+.audit-item:last-child {
+    border-bottom: 0;
+}
+
+.audit-ic {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-3);
+    color: var(--text-2);
+}
+
+.audit-ic .icon {
+    width: 16px;
+    height: 16px;
+}
+
+.audit-item .title {
+    font-weight: 600;
+}
+
+.audit-changes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    font-size: 13px;
+    color: var(--text-2);
+    margin-top: 2px;
+}
+
+.audit-changes b {
+    color: var(--muted);
+    font-weight: 500;
+}
+
+.audit-meta {
+    text-align: right;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+details.history {
+    margin-top: 16px;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+}
+
+details.history summary {
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2);
+}
+
+.history-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+}
+
+.history-row:last-child {
+    border-bottom: 0;
 }
 
 /* ----- MODAL ----- */
