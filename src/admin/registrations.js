@@ -42,6 +42,8 @@ export function initRegistrationsView() {
     initRegModal();
 }
 
+const cancelLink = reg => `${location.origin}/abmelden?t=${reg.cancel_token}`;
+
 export function render() {
     const select = document.getElementById('filterBewerb');
     const names = allBewerbNames();
@@ -203,6 +205,29 @@ function initRegModal() {
         if (editing && await confirmDelete(editing)) dlg.close();
     });
     document.getElementById('rfTag').addEventListener('change', updateFeePreview);
+    document.getElementById('rfCopyLink').addEventListener('click', async () => {
+        if (!editing?.cancel_token) return;
+        try {
+            await navigator.clipboard.writeText(cancelLink(editing));
+            showToast('Abmeldelink kopiert');
+        } catch {
+            window.prompt('Abmeldelink:', cancelLink(editing));
+        }
+    });
+    document.getElementById('rfSendLink').addEventListener('click', async e => {
+        if (!editing?.email) return;
+        const ok = await confirmDialog({
+            title: 'Abmeldelink senden?',
+            message: `Der Link wird an ${editing.email} geschickt (höchstens alle 10 Minuten).`,
+            confirmText: 'Senden',
+        });
+        if (!ok) return;
+        await withBusy(e.currentTarget, async () => {
+            const { error } = await supabase.functions.invoke('send-registration-email', { body: { action: 'resend_link', email: editing.email } });
+            if (error) showToast('Senden fehlgeschlagen: ' + (error.message || error), true);
+            else showToast(`Link an ${editing.email} geschickt`);
+        }, 'Sende…');
+    });
     document.getElementById('rfVerein').addEventListener('change', () => {
         // Tarif automatisch vorschlagen, solange er nicht manuell gesetzt wurde
         if (!editing) document.getElementById('rfTag').value = autoTag({ verein: document.getElementById('rfVerein').value });
@@ -226,6 +251,9 @@ export function openRegModal(reg = null, preset = {}) {
     const $ = id => document.getElementById(id);
     $('regModalTitle').textContent = reg ? `${reg.fullName} bearbeiten` : 'Nennung anlegen';
     $('rfDelete').style.display = reg ? '' : 'none';
+    // Abmeldelink gibt es erst nach supabase/self-service.sql (Spalte cancel_token)
+    $('rfCancelRow').hidden = !reg?.cancel_token;
+    $('rfSendLink').disabled = !reg?.email;
     $('rfCheckedInWrap').style.display = state.checkinSupported ? '' : 'none';
 
     $('rfVorname').value = reg?.vorname || '';

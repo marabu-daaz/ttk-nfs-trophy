@@ -6,6 +6,12 @@
   to = "/public/index.html"
   status = 200
 
+# Abmeldelink aus der Bestätigungsmail (Query ?t=... bleibt erhalten)
+[[redirects]]
+  from = "/abmelden"
+  to = "/public/abmelden.html"
+  status = 200
+
 # Sicherheits-Header für alle Seiten
 [[headers]]
   for = "/*"

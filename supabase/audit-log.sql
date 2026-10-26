@@ -27,10 +27,17 @@ create index if not exists audit_log_tournament_idx on public.audit_log (tournam
 
 alter table public.audit_log enable row level security;
 
--- Nur eingeloggte Admins dürfen lesen. Keine Schreib-Policies: nur der Trigger schreibt.
+-- Nur Admins dürfen lesen. Keine Schreib-Policies: nur der Trigger schreibt.
+-- Gibt es schon die Admin-Liste (admins.sql), wird sie verwendet – sonst alle Eingeloggten.
 drop policy if exists "audit_read_admin" on public.audit_log;
-create policy "audit_read_admin" on public.audit_log
-    for select to authenticated using (true);
+do $$
+begin
+    if to_regprocedure('public.is_admin()') is not null then
+        create policy "audit_read_admin" on public.audit_log for select to authenticated using (public.is_admin());
+    else
+        create policy "audit_read_admin" on public.audit_log for select to authenticated using (true);
+    end if;
+end $$;
 
 
 create or replace function public.nfs_audit()
@@ -50,7 +57,9 @@ declare
     tid     text;
     label   text;
 begin
+    -- nfs.actor wird z.B. bei der Selbst-Abmeldung gesetzt
     who := coalesce(
+        nullif(current_setting('nfs.actor', true), ''),
         auth.jwt() ->> 'email',
         case when auth.role() = 'anon' then 'Website' else 'System' end
     );

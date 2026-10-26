@@ -1902,6 +1902,13 @@ table.table {
     white-space: nowrap;
 }
 
+.cancel-link-row {
+    margin-top: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
 details.history {
     margin-top: 16px;
     border-top: 1px solid var(--border);

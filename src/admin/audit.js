@@ -95,7 +95,7 @@ export function describe(e) {
 
 function who(actor) {
     if (!actor) return 'unbekannt';
-    if (actor === 'Website') return 'Website';
+    if (actor === 'Website' || actor === 'Selbst-Abmeldung') return actor;
     return actor.includes('@') ? actor.split('@')[0] : actor;
 }
 

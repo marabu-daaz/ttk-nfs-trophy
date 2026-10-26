@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Nennung verwalten · NFS Trophy</title>
+    <meta name="theme-color" content="#0a1f14" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/styles/style.css" />
+    <script type="module" src="/src/frontend/abmelden.js"></script>
+</head>
+
+<body class="manage-page">
+    <nav>
+        <div class="inner">
+            <a href="/" class="logo" aria-label="NFS Trophy"><img src="/icons/logo.png" alt="NFS Trophy" /></a>
+            <a href="/" class="manage-back">← Zur Turnierseite</a>
+        </div>
+    </nav>
+
+    <main class="wrap manage-wrap">
+        <div class="sec-head">
+            <div class="eyebrow mono">Nennung verwalten</div>
+            <h2 id="manageTitle">Deine <em>Nennung</em></h2>
+        </div>
+
+        <!-- Lädt -->
+        <section id="stateLoading" class="manage-card">
+            <p class="manage-muted">Lade deine Nennung…</p>
+        </section>
+
+        <!-- Nennung gefunden -->
+        <section id="stateFound" class="manage-card" hidden>
+            <p class="manage-lead" id="foundIntro"></p>
+            <div id="foundBewerbe" class="manage-bewerbe"></div>
+            <div id="foundActions">
+                <p class="manage-muted">Wähle, wovon du dich abmelden möchtest. Dein Platz wird dann an die Warteliste weitergegeben.</p>
+                <div class="manage-buttons">
+                    <button class="btn" id="cancelSelectedBtn" disabled>Ausgewählte abmelden</button>
+                    <button class="btn primary manage-danger" id="cancelAllBtn">Komplett abmelden</button>
+                </div>
+            </div>
+            <p class="manage-note" id="foundTooLate" hidden>Das Turnier hat bereits begonnen – eine Abmeldung ist online nicht mehr möglich. Bitte melde dich direkt bei der Turnierleitung.</p>
+        </section>
+
+        <!-- Erfolgreich abgemeldet -->
+        <section id="stateDone" class="manage-card" hidden>
+            <div class="manage-icon">✓</div>
+            <p class="manage-lead" id="doneText"></p>
+            <p class="manage-muted">Du bekommst gleich eine Bestätigung per E-Mail. Danke, dass du Bescheid gegeben hast!</p>
+            <a class="btn" href="/">Zur Turnierseite</a>
+        </section>
+
+        <!-- Link anfordern -->
+        <section id="stateRequest" class="manage-card" hidden>
+            <p class="manage-note" id="requestReason" hidden></p>
+            <p class="manage-lead">Du willst dich abmelden, findest aber die Bestätigungsmail nicht mehr?</p>
+            <p class="manage-muted">Gib die E-Mail-Adresse ein, mit der du genannt hast. Wir schicken dir einen neuen Link – nur an diese Adresse.</p>
+            <form id="requestForm" class="manage-form">
+                <div class="field">
+                    <label for="requestEmail">E-Mail-Adresse</label>
+                    <input id="requestEmail" type="email" required autocomplete="email" inputmode="email" />
+                </div>
+                <button type="submit" class="btn primary" id="requestBtn">Link zusenden</button>
+            </form>
+            <p class="manage-success" id="requestDone" hidden>
+                Falls für diese Adresse eine Nennung existiert, ist der Link unterwegs. Schau auch im Spam-Ordner nach.
+            </p>
+            <p class="manage-muted manage-small">Keine E-Mail angegeben oder Probleme? Melde dich bei der Turnierleitung:
+                <a href="mailto:christianritter1310@gmail.com">christianritter1310@gmail.com</a></p>
+        </section>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+</body>
+
+</html>

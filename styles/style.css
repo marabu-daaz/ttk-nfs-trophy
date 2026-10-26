@@ -1256,6 +1256,150 @@ footer {
     background: rgba(255, 255, 255, 0.06);
 }
 
+/* Hinweis „Hier abmelden“ unter dem Formular */
+.manage-hint {
+    margin-top: 14px;
+    font-size: 14px;
+    color: var(--muted);
+}
+
+.manage-hint a {
+    color: var(--green-neon);
+}
+
+/* ----- Abmeldeseite ----- */
+.manage-page nav .inner {
+    justify-content: space-between;
+}
+
+.manage-back {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.manage-wrap {
+    max-width: 640px;
+    padding-top: 48px;
+    padding-bottom: 80px;
+}
+
+.manage-card {
+    background: var(--green-dark);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.manage-card[hidden],
+.manage-card [hidden] {
+    display: none !important;
+}
+
+.manage-lead {
+    font-size: 18px;
+}
+
+.manage-muted {
+    color: var(--muted);
+}
+
+.manage-small {
+    font-size: 13px;
+}
+
+.manage-note {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(240, 179, 74, 0.12);
+    color: #f0c27a;
+}
+
+.manage-success {
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: rgba(92, 184, 116, 0.14);
+    color: var(--green-neon);
+}
+
+.manage-bewerbe {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.manage-bewerb {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.manage-bewerb input {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--green-neon);
+}
+
+.manage-bewerb .name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.manage-bewerb .tag {
+    font-size: 12px;
+    padding: 2px 9px;
+    border-radius: 99px;
+    background: rgba(92, 184, 116, 0.14);
+    color: var(--green-neon);
+}
+
+.manage-bewerb .tag.wl {
+    background: rgba(240, 179, 74, 0.14);
+    color: #f0c27a;
+}
+
+.manage-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.manage-buttons .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.manage-danger {
+    background: #c9412f !important;
+    border-color: #c9412f !important;
+    color: #fff !important;
+}
+
+.manage-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.manage-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(92, 184, 116, 0.18);
+    color: var(--green-neon);
+    font-size: 26px;
+}
+
 /* Anmelde-Status unter der Überschrift */
 .anmelde-lead {
     margin-top: 14px;
