@@ -4,539 +4,586 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Admin · NFS Trophy</title>
 
     <link rel="manifest" href="/manifest.json" />
     <link rel="icon" type="image/png" href="/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="NFS Trophy" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#071510" />
 
-    <title>NFS Trophy - Admin Dashboard</title>
+    <!-- Theme vor dem ersten Rendern setzen (kein Aufblitzen) -->
+    <script>
+        (function () {
+            var t = null;
+            try { t = localStorage.getItem('admin-theme'); } catch (e) { }
+            if (!t) t = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap"
         rel="stylesheet">
-    <!-- CSS Imports -->
-    <link rel="stylesheet" href="/styles/shared.css" />
     <link rel="stylesheet" href="/styles/admin.css" />
 
-    <!-- 1. CDN-Bibliotheken (globale Scripts) -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <!-- Bibliotheken für PDF/QR -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 
-    <!-- 2. Import-Map für ES-Module -->
     <script type="importmap">
     {
         "imports": {
             "xlsx": "https://esm.sh/xlsx@0.18.5"
         }
     }
-</script>
-
-    <!-- 3. Dein Haupt-Script -->
+    </script>
     <script type="module" src="/src/admin/admin.js"></script>
 </head>
 
 <body>
-    <!-- LOGIN SCREEN -->
-    <div id="loginScreen" class="login-screen">
+    <!-- ================= LOGIN ================= -->
+    <div id="loginScreen" class="login-screen hidden">
         <div class="login-box">
-            <h2>Admin Login</h2>
+            <div class="brand">
+                <img src="/icons/logo.png" alt="">
+                <div>
+                    <h1>NFS Trophy</h1>
+                    <div class="muted small">Admin-Bereich</div>
+                </div>
+            </div>
             <form id="loginForm">
-                <input type="email" id="loginEmail" placeholder="E-Mail" required class="input-field">
-                <input type="password" id="loginPassword" placeholder="Passwort" required class="input-field">
-                <button type="submit" id="loginBtn" class="btn-outline" style="width: 100%;">Einloggen</button>
-                <div id="loginError" class="login-error"></div>
+                <div class="field">
+                    <label for="loginEmail">E-Mail</label>
+                    <input type="email" id="loginEmail" class="input" autocomplete="username" required>
+                </div>
+                <div class="field">
+                    <label for="loginPassword">Passwort</label>
+                    <input type="password" id="loginPassword" class="input" autocomplete="current-password" required>
+                </div>
+                <div id="loginError" class="login-error" role="alert"></div>
+                <button type="submit" id="loginBtn" class="btn primary lg block">Einloggen</button>
             </form>
         </div>
     </div>
 
-    <!-- DASHBOARD CONTENT -->
-    <div id="appContent" style="display: none;">
-        <nav class="admin-nav">
-            <div class="nav-brand">NFS Trophy <span>Admin</span></div>
-            <div class="nav-links">
-                <a href="#" id="tabNennungen" class="active">Nennungen</a>
-                <a href="#" id="tabFinanzen">Finanzen</a>
-                <a href="#" id="tabSetup">Turnier-Setup</a>
-                <a href="#" id="tabArchiv">Archiv & Medien</a>
-                <button class="theme-toggle" id="themeToggle" title="Theme umschalten">🌙</button>
-                <button id="logoutBtn" class="btn-outline">Logout</button>
+    <!-- ================= APP ================= -->
+    <div id="appContent" class="app hidden">
+
+        <aside class="sidebar" id="sidebar">
+            <div class="brand">
+                <img src="/icons/logo.png" alt="">
+                <div>
+                    <div class="t1">NFS Trophy</div>
+                    <div class="t2">Admin</div>
+                </div>
             </div>
-        </nav>
 
-        <main class="admin-wrap">
+            <div class="tournament-card">
+                <div class="name" id="sbTournamentName">–</div>
+                <div class="meta" id="sbTournamentMeta"></div>
+                <button class="status-pill" id="sbOpenToggle" title="Anmeldung öffnen/schließen"></button>
+            </div>
 
-            <!-- 1. TAB: FINANZEN -->
-            <section id="finances" class="panel stats-panel hidden">
-                <div class="panel-header">
-                    <h2>Finanzen & Statistiken</h2>
-                    <div class="actions" style="display:flex; gap:10px;">
-                        <button id="exportPdfBtn" class="btn-outline" style="background: rgba(255,255,255,0.1);">📄 PDF
-                            Druckliste</button>
-                        <button id="exportAdminBtn" class="btn-outline">📊 Excel Export</button>
-                    </div>
-                </div>
+            <nav class="nav" id="mainNav">
+                <a href="#/uebersicht" data-view="uebersicht"><i data-icon="dashboard"></i>Übersicht</a>
+                <a href="#/nennungen" data-view="nennungen"><i data-icon="users"></i>Nennungen<span class="count" id="navCountRegs"></span></a>
+                <a href="#/bewerbe" data-view="bewerbe"><i data-icon="trophy"></i>Bewerbe<span class="count" id="navCountWl"></span></a>
+                <a href="#/checkin" data-view="checkin"><i data-icon="checkCircle"></i>Check-in</a>
+                <a href="#/kasse" data-view="kasse"><i data-icon="wallet"></i>Kasse</a>
+                <div class="nav-label">Verwaltung</div>
+                <a href="#/setup" data-view="setup"><i data-icon="sliders"></i>Turnier-Setup</a>
+                <a href="#/archiv" data-view="archiv"><i data-icon="archive"></i>Archiv &amp; Medien</a>
+                <a href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website öffnen</a>
+            </nav>
 
-                <div class="stats-grid">
-                    <div class="stat-card">
-                        <div class="stat-title">Nenngeld (Erwartet)</div>
-                        <div class="stat-value" id="statTotalExpected">0 €</div>
-                    </div>
-                    <div class="stat-card success">
-                        <div class="stat-title">Bereits Kassiert</div>
-                        <div class="stat-value" id="statPaid">0 €</div>
-                    </div>
-                    <div class="stat-card warning">
-                        <div class="stat-title">Noch Ausständig</div>
-                        <div class="stat-value" id="statOutstanding">0 €</div>
-                    </div>
-                    <div class="stat-card" style="border-top-color: #4CAF50; background: rgba(76, 175, 80, 0.1);">
-                        <div class="stat-title">SALDO (Netto-Gewinn)</div>
-                        <div class="stat-value" id="statSaldo" style="color: #4CAF50;">0 €</div>
-                    </div>
-                </div>
+            <div class="sidebar-foot">
+                <button class="btn ghost" id="themeToggle" title="Hell/Dunkel umschalten"></button>
+                <button class="btn ghost" id="logoutBtn"><i data-icon="logout"></i>Logout</button>
+            </div>
+        </aside>
+        <div class="scrim" id="scrim"></div>
 
-                <div class="stats-grid secondary-stats" style="margin-top: 20px;">
-                    <div class="stat-card">
-                        <div class="stat-title">Spieler (Aktiv / WL / Anwesend)</div>
-                        <div class="stat-value" id="statPlayers">0 / 0 / 0</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-title">Bewerbs-Starts</div>
-                        <div class="stat-value" id="statStarts">0</div>
-                    </div>
-                    <div class="stat-card alert">
-                        <div class="stat-title">Verlust durch Rabatte/VIP</div>
-                        <div class="stat-value" id="statLoss">0 €</div>
-                    </div>
-                </div>
+        <div class="main">
+            <header class="topbar">
+                <button class="icon-btn" id="menuBtn" aria-label="Menü"><i data-icon="menu"></i></button>
+                <div class="title" id="topTitle">Übersicht</div>
+                <button class="icon-btn" id="topAddBtn" aria-label="Nennung anlegen"><i data-icon="userPlus"></i></button>
+            </header>
 
-                <div class="panel-header"
-                    style="margin-top: 40px; border-top: 1px solid var(--border); padding-top: 30px;">
-                    <h2>Fun-Stats 🤓 <span
-                            style="font-size: 14px; font-weight: normal; color: var(--text-muted);">(Aktuelle
-                            Filter-Ansicht)</span></h2>
-                </div>
-                <div class="stats-grid" style="margin-bottom: 20px;">
-                    <div class="stat-card" style="border-top-color: #9c27b0;">
-                        <div class="stat-title">Stärkster Verein</div>
-                        <div class="stat-value" id="statTopVerein">-</div>
-                    </div>
-                    <div class="stat-card" style="border-top-color: #03a9f4;">
-                        <div class="stat-title">Ø RC-Punkte</div>
-                        <div class="stat-value" id="statAvgRc">0</div>
-                    </div>
-                    <div class="stat-card" style="border-top-color: #ff9800;">
-                        <div class="stat-title">Höchster RC-Wert</div>
-                        <div class="stat-value" id="statMaxRc" style="font-size: 24px;">-</div>
-                    </div>
-                </div>
+            <main class="page">
 
-                <div class="panel-header"
-                    style="margin-top: 40px; border-top: 1px solid var(--border); padding-top: 30px;">
-                    <h2>Kassenbuch (Sonstige Einnahmen & Ausgaben)</h2>
-                </div>
-                <div class="frow" style="align-items: flex-end; margin-bottom: 20px;">
-                    <div style="flex:2;"><label>Verwendungszweck / Herkunft:</label><input type="text" id="buchDesc"
-                            class="input-field" style="width: 100%;"></div>
-                    <div style="flex:1;"><label>Betrag (€):</label><input type="number" id="buchAmount"
-                            class="input-field" style="width: 100%;" placeholder="0"></div>
-                    <div style="display: flex; gap: 8px;">
-                        <button id="addIncomeBtn" class="btn-outline"
-                            style="background: rgba(76, 175, 80, 0.2); color: #4CAF50; border-color: #4CAF50; font-weight: bold;">+
-                            Einnahme</button>
-                        <button id="addExpenseBtn" class="btn-outline"
-                            style="background: rgba(229, 115, 115, 0.2); color: var(--error); border-color: var(--error); font-weight: bold;">-
-                            Ausgabe</button>
+                <!-- ========== ÜBERSICHT ========== -->
+                <section class="view" id="view-uebersicht">
+                    <div class="page-head">
+                        <div>
+                            <h1>Übersicht</h1>
+                            <div class="sub" id="dashSub"></div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn" data-action="refresh"><i data-icon="refresh"></i>Aktualisieren</button>
+                            <button class="btn primary" data-action="new-reg"><i data-icon="userPlus"></i>Nennung anlegen</button>
+                        </div>
                     </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Datum</th>
-                                <th>Typ</th>
-                                <th>Verwendungszweck</th>
-                                <th>Betrag</th>
-                                <th>Aktion</th>
-                            </tr>
-                        </thead>
-                        <tbody id="buchBody">
-                            <tr>
-                                <td colspan="5" class="loading-cell">Lade Kassenbuch...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <div id="dashRoot"></div>
+                </section>
 
-            <!-- 2. TAB: NENNUNGEN -->
-            <section id="dashboard" class="panel">
-                <div class="panel-header">
-                    <h2>Nennliste bearbeiten</h2>
-                    <div class="filters">
-                        <input type="text" id="searchInput" placeholder="Suchen (Name, Verein)..." class="input-field">
-                        <select id="filterBewerb" class="input-field">
+                <!-- ========== NENNUNGEN ========== -->
+                <section class="view hidden" id="view-nennungen">
+                    <div class="page-head">
+                        <div>
+                            <h1>Nennungen</h1>
+                            <div class="sub">Alle Anmeldungen des aktuellen Turniers</div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn" id="copyEmailsBtn"><i data-icon="copy"></i>E-Mails kopieren</button>
+                            <button class="btn" id="exportAdminBtn"><i data-icon="sheet"></i>Excel</button>
+                            <button class="btn" id="exportPdfBtn"><i data-icon="printer"></i>PDF-Liste</button>
+                            <button class="btn primary" data-action="new-reg"><i data-icon="userPlus"></i>Nennung anlegen</button>
+                        </div>
+                    </div>
+
+                    <div class="toolbar">
+                        <div class="search input-icon">
+                            <i data-icon="search"></i>
+                            <input type="search" id="searchInput" class="input" placeholder="Name, Verein oder E-Mail suchen…">
+                        </div>
+                        <select id="filterBewerb" class="input">
                             <option value="all">Alle Bewerbe</option>
                         </select>
-                        <select id="sortOrder" class="input-field">
+                        <div class="segmented" id="filterStatus" role="group" aria-label="Status-Filter">
+                            <button data-v="all" class="on">Alle</button>
+                            <button data-v="active">Aktiv</button>
+                            <button data-v="wl">Warteliste</button>
+                            <button data-v="unpaid">Offen</button>
+                            <button data-v="receipt">Beleg</button>
+                        </div>
+                        <select id="sortOrder" class="input">
                             <option value="time_desc">Neueste zuerst</option>
-                            <option value="name_asc">Alphabetisch (A-Z)</option>
-                            <option value="rc_desc">RC-Punkte (Absteigend)</option>
+                            <option value="time_asc">Älteste zuerst</option>
+                            <option value="name_asc">Name A–Z</option>
+                            <option value="rc_desc">RC-Punkte absteigend</option>
+                            <option value="verein_asc">Verein A–Z</option>
                         </select>
-                        <button id="copyEmailsBtn" class="btn-outline" style="border-color: #03a9f4; color: #03a9f4;">📧
-                            E-Mails kopieren</button>
                     </div>
-                </div>
-                <div class="table-responsive">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Verein & RC</th>
-                                <th>Bewerbe & Status</th>
-                                <th>Tag (Rabatt)</th>
-                                <th>Nenngeld</th>
-                                <th>Bezahlt</th>
-                                <th>Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tableBody">
-                            <tr>
-                                <td colspan="7" class="loading-cell">Lade Nennungen...</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </section>
+                    <div class="result-count" id="resultCount"></div>
 
-            <!-- 3. TAB: TURNIER-SETUP -->
-            <section id="setup" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Aktuelles Turnier konfigurieren</h2>
-                </div>
-                <div style="max-width: 800px; display: flex; flex-direction: column; gap: 24px;">
-
-                    <div class="stat-card stat-card-toggle" style="border-top-color: var(--accent);">
-                        <label style="display: flex; align-items: center; gap: 12px; font-size: 16px; cursor: pointer;">
-                            <input type="checkbox" id="setupIsOpen"
-                                style="width: 22px; height: 22px; accent-color: var(--accent); cursor: pointer;">
-                            <strong id="setupIsOpenLabel">Anmeldung auf der Website ist <span
-                                    style="color: var(--success);">GEÖFFNET</span></strong>
-                        </label>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 8px; margin-left: 34px;">
-                            <span id="setupIsOpenHint">Spieler können sich anmelden</span>
-                        </p>
+                    <div class="table-wrap">
+                        <table class="table responsive">
+                            <thead>
+                                <tr>
+                                    <th>Spieler</th>
+                                    <th>Verein · RC</th>
+                                    <th>Bewerbe</th>
+                                    <th>Tarif</th>
+                                    <th class="right">Nenngeld</th>
+                                    <th>Bezahlt</th>
+                                    <th class="right">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody"></tbody>
+                        </table>
                     </div>
-                    <div class="frow">
-                        <div style="flex:1;"><label>Turnier Name:</label><input type="text" id="setupName"
-                                class="input-field" style="width: 100%;" placeholder="z.B. Herbst Trophy 2026"></div>
-                    </div>
+                </section>
 
-                    <div class="frow">
-                        <div style="flex:1;"><label>Datum (Text für Website):</label><input type="text"
-                                id="setupDateText" class="input-field" style="width: 100%;"
-                                placeholder="z.B. 14.-15. September 2026"></div>
-                        <div style="flex:1;"><label>Countdown Ende (Datum & Uhrzeit):</label><input
-                                type="datetime-local" id="setupDateIso" class="input-field" style="width: 100%;"></div>
-                    </div>
-
-                    <div class="frow">
-                        <div style="flex:1;"><label>Untertitel (Tagline):</label><input type="text" id="setupSubtitle"
-                                class="input-field" style="width: 100%;"></div>
-                    </div>
-
-                    <div class="frow">
-                        <div style="flex:1;"><label>Nenngeld Normal (€):</label><input type="number" id="setupFeeNormal"
-                                class="input-field" style="width: 100%;"></div>
-                        <div style="flex:1;"><label>Nenngeld NFS (€):</label><input type="number" id="setupFeeNfs"
-                                class="input-field" style="width: 100%;"></div>
-                    </div>
-
-                    <!-- TEXTE UND FACTS MANAGER -->
-                    <div class="stat-card"
-                        style="border-top-color: #e91e63; background: rgba(233, 30, 99, 0.05); margin-top: 10px;">
-                        <h3 style="color: #e91e63; margin-bottom: 15px;">✏️ Website-Texte & Facts</h3>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Steuere die vier
-                            Fact-Kacheln und den Text zu den Bewerben auf der Startseite. (HTML-Tags wie &lt;strong&gt;
-                            oder &lt;br&gt; sind erlaubt).</p>
-                        <div class="frow">
-                            <div style="flex:1;"><label>Bewerbe Headline:</label><input type="text"
-                                    id="setupBewerbeHeadline" class="input-field" style="width: 100%;"
-                                    placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>"></div>
+                <!-- ========== BEWERBE ========== -->
+                <section class="view hidden" id="view-bewerbe">
+                    <div class="page-head">
+                        <div>
+                            <h1>Bewerbe</h1>
+                            <div class="sub">Startplätze, Wartelisten und Nachrücken</div>
                         </div>
-                        <div class="frow">
-                            <div style="flex:1;"><label>Bewerbe Beschreibung:</label><textarea id="setupBewerbeText"
-                                    class="input-field" style="width: 100%; height: 80px; resize: vertical;"
-                                    placeholder="Gespielt wird in 5 Vorrunden-Gruppen..."></textarea></div>
-                        </div>
-                        <hr style="border:0; border-top:1px solid rgba(255,255,255,0.1); margin: 20px 0;">
-                        <div class="frow">
-                            <div style="flex:1;"><label>Kachel 1 Titel:</label><input type="text" id="setupFact1Title"
-                                    class="input-field" style="width: 100%;" placeholder="Spielgeräte"></div>
-                            <div style="flex:2;"><label>Kachel 1 Text:</label><input type="text" id="setupFact1Text"
-                                    class="input-field" style="width: 100%;"
-                                    placeholder="<strong>Tische DONIC blau</strong>Bälle Nittaku Premium 40+"></div>
-                        </div>
-                        <div class="frow">
-                            <div style="flex:1;"><label>Kachel 2 Titel:</label><input type="text" id="setupFact2Title"
-                                    class="input-field" style="width: 100%;" placeholder="Halle"></div>
-                            <div style="flex:2;"><label>Kachel 2 Text:</label><input type="text" id="setupFact2Text"
-                                    class="input-field" style="width: 100%;"
-                                    placeholder="<strong>TTK Naturfreunde Stadlau</strong>Klimatisiert"></div>
-                        </div>
-                        <div class="frow">
-                            <div style="flex:1;"><label>Kachel 3 Titel:</label><input type="text" id="setupFact3Title"
-                                    class="input-field" style="width: 100%;" placeholder="Anreise"></div>
-                            <div style="flex:2;"><label>Kachel 3 Text:</label><input type="text" id="setupFact3Text"
-                                    class="input-field" style="width: 100%;"
-                                    placeholder="<strong>S-Bahn</strong>Erzherzog-Karl-Str."></div>
-                        </div>
-                        <div class="frow">
-                            <div style="flex:1;"><label>Kachel 4 Titel:</label><input type="text" id="setupFact4Title"
-                                    class="input-field" style="width: 100%;" placeholder="Modus"></div>
-                            <div style="flex:2;"><label>Kachel 4 Text:</label><input type="text" id="setupFact4Text"
-                                    class="input-field" style="width: 100%;"
-                                    placeholder="<strong>5 Vorrundengruppen, KO</strong>3 Gewinnsätze"></div>
+                        <div class="actions">
+                            <button class="btn primary" data-action="new-reg"><i data-icon="userPlus"></i>Nennung anlegen</button>
                         </div>
                     </div>
+                    <div id="bewerbeRoot"></div>
+                </section>
 
-                    <!-- ZEITPLAN MANAGER -->
-                    <div class="stat-card"
-                        style="border-top-color: #ff9800; background: rgba(255, 152, 0, 0.05); margin-top: 10px;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="color: #ff9800; margin: 0;">⏱️ Zeitplan / Ablauf</h3>
-                            <label
-                                style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
-                                <input type="checkbox" id="setupShowSchedule"
-                                    style="accent-color: var(--accent); width: 18px; height: 18px;">
-                                <strong>Auf Website anzeigen</strong>
-                            </label>
+                <!-- ========== CHECK-IN ========== -->
+                <section class="view hidden" id="view-checkin">
+                    <div class="page-head">
+                        <div>
+                            <h1>Check-in</h1>
+                            <div class="sub">Anwesenheit &amp; Kassa am Turniertag</div>
                         </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Füge chronologische
-                            Punkte für den Turniertag hinzu.</p>
-
-                        <div id="scheduleContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
-                        <button id="addScheduleBtn" class="btn-outline"
-                            style="border-color: #ff9800; color: #ff9800; width: 100%; margin-top: 15px;">+ Neuen
-                            Zeitplan-Eintrag hinzufügen</button>
-                    </div>
-
-                    <!-- SPONSOREN MANAGER -->
-                    <div class="stat-card"
-                        style="border-top-color: #4caf50; background: rgba(76, 175, 80, 0.05); margin-top: 10px;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                            <h3 style="color: #4caf50; margin: 0;">🤝 Sponsoren & Partner</h3>
-                            <label
-                                style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px;">
-                                <input type="checkbox" id="setupShowSponsors"
-                                    style="accent-color: var(--accent); width: 18px; height: 18px;">
-                                <strong>Auf Website anzeigen</strong>
-                            </label>
+                        <div class="actions">
+                            <button class="btn primary" data-action="new-reg"><i data-icon="userPlus"></i>Nachnennung</button>
                         </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Bild-Links zu Logos
-                            und die Verlinkungen zur Sponsoren-Website für den Footer.</p>
-
-                        <div id="sponsorsContainer" style="display: flex; flex-direction: column; gap: 10px;"></div>
-                        <button id="addSponsorBtn" class="btn-outline"
-                            style="border-color: #4caf50; color: #4caf50; width: 100%; margin-top: 15px;">+ Neuen
-                            Sponsor hinzufügen</button>
                     </div>
-
-                    <!-- BEWERBS-MANAGER -->
-                    <div class="stat-card"
-                        style="border-top-color: #03a9f4; background: rgba(3, 169, 244, 0.05); margin-top: 10px;">
-                        <h3 style="color: #03a9f4; margin-bottom: 15px;">🏓 Bewerbe & Startzeiten</h3>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Definiere hier alle
-                            Bewerbe für dieses Turnier. Diese werden im Anmelde-Formular angezeigt.</p>
-
-                        <div id="bewerbeContainer">
-                            <!-- Hier werden die Bewerbe dynamisch reingeladen -->
+                    <div id="checkinBanner"></div>
+                    <div class="ci-stats" id="checkinStats"></div>
+                    <div class="ci-search input-icon">
+                        <i data-icon="search"></i>
+                        <input type="search" id="checkinSearch" class="input" placeholder="Spieler suchen…" autocomplete="off">
+                    </div>
+                    <div class="ci-filter">
+                        <div class="segmented" id="checkinFilter">
+                            <button data-v="open" class="on">Offen</button>
+                            <button data-v="done">Erledigt</button>
+                            <button data-v="all">Alle</button>
                         </div>
-
-                        <button id="addBewerbBtn" class="btn-outline"
-                            style="border-color: #03a9f4; color: #03a9f4; width: 100%; margin-top: 10px;">+ Weiteren
-                            Bewerb hinzufügen</button>
                     </div>
+                    <div class="ci-list" id="checkinList"></div>
+                </section>
 
-                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
-                        <label>ÖTTV Live-Ergebnis URL:</label>
-                        <input type="url" id="setupOettvUrl" class="input-field" style="width: 100%; margin-top: 8px;">
-                    </div>
-
-                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
-                        <label style="display: flex; align-items: center; gap: 10px; font-size: 15px; cursor: pointer;">
-                            <input type="checkbox" id="setupShowTtop"
-                                style="width: 18px; height: 18px; accent-color: var(--accent);">
-                            <strong>TTOP Bewerbe Button anzeigen</strong>
-                        </label>
-                        <div style="padding-top: 8px; padding-left: 28px;">
-                            <label style="font-size: 13px; color: var(--text-muted);">TTOP URL:</label>
-                            <input type="url" id="setupTtopUrl" class="input-field"
-                                style="width: 100%; margin-top: 4px;" placeholder="https://ttop.at/turnier/...">
+                <!-- ========== KASSE ========== -->
+                <section class="view hidden" id="view-kasse">
+                    <div class="page-head">
+                        <div>
+                            <h1>Kasse</h1>
+                            <div class="sub">Nenngeld, Kassenbuch und Saldo</div>
                         </div>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-top: 4px; margin-left: 28px;">
-                            Zeigt einen zusätzlichen Button "TTOP Bewerbe" neben dem ÖTTV-Button an.
-                        </p>
                     </div>
+                    <div class="grid tiles" id="kasseTiles"></div>
 
-                    <div class="stat-card" style="margin-top: 10px; background: rgba(0,0,0,0.3);">
-                        <h3 style="margin-bottom: 20px; font-size: 16px; text-align: center;">📱 QR-Codes für die Halle
-                        </h3>
-                        <div class="frow">
-                            <div style="flex:1; text-align:center;">
-                                <h4 style="color: var(--accent); margin-bottom: 10px;">Zur Anmeldung</h4>
-                                <div id="qrAnmeldung"
-                                    style="display:flex; justify-content:center; background: #fff; padding: 15px; border-radius: 8px; width: max-content; margin: 0 auto;">
+                    <div class="grid cols-2" style="margin-top:16px;">
+                        <div class="card">
+                            <div class="card-head">
+                                <h2><i data-icon="receipt"></i>Kassenbuch</h2>
+                                <span class="hint">Sonstige Einnahmen &amp; Ausgaben</span>
+                            </div>
+                            <form id="buchForm" class="row" style="margin-bottom:16px;">
+                                <div class="field grow">
+                                    <label for="buchDesc">Verwendungszweck</label>
+                                    <input type="text" id="buchDesc" class="input" placeholder="z.B. Buffet, Bälle, Pokale">
                                 </div>
-                                <button id="downloadQrAnmeldungBtn" class="btn-outline btn-small"
-                                    style="margin-top: 15px;">⬇️ Download PNG</button>
-                            </div>
-                            <div style="flex:1; text-align:center;">
-                                <h4 style="color: var(--accent); margin-bottom: 10px;">Live-Ergebnisse</h4>
-                                <div id="qrErgebnisse"
-                                    style="display:flex; justify-content:center; background: #fff; padding: 15px; border-radius: 8px; width: max-content; margin: 0 auto; min-height: 180px; align-items:center;">
+                                <div class="field" style="width:120px;">
+                                    <label for="buchAmount">Betrag (€)</label>
+                                    <input type="number" id="buchAmount" class="input" step="0.01" min="0" placeholder="0">
                                 </div>
-                                <p id="qrErgebnisseHint"
-                                    style="font-size: 12px; color: var(--error); margin-top: 10px;"></p>
-                                <button id="downloadQrErgebnisseBtn" class="btn-outline btn-small"
-                                    style="margin-top: 5px; display: none;">⬇️ Download PNG</button>
+                                <button type="button" id="addIncomeBtn" class="btn primary"><i data-icon="plus"></i>Einnahme</button>
+                                <button type="button" id="addExpenseBtn" class="btn danger">− Ausgabe</button>
+                            </form>
+                            <div class="list" id="buchBody"></div>
+                        </div>
+                        <div class="card">
+                            <div class="card-head">
+                                <h2><i data-icon="euro"></i>Nenngeld nach Tarif</h2>
+                            </div>
+                            <div id="kasseBreakdown"></div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- ========== SETUP ========== -->
+                <section class="view hidden" id="view-setup">
+                    <div class="page-head">
+                        <div>
+                            <h1>Turnier-Setup</h1>
+                            <div class="sub">Einstellungen für das aktuelle Turnier und die Website</div>
+                        </div>
+                    </div>
+
+                    <div class="settings-layout">
+                        <nav class="settings-nav">
+                            <a href="#set-allgemein">Allgemein</a>
+                            <a href="#set-bewerbe">Bewerbe</a>
+                            <a href="#set-website">Website-Texte</a>
+                            <a href="#set-zeitplan">Zeitplan</a>
+                            <a href="#set-sponsoren">Sponsoren</a>
+                            <a href="#set-links">Links &amp; Dokumente</a>
+                            <a href="#set-qr">QR-Codes</a>
+                            <a href="#set-gefahr">Gefahrenzone</a>
+                        </nav>
+
+                        <div>
+                            <div class="card settings-section" id="set-allgemein">
+                                <div class="card-head">
+                                    <h2>Allgemein</h2>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="full repeat-row compact" style="justify-content:space-between;">
+                                        <div>
+                                            <strong id="setupIsOpenLabel">Anmeldung</strong>
+                                            <div class="small muted" id="setupIsOpenHint"></div>
+                                        </div>
+                                        <label class="switch"><input type="checkbox" id="setupIsOpen"><span class="track"></span></label>
+                                    </div>
+                                    <div class="field full">
+                                        <label for="setupName">Turniername</label>
+                                        <input type="text" id="setupName" class="input" placeholder="z.B. 9. NFS Trophy">
+                                    </div>
+                                    <div class="field">
+                                        <label for="setupDateText">Datum (Text auf der Website)</label>
+                                        <input type="text" id="setupDateText" class="input" placeholder="z.B. 14.–15. März 2027">
+                                    </div>
+                                    <div class="field">
+                                        <label for="setupDateIso">Turnierbeginn (Countdown)</label>
+                                        <input type="datetime-local" id="setupDateIso" class="input">
+                                    </div>
+                                    <div class="field full">
+                                        <label for="setupSubtitle">Untertitel</label>
+                                        <input type="text" id="setupSubtitle" class="input">
+                                    </div>
+                                    <div class="field">
+                                        <label for="setupFeeNormal">Nenngeld pro Bewerb (€)</label>
+                                        <input type="number" id="setupFeeNormal" class="input" min="0">
+                                    </div>
+                                    <div class="field">
+                                        <label for="setupFeeNfs">Nenngeld NFS-Mitglieder (€)</label>
+                                        <input type="number" id="setupFeeNfs" class="input" min="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card settings-section" id="set-bewerbe">
+                                <div class="card-head">
+                                    <h2>Bewerbe &amp; Startzeiten</h2>
+                                    <span class="hint">Erscheinen im Anmeldeformular. Startzeit z.B. „Sa 09:30“.</span>
+                                </div>
+                                <div class="repeat-list" id="bewerbeContainer"></div>
+                                <button id="addBewerbBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Bewerb hinzufügen</button>
+                            </div>
+
+                            <div class="card settings-section" id="set-website">
+                                <div class="card-head">
+                                    <h2>Website-Texte &amp; Fakten</h2>
+                                    <span class="hint">Einfache Formatierung erlaubt: &lt;strong&gt;, &lt;em&gt;, &lt;br&gt;</span>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="field full">
+                                        <label for="setupBewerbeHeadline">Überschrift „Bewerbe“</label>
+                                        <input type="text" id="setupBewerbeHeadline" class="input" placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>">
+                                    </div>
+                                    <div class="field full">
+                                        <label for="setupBewerbeText">Beschreibung „Bewerbe“</label>
+                                        <textarea id="setupBewerbeText" class="input" placeholder="Gespielt wird in 5 Vorrunden-Gruppen…"></textarea>
+                                    </div>
+                                    <div class="field"><label for="setupFact1Title">Kachel 1 – Titel</label><input type="text" id="setupFact1Title" class="input" placeholder="Spielgeräte"></div>
+                                    <div class="field"><label for="setupFact1Text">Kachel 1 – Text</label><input type="text" id="setupFact1Text" class="input" placeholder="<strong>Tische DONIC</strong>Bälle Nittaku"></div>
+                                    <div class="field"><label for="setupFact2Title">Kachel 2 – Titel</label><input type="text" id="setupFact2Title" class="input" placeholder="Halle"></div>
+                                    <div class="field"><label for="setupFact2Text">Kachel 2 – Text</label><input type="text" id="setupFact2Text" class="input"></div>
+                                    <div class="field"><label for="setupFact3Title">Kachel 3 – Titel</label><input type="text" id="setupFact3Title" class="input" placeholder="Anreise"></div>
+                                    <div class="field"><label for="setupFact3Text">Kachel 3 – Text</label><input type="text" id="setupFact3Text" class="input"></div>
+                                    <div class="field"><label for="setupFact4Title">Kachel 4 – Titel</label><input type="text" id="setupFact4Title" class="input" placeholder="Modus"></div>
+                                    <div class="field"><label for="setupFact4Text">Kachel 4 – Text</label><input type="text" id="setupFact4Text" class="input"></div>
+                                </div>
+                            </div>
+
+                            <div class="card settings-section" id="set-zeitplan">
+                                <div class="card-head">
+                                    <h2>Zeitplan</h2>
+                                    <label class="switch"><input type="checkbox" id="setupShowSchedule"><span class="track"></span><span class="small">Auf Website zeigen</span></label>
+                                </div>
+                                <div class="repeat-list" id="scheduleContainer"></div>
+                                <button id="addScheduleBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Eintrag hinzufügen</button>
+                            </div>
+
+                            <div class="card settings-section" id="set-sponsoren">
+                                <div class="card-head">
+                                    <h2>Sponsoren &amp; Partner</h2>
+                                    <label class="switch"><input type="checkbox" id="setupShowSponsors"><span class="track"></span><span class="small">Auf Website zeigen</span></label>
+                                </div>
+                                <div class="repeat-list" id="sponsorsContainer"></div>
+                                <button id="addSponsorBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Sponsor hinzufügen</button>
+                            </div>
+
+                            <div class="card settings-section" id="set-links">
+                                <div class="card-head">
+                                    <h2>Links &amp; Dokumente</h2>
+                                </div>
+                                <div class="form-grid">
+                                    <div class="field full">
+                                        <label for="setupOettvUrl">ÖTTV Live-Ergebnisse (URL)</label>
+                                        <input type="url" id="setupOettvUrl" class="input" placeholder="https://xttv.oettv.info/…">
+                                    </div>
+                                    <div class="full repeat-row compact" style="justify-content:space-between;">
+                                        <div>
+                                            <strong>„TTOP Bewerbe“-Button</strong>
+                                            <div class="small muted">Zusätzlicher Button neben dem ÖTTV-Link</div>
+                                        </div>
+                                        <label class="switch"><input type="checkbox" id="setupShowTtop"><span class="track"></span></label>
+                                    </div>
+                                    <div class="field full">
+                                        <label for="setupTtopUrl">TTOP-URL</label>
+                                        <input type="url" id="setupTtopUrl" class="input" placeholder="https://…">
+                                    </div>
+                                    <div class="field full">
+                                        <label for="setupPdf">Ausschreibung (PDF) ersetzen</label>
+                                        <input type="file" id="setupPdf" accept="application/pdf" class="input">
+                                        <div class="help" id="setupPdfCurrent"></div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card settings-section" id="set-qr">
+                                <div class="card-head">
+                                    <h2><i data-icon="qr"></i>QR-Codes für die Halle</h2>
+                                </div>
+                                <div class="qr-grid">
+                                    <div class="qr-box">
+                                        <strong>Zur Anmeldung</strong>
+                                        <div class="qr" id="qrAnmeldung"></div>
+                                        <button id="downloadQrAnmeldungBtn" class="btn sm"><i data-icon="download"></i>PNG</button>
+                                    </div>
+                                    <div class="qr-box">
+                                        <strong>Live-Ergebnisse (ÖTTV)</strong>
+                                        <div class="qr" id="qrErgebnisse"></div>
+                                        <div class="small muted" id="qrErgebnisseHint"></div>
+                                        <button id="downloadQrErgebnisseBtn" class="btn sm" style="display:none;"><i data-icon="download"></i>PNG</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="card settings-section danger-zone" id="set-gefahr">
+                                <div class="card-head">
+                                    <h3><i data-icon="alert"></i>Gefahrenzone</h3>
+                                </div>
+                                <div class="grid cols-2">
+                                    <div>
+                                        <p class="muted small" style="margin-bottom:10px;">Archiviert das aktuelle Turnier und legt ein neues, leeres Turnier an.</p>
+                                        <button id="createNewTournamentBtn" class="btn warn block"><i data-icon="refresh"></i>Saisonwechsel</button>
+                                    </div>
+                                    <div>
+                                        <p class="muted small" style="margin-bottom:10px;">Löscht das aktuelle Turnier endgültig. Das vorherige wird wieder aktiv.</p>
+                                        <button id="deleteTournamentBtn" class="btn danger block"><i data-icon="trash"></i>Turnier löschen</button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="save-bar">
+                                <span class="small muted">Änderungen werden erst mit „Speichern“ übernommen.</span>
+                                <button id="saveSetupBtn" class="btn primary">Einstellungen speichern</button>
                             </div>
                         </div>
                     </div>
+                </section>
 
-                    <div style="padding-top: 16px; border-top: 1px solid var(--border);">
-                        <label>Neue Ausschreibung (PDF) hochladen:</label>
-                        <input type="file" id="setupPdf" accept="application/pdf" class="input-field"
-                            style="width: 100%; margin-top: 8px; background: rgba(0,0,0,0.5);">
+                <!-- ========== ARCHIV ========== -->
+                <section class="view hidden" id="view-archiv">
+                    <div class="page-head">
+                        <div>
+                            <h1>Archiv &amp; Medien</h1>
+                            <div class="sub">Ergebnisse, Sieger und Fotos vergangener Turniere</div>
+                        </div>
                     </div>
 
-                    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border);">
-                        <button id="saveSetupBtn" class="btn-outline"
-                            style="background: var(--accent); color: #000; font-weight: bold; width: 100%; padding: 14px;">Turnier-Einstellungen
-                            speichern</button>
-                    </div>
-
-                    <div style="margin-top: 40px; padding-top: 20px; border-top: 2px dashed var(--error);">
-                        <h3 style="color: var(--error); margin-bottom: 10px;">Gefahrenzone</h3>
-                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
-                            <div style="flex: 1; min-width: 250px;">
-                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Archiviert
-                                    das aktuelle Turnier und öffnet ein komplett neues, leeres Turnier.</p>
-                                <button id="createNewTournamentBtn" class="btn-outline"
-                                    style="border-color: #ff9800; color: #ff9800; font-weight: bold; width: 100%; padding: 14px;">🔄
-                                    Saisonwechsel (Neues Turnier)</button>
+                    <div class="card">
+                        <div class="row">
+                            <div class="field grow">
+                                <label for="archivSelect">Turnier</label>
+                                <select id="archivSelect" class="input"></select>
                             </div>
-                            <div style="flex: 1; min-width: 250px;">
-                                <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Löscht das
-                                    aktuelle Turnier endgültig. Du fällst automatisch auf das vorherige Turnier zurück.
-                                </p>
-                                <button id="deleteTournamentBtn" class="btn-outline"
-                                    style="border-color: var(--error); color: var(--error); font-weight: bold; width: 100%; padding: 14px;">🗑️
-                                    Aktuelles Turnier löschen</button>
+                            <button id="editBewerbeBtn" class="btn"><i data-icon="edit"></i>Bewerbe nachtragen</button>
+                        </div>
+                    </div>
+
+                    <div class="grid cols-2" style="margin-top:16px;">
+                        <div class="card">
+                            <div class="card-head">
+                                <h2><i data-icon="link"></i>ÖTTV-Ergebnisse</h2>
+                            </div>
+                            <div class="row">
+                                <div class="field grow">
+                                    <label for="archivOettvUrl">Link zu den offiziellen Ergebnissen</label>
+                                    <input type="url" id="archivOettvUrl" class="input" placeholder="https://xttv.oettv.info/…">
+                                </div>
+                                <button id="saveArchivOettvBtn" class="btn">Speichern</button>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </section>
 
-            <!-- 4. TAB: ARCHIV & MEDIEN -->
-            <section id="archiv" class="panel hidden">
-                <div class="panel-header">
-                    <h2>Archiv & Medien verwalten</h2>
-                </div>
-                <div style="max-width: 800px;">
-                    <label>Turnier auswählen:</label>
-                    <div style="display:flex; gap:10px; margin-top:8px; margin-bottom:30px; flex-wrap:wrap;">
-                        <select id="archivSelect" class="input-field" style="flex:1; min-width:200px;"></select>
-                        <button id="editBewerbeBtn" class="btn-outline"
-                            style="border-color: #03a9f4; color: #03a9f4;">📝 Bewerbe nachtragen</button>
-                    </div>
-
-                    <div class="stat-card" style="margin-bottom: 20px;">
-                        <h3 style="color: var(--accent); margin-bottom: 15px;">🔗 ÖTTV-Link</h3>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px;">Hinterlege den Link
-                            zu den offiziellen ÖTTV Ergebnissen für dieses Turnier.</p>
-                        <div class="frow" style="align-items: flex-end;">
-                            <div style="flex:1;"><input type="url" id="archivOettvUrl" class="input-field"
-                                    style="width: 100%;" placeholder="https://xttv.oettv.info/ed/index.php?..."></div>
-                            <div><button id="saveArchivOettvBtn" class="btn-outline">Speichern</button></div>
-                        </div>
-                    </div>
-
-                    <div class="stat-card" style="margin-bottom: 20px;">
-                        <h3 style="color: var(--accent); margin-bottom: 15px;">📄 Ergebnis-PDFs</h3>
-                        <div class="frow" style="align-items: flex-end; margin-bottom: 20px;">
-                            <div style="flex:1;"><label>Bezeichnung (z.B. Raster Bewerb 1):</label><input type="text"
-                                    id="ergLabel" class="input-field" style="width: 100%;"></div>
-                            <div style="flex:1;"><label>PDF-Datei:</label><input type="file" id="ergFile"
-                                    accept="application/pdf" class="input-field" style="width: 100%; padding: 5px;">
+                        <div class="card">
+                            <div class="card-head">
+                                <h2><i data-icon="file"></i>Ergebnis-PDFs</h2>
                             </div>
-                            <div><button id="uploadErgBtn" class="btn-outline">Hochladen</button></div>
+                            <div class="form-grid" style="margin-bottom:12px;">
+                                <div class="field">
+                                    <label for="ergLabel">Bezeichnung</label>
+                                    <input type="text" id="ergLabel" class="input" placeholder="z.B. Raster Bewerb 1">
+                                </div>
+                                <div class="field">
+                                    <label for="ergFile">PDF-Datei</label>
+                                    <input type="file" id="ergFile" accept="application/pdf" class="input">
+                                </div>
+                                <div class="full"><button id="uploadErgBtn" class="btn"><i data-icon="upload"></i>Hochladen</button></div>
+                            </div>
+                            <ul id="ergList" class="file-list"></ul>
                         </div>
-                        <ul id="ergList" style="list-style: none; padding: 0; font-size: 14px;"></ul>
                     </div>
 
-                    <!-- HALL OF FAME -->
-                    <div class="stat-card" style="margin-bottom: 20px;">
-                        <h3 style="color: var(--accent); margin-bottom: 15px;">🏆 Hall of Fame (Top 3)</h3>
-                        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 15px;">Leere Felder werden
-                            auf der Website automatisch ausgeblendet.</p>
-                        <div id="hallOfFameContainer"></div>
-                        <button id="saveHallOfFameBtn" class="btn-outline"
-                            style="background: var(--accent); color: #000; font-weight: bold; margin-top: 15px; width: 100%; padding: 12px;">🏆
-                            Sieger speichern</button>
+                    <div class="card" style="margin-top:16px;">
+                        <div class="card-head">
+                            <h2><i data-icon="trophy"></i>Hall of Fame</h2>
+                            <span class="hint">Leere Felder werden auf der Website ausgeblendet.</span>
+                        </div>
+                        <div class="grid cols-2" id="hallOfFameContainer"></div>
+                        <button id="saveHallOfFameBtn" class="btn primary" style="margin-top:16px;">Sieger speichern</button>
                     </div>
 
-                    <div class="stat-card">
-                        <h3 style="color: var(--accent); margin-bottom: 15px;">📸 Fotos (Galerie)</h3>
-                        <div id="dropZone"
-                            style="border: 2px dashed var(--accent); border-radius: 8px; padding: 30px; text-align: center; cursor: pointer; margin-bottom: 10px; background: rgba(92,184,116,0.05); transition: all 0.3s;">
-                            <div style="font-size: 32px; margin-bottom: 10px;">📥</div>
-                            <div style="font-weight: 600; font-size: 16px;">Bilder hierher ziehen</div>
-                            <div style="font-size: 13px; color: var(--text-muted); margin-top: 5px;">oder klicken, um
-                                Dateien auszuwählen</div>
-                            <input type="file" id="fotoFiles" accept="image/*" multiple style="display: none;">
+                    <div class="card">
+                        <div class="card-head">
+                            <h2><i data-icon="image"></i>Fotos</h2>
+                            <span class="hint" id="fotoStatus"></span>
                         </div>
-                        <button id="uploadFotosBtn" class="btn-outline"
-                            style="width: 100%; margin-bottom: 15px; display: none;">Gewählte Bilder hochladen</button>
-                        <div id="fotoStatus"
-                            style="font-size: 13px; color: var(--accent); margin-bottom: 15px; text-align: center; font-weight: bold;">
+                        <div id="dropZone" class="dropzone" tabindex="0" role="button">
+                            <i data-icon="upload"></i>
+                            <div><strong>Bilder hierher ziehen</strong></div>
+                            <div class="small muted">oder klicken, um Dateien auszuwählen</div>
+                            <input type="file" id="fotoFiles" accept="image/*" multiple hidden>
                         </div>
-                        <div id="fotoGallery" style="display: flex; gap: 10px; flex-wrap: wrap;"></div>
+                        <button id="uploadFotosBtn" class="btn primary block" style="margin-top:10px; display:none;"><i data-icon="upload"></i>Ausgewählte Bilder hochladen</button>
+                        <div class="thumbs" id="fotoGallery" style="margin-top:16px;"></div>
                     </div>
+                </section>
 
-                </div>
-            </section>
-
-        </main>
-
-        <dialog id="editModal" class="admin-modal">
-            <div class="modal-header">
-                <h3>Spieler bearbeiten</h3><button id="closeModalBtn" class="close-btn">×</button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="editRegId">
-                <div class="frow">
-                    <div style="flex:1;"><label>RC Punkte:</label><input type="number" id="editRc" class="input-field"
-                            style="width: 100%;"></div>
-                    <div style="flex:1;"><label>Verein:</label><input type="text" id="editVerein" class="input-field"
-                            style="width: 100%;"></div>
-                </div>
-                <div style="margin-top: 20px;"><label>Wartelisten-Status pro Bewerb:</label>
-                    <div id="modalBewerbeList" style="margin-top: 8px;"></div>
-                </div>
-                <div style="margin-top: 24px; text-align: right;"><button id="saveModalBtn" class="btn-outline"
-                        style="background: var(--accent); color: #000; font-weight: bold;">Änderungen speichern</button>
-                </div>
-            </div>
-        </dialog>
+            </main>
+        </div>
     </div>
 
+    <!-- ================= NENNUNG-DIALOG ================= -->
+    <dialog id="regModal" class="modal">
+        <form id="regForm" method="dialog" novalidate>
+            <div class="modal-head">
+                <h2 id="regModalTitle">Nennung anlegen</h2>
+                <button type="button" class="icon-btn" data-close aria-label="Schließen"><i data-icon="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-grid">
+                    <div class="field"><label for="rfVorname">Vorname *</label><input id="rfVorname" class="input" required></div>
+                    <div class="field"><label for="rfNachname">Nachname *</label><input id="rfNachname" class="input" required></div>
+                    <div class="field"><label for="rfEmail">E-Mail</label><input id="rfEmail" type="email" class="input"></div>
+                    <div class="field"><label for="rfTelefon">Telefon</label><input id="rfTelefon" type="tel" class="input"></div>
+                    <div class="field"><label for="rfVerein">Verein</label><input id="rfVerein" class="input" list="vereinList"></div>
+                    <div class="field"><label for="rfRc">RC-Punkte</label><input id="rfRc" class="input" inputmode="numeric"></div>
+                    <div class="field full">
+                        <span class="label-text">Bewerbe *</span>
+                        <div class="bewerb-pick" id="rfBewerbe"></div>
+                    </div>
+                    <div class="field">
+                        <label for="rfTag">Tarif</label>
+                        <select id="rfTag" class="input">
+                            <option value="normal">Normal</option>
+                            <option value="nfs">NFS-Mitglied</option>
+                            <option value="vip">VIP (gratis)</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <span class="label-text">Nenngeld</span>
+                        <div id="rfFee" style="font-family:var(--font-display); font-size:22px; font-weight:700;">0 €</div>
+                    </div>
+                    <div class="full" style="display:flex; gap:20px; flex-wrap:wrap;">
+                        <label class="switch"><input type="checkbox" id="rfPaid"><span class="track"></span>Bezahlt</label>
+                        <label class="switch" id="rfCheckedInWrap"><input type="checkbox" id="rfCheckedIn"><span class="track"></span>Eingecheckt</label>
+                        <label class="switch"><input type="checkbox" id="rfReceipt"><span class="track"></span>Beleg gewünscht</label>
+                    </div>
+                    <div class="field full"><label for="rfNotiz">Anmerkung</label><textarea id="rfNotiz" class="input" rows="2"></textarea></div>
+                </div>
+                <datalist id="vereinList"></datalist>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn danger" id="rfDelete"><i data-icon="trash"></i>Löschen</button>
+                <span class="spacer"></span>
+                <button type="button" class="btn" data-close>Abbrechen</button>
+                <button type="submit" class="btn primary" id="rfSave">Speichern</button>
+            </div>
+        </form>
+    </dialog>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 </body>
 
 </html>

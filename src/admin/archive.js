@@ -1,6 +1,9 @@
 // src/admin/archive.js
-import { supabase, publicFotoUrl } from '../shared/supabase.js';
+// Archiv & Medien: ÖTTV-Link, Ergebnis-PDFs, Hall of Fame, Fotos, Bewerbe nachtragen
+
+import { supabase, publicFotoUrl, publicPdfUrl } from '../shared/supabase.js';
 import { esc, showToast, parseBewerbe, safeFileName, throwIfError } from '../shared/utils.js';
+import { icon, confirmDialog, withBusy } from './ui.js';
 
 let allTournaments = [];
 let activeTournamentId = null;
@@ -16,15 +19,10 @@ export function setArchiveTournaments(data) {
 export function populateArchivDropdown() {
     const select = document.getElementById('archivSelect');
     if (!select) return;
-    select.innerHTML = '';
-
-    allTournaments.forEach(t => {
-        const option = document.createElement('option');
-        option.value = t.id;
-        option.textContent = t.name + (t.id === activeTournamentId ? " (Aktuelles Turnier)" : " (Archiv)");
-        select.appendChild(option);
-    });
-
+    const prev = select.value;
+    select.innerHTML = allTournaments.map(t => `
+        <option value="${esc(t.id)}">${esc(t.name)}${t.date_text ? ' · ' + esc(t.date_text) : ''}${String(t.id) === String(activeTournamentId) ? ' (aktuell)' : ''}</option>`).join('');
+    if (prev && allTournaments.some(t => String(t.id) === prev)) select.value = prev;
     loadArchivData();
 }
 
@@ -33,585 +31,358 @@ function findTournament(id) {
     return allTournaments.find(x => String(x.id) === String(id));
 }
 
+const selectedId = () => document.getElementById('archivSelect')?.value;
+
 export async function loadArchivData() {
-    const tId = document.getElementById('archivSelect')?.value;
+    const tId = selectedId();
     if (!tId) return;
 
     try {
         const t = findTournament(tId);
+        document.getElementById('archivOettvUrl').value = t?.oettv_url || '';
+        renderHallOfFame(t);
 
-        // ÖTTV-Link
-        const oettvInput = document.getElementById('archivOettvUrl');
-        if (oettvInput) oettvInput.value = t?.oettv_url || '';
+        const { data: ergs } = throwIfError(await supabase.from('ergebnisse').select('*').eq('tournament_id', tId));
+        document.getElementById('ergList').innerHTML = ergs?.length
+            ? ergs.map(erg => `
+                <li>
+                    ${icon('file')}
+                    <div class="grow">
+                        <div><a href="${esc(publicPdfUrl(erg.path))}" target="_blank" rel="noopener">${esc(erg.label)}</a></div>
+                        <div class="small muted">${esc(erg.file_name)}</div>
+                    </div>
+                    <button class="icon-btn danger" data-del-erg="${esc(erg.id)}" data-path="${esc(erg.path)}" data-label="${esc(erg.label)}" title="Löschen">${icon('trash')}</button>
+                </li>`).join('')
+            : '<li class="muted small">Noch keine Ergebnisse hochgeladen.</li>';
 
-        // Hall of Fame
-        await renderHallOfFame(t);
-
-        // Ergebnisse (PDF) laden
-        const { data: ergs, error: ergError } = await supabase
-            .from('ergebnisse')
-            .select('*')
-            .eq('tournament_id', tId);
-
-        if (ergError) throw ergError;
-
-        const ergList = document.getElementById('ergList');
-        if (ergList) {
-            ergList.innerHTML = '';
-            if (ergs && ergs.length > 0) {
-                ergs.forEach(erg => {
-                    const li = document.createElement('li');
-                    li.style.marginBottom = "8px";
-                    li.innerHTML = `
-                        <strong>${esc(erg.label)}</strong> 
-                        <span style="color:var(--text-muted); font-size:12px;">(${esc(erg.file_name)})</span> 
-                        <button class="btn-outline btn-small delete-erg-btn" data-id="${erg.id}" data-path="${esc(erg.path)}" style="color: var(--error); border-color: var(--error); margin-left:10px;">Löschen</button>
-                    `;
-                    ergList.appendChild(li);
-                });
-
-                document.querySelectorAll('.delete-erg-btn').forEach(btn => {
-                    btn.addEventListener('click', async (e) => {
-                        if (!confirm("Ergebnis wirklich löschen?")) return;
-                        try {
-                            const path = e.currentTarget.getAttribute('data-path');
-                            const id = e.currentTarget.getAttribute('data-id');
-
-                            // Erst aus Storage löschen
-                            const { error: storageError } = await supabase.storage.from('pdfs').remove([path]);
-                            if (storageError) {
-                                // Datei evtl. schon weg → DB-Eintrag trotzdem löschen, damit kein toter Link bleibt
-                                console.error('Storage-Fehler:', storageError);
-                            }
-
-                            // Dann aus Datenbank löschen
-                            const { error: dbError } = await supabase.from('ergebnisse').delete().eq('id', id);
-                            if (dbError) throw dbError;
-
-                            await loadArchivData();
-                            showToast('PDF gelöscht!');
-                        } catch (err) {
-                            console.error('Fehler beim Löschen:', err);
-                            showToast('Fehler beim Löschen.', true);
-                        }
-                    });
-                });
-            } else {
-                ergList.innerHTML = "<li style='color:var(--text-muted);'>Noch keine Ergebnisse hochgeladen.</li>";
-            }
-        }
-
-        // Fotos laden
         await loadFotos(t);
-
     } catch (err) {
         console.error('Fehler beim Laden der Archiv-Daten:', err);
         showToast('Fehler beim Laden der Archiv-Daten.', true);
     }
 }
 
-async function renderHallOfFame(t) {
-    const hofContainer = document.getElementById('hallOfFameContainer');
-    if (!hofContainer) return;
-
-    hofContainer.innerHTML = '';
+function renderHallOfFame(t) {
+    const box = document.getElementById('hallOfFameContainer');
     const bewerbe = parseBewerbe(t);
-    const hofData = t?.hall_of_fame || {};
-
-    bewerbe.forEach(b => {
-        const bName = b.name;
-        const bData = hofData[bName] || { p1: '', p2: '', p3_1: '', p3_2: '', trost: '' };
-        const p3_1_val = bData.p3_1 || bData.p3 || '';
-
-        const html = `
-            <div style="background: rgba(0,0,0,0.2); padding: 15px; border-radius: 6px; margin-bottom: 15px; border: 1px solid var(--border);">
-                <h4 style="color: var(--text-main); margin-bottom: 10px;">${esc(bName)}</h4>
-                <div class="frow" style="margin-bottom: 10px;">
-                    <div style="flex:1;"><input type="text" class="input-field hof-input" data-bewerb="${esc(bName)}" data-pos="p1" placeholder="1. Platz" value="${esc(bData.p1)}" style="width:100%;"></div>
-                    <div style="flex:1;"><input type="text" class="input-field hof-input" data-bewerb="${esc(bName)}" data-pos="p2" placeholder="2. Platz" value="${esc(bData.p2)}" style="width:100%;"></div>
+    const hof = t?.hall_of_fame || {};
+    if (!bewerbe.length) {
+        box.innerHTML = '<div class="muted small">Für dieses Turnier sind keine Bewerbe hinterlegt – über „Bewerbe nachtragen“ ergänzen.</div>';
+        return;
+    }
+    box.innerHTML = bewerbe.map(b => {
+        const d = hof[b.name] || {};
+        const inp = (pos, ph, val) => `<input type="text" class="input hof-input" data-bewerb="${esc(b.name)}" data-pos="${pos}" placeholder="${ph}" value="${esc(val || '')}">`;
+        return `
+            <div class="hof-block">
+                <h4>${esc(b.name)}</h4>
+                <div class="hof-grid">
+                    ${inp('p1', '🥇 1. Platz', d.p1)}
+                    ${inp('p2', '🥈 2. Platz', d.p2)}
+                    ${inp('p3_1', '🥉 3. Platz', d.p3_1 || d.p3)}
+                    ${inp('p3_2', '🥉 3. Platz (optional)', d.p3_2)}
                 </div>
-                <div class="frow" style="margin-bottom: 10px;">
-                    <div style="flex:1;"><input type="text" class="input-field hof-input" data-bewerb="${esc(bName)}" data-pos="p3_1" placeholder="3. Platz" value="${esc(p3_1_val)}" style="width:100%;"></div>
-                    <div style="flex:1;"><input type="text" class="input-field hof-input" data-bewerb="${esc(bName)}" data-pos="p3_2" placeholder="3. Platz (Optional)" value="${esc(bData.p3_2)}" style="width:100%;"></div>
-                </div>
-                <div class="frow">
-                    <div style="flex:1;"><input type="text" class="input-field hof-input" data-bewerb="${esc(bName)}" data-pos="trost" placeholder="Trostbewerb Sieger (Optional)" value="${esc(bData.trost)}" style="width:100%;"></div>
-                </div>
-            </div>
-        `;
-        hofContainer.insertAdjacentHTML('beforeend', html);
-    });
+                <div style="margin-top:8px;">${inp('trost', 'Trostbewerb-Sieger (optional)', d.trost)}</div>
+            </div>`;
+    }).join('');
 }
 
 async function loadFotos(t) {
-    const fotoGallery = document.getElementById('fotoGallery');
-    if (!fotoGallery) return;
-
-    fotoGallery.innerHTML = '';
+    const gallery = document.getElementById('fotoGallery');
     const prefix = t?.fotos_prefix;
-
     if (!prefix) {
-        fotoGallery.innerHTML = "<div style='color:var(--text-muted);'>Noch keine Fotos hochgeladen.</div>";
+        gallery.innerHTML = '<div class="muted small">Noch keine Fotos hochgeladen.</div>';
         return;
     }
-
     try {
-        const cleanPrefix = String(prefix).replace(/^\/+|\/+$/g, "");
-        const { data: files, error } = await supabase.storage.from("fotos").list(cleanPrefix, { limit: 1000 });
-
-        if (error) throw error;
-
-        if (!files || files.length === 0) {
-            fotoGallery.innerHTML = "<div style='color:var(--text-muted);'>Noch keine Fotos hochgeladen.</div>";
-            return;
-        }
-
-        const validFiles = files.filter(f => f.name && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name));
-
-        if (validFiles.length === 0) {
-            fotoGallery.innerHTML = "<div style='color:var(--text-muted);'>Noch keine Fotos hochgeladen.</div>";
-            return;
-        }
-
-        validFiles.forEach(f => {
-            const url = publicFotoUrl(`${cleanPrefix}/${f.name}`);
-            if (!url) return;
-
-            const div = document.createElement('div');
-            div.style.position = "relative";
-            div.innerHTML = `
-                <img src="${esc(url)}" loading="lazy" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
-                <button class="delete-foto-btn" data-path="${esc(`${cleanPrefix}/${f.name}`)}" style="position: absolute; top: -5px; right: -5px; background: var(--error); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; font-weight: bold;">×</button>
-            `;
-            fotoGallery.appendChild(div);
-        });
-
-        document.querySelectorAll('.delete-foto-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const path = e.currentTarget.getAttribute('data-path');
-                if (!confirm("Foto wirklich löschen?")) return;
-                try {
-                    throwIfError(await supabase.storage.from('fotos').remove([path]));
-                    await loadArchivData();
-                    showToast('Foto gelöscht!');
-                } catch (err) {
-                    console.error('Fehler beim Löschen:', err);
-                    showToast('Fehler beim Löschen.', true);
-                }
-            });
-        });
-
+        const cleanPrefix = String(prefix).replace(/^\/+|\/+$/g, '');
+        const { data: files } = throwIfError(await supabase.storage.from('fotos').list(cleanPrefix, { limit: 1000 }));
+        const valid = (files || []).filter(f => f.name && /\.(jpe?g|png|webp|gif|avif)$/i.test(f.name));
+        gallery.innerHTML = valid.length
+            ? valid.map(f => {
+                const path = `${cleanPrefix}/${f.name}`;
+                return `
+                    <div class="thumb">
+                        <img src="${esc(publicFotoUrl(path))}" loading="lazy" alt="">
+                        <button data-del-foto="${esc(path)}" title="Foto löschen">${icon('x')}</button>
+                    </div>`;
+            }).join('')
+            : '<div class="muted small">Noch keine Fotos hochgeladen.</div>';
     } catch (err) {
         console.error('Fehler beim Laden der Fotos:', err);
-        fotoGallery.innerHTML = "<div style='color:var(--text-muted);'>Fehler beim Laden der Fotos.</div>";
+        gallery.innerHTML = '<div class="muted small">Fehler beim Laden der Fotos.</div>';
     }
 }
 
 export async function saveHallOfFame() {
-    const tId = document.getElementById('archivSelect')?.value;
-    if (!tId) {
-        showToast('Bitte wähle ein Turnier aus.', true);
-        return;
-    }
-
-    const btn = document.getElementById('saveHallOfFameBtn');
-    btn.textContent = "Speichere...";
-    btn.disabled = true;
-
-    try {
-        const inputs = document.querySelectorAll('.hof-input');
-        const hofData = {};
-
-        inputs.forEach(inp => {
-            const bName = inp.getAttribute('data-bewerb');
-            const pos = inp.getAttribute('data-pos');
-            if (!hofData[bName]) hofData[bName] = {};
-            const val = inp.value.trim();
-            if (val) hofData[bName][pos] = val;
-        });
-
-        const { error } = await supabase
-            .from('tournaments')
-            .update({ hall_of_fame: hofData })
-            .eq('id', tId);
-
-        if (error) throw error;
-
-        // Update local cache
-        const t = findTournament(tId);
-        if (t) t.hall_of_fame = hofData;
-
-        btn.textContent = "Erfolgreich gespeichert!";
-        showToast('Hall of Fame gespeichert!');
-        setTimeout(() => {
-            btn.textContent = "🏆 Sieger speichern";
-            btn.disabled = false;
-        }, 2000);
-
-    } catch (err) {
-        console.error('Fehler beim Speichern:', err);
-        showToast('Fehler beim Speichern.', true);
-        btn.textContent = "🏆 Sieger speichern";
-        btn.disabled = false;
-    }
+    const tId = selectedId();
+    if (!tId) return;
+    await withBusy(document.getElementById('saveHallOfFameBtn'), async () => {
+        try {
+            const hofData = {};
+            document.querySelectorAll('.hof-input').forEach(inp => {
+                const b = inp.dataset.bewerb;
+                hofData[b] ||= {};
+                const val = inp.value.trim();
+                if (val) hofData[b][inp.dataset.pos] = val;
+            });
+            throwIfError(await supabase.from('tournaments').update({ hall_of_fame: hofData }).eq('id', tId));
+            const t = findTournament(tId);
+            if (t) t.hall_of_fame = hofData;
+            showToast('Hall of Fame gespeichert');
+        } catch (err) {
+            console.error('Fehler beim Speichern:', err);
+            showToast('Fehler beim Speichern.', true);
+        }
+    });
 }
 
 export async function saveArchivOettv() {
-    const tId = document.getElementById('archivSelect')?.value;
-    const url = document.getElementById('archivOettvUrl')?.value.trim();
-    const btn = document.getElementById('saveArchivOettvBtn');
-
-    btn.textContent = "...";
-    btn.disabled = true;
-
-    try {
-        const { error } = await supabase
-            .from('tournaments')
-            .update({ oettv_url: url })
-            .eq('id', tId);
-
-        if (error) throw error;
-
-        const t = findTournament(tId);
-        if (t) t.oettv_url = url;
-
-        btn.textContent = "Gespeichert!";
-        showToast('ÖTTV-Link gespeichert!');
-        setTimeout(() => {
-            btn.textContent = "Speichern";
-            btn.disabled = false;
-        }, 2000);
-
-    } catch (err) {
-        console.error('Fehler beim Speichern:', err);
-        showToast('Fehler beim Speichern.', true);
-        btn.textContent = "Speichern";
-        btn.disabled = false;
-    }
+    const tId = selectedId();
+    const url = document.getElementById('archivOettvUrl').value.trim();
+    await withBusy(document.getElementById('saveArchivOettvBtn'), async () => {
+        try {
+            throwIfError(await supabase.from('tournaments').update({ oettv_url: url }).eq('id', tId));
+            const t = findTournament(tId);
+            if (t) t.oettv_url = url;
+            showToast('ÖTTV-Link gespeichert');
+        } catch (err) {
+            console.error('Fehler beim Speichern:', err);
+            showToast('Fehler beim Speichern.', true);
+        }
+    }, '…');
 }
 
 export async function uploadErgebnisPdf() {
-    const tId = document.getElementById('archivSelect')?.value;
-    const label = document.getElementById('ergLabel')?.value.trim();
+    const tId = selectedId();
+    const label = document.getElementById('ergLabel').value.trim();
     const fileInput = document.getElementById('ergFile');
-
-    if (!tId || !label || !fileInput || fileInput.files.length === 0) {
+    if (!tId || !label || fileInput.files.length === 0) {
         showToast('Bitte Bezeichnung eingeben und PDF auswählen.', true);
         return;
     }
-
-    const btn = document.getElementById('uploadErgBtn');
-    btn.textContent = "Lädt...";
-    btn.disabled = true;
-
-    try {
-        const file = fileInput.files[0];
-        const { data: uploadData, error: uploadErr } = await supabase
-            .storage
-            .from('pdfs')
-            .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
-
-        if (uploadErr) throw uploadErr;
-
-        const { error } = await supabase
-            .from('ergebnisse')
-            .insert({
-                tournament_id: tId,
-                label: label,
-                path: uploadData.path,
-                file_name: file.name
-            });
-
-        if (error) throw error;
-
-        document.getElementById('ergLabel').value = '';
-        fileInput.value = '';
-        await loadArchivData();
-        showToast('PDF hochgeladen!');
-
-    } catch (err) {
-        console.error('Fehler beim Upload:', err);
-        showToast('Fehler beim Upload.', true);
-    } finally {
-        btn.textContent = "Hochladen";
-        btn.disabled = false;
-    }
+    await withBusy(document.getElementById('uploadErgBtn'), async () => {
+        try {
+            const file = fileInput.files[0];
+            const { data: uploadData, error: uploadErr } = await supabase.storage
+                .from('pdfs')
+                .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
+            if (uploadErr) throw uploadErr;
+            throwIfError(await supabase.from('ergebnisse').insert({
+                tournament_id: tId, label, path: uploadData.path, file_name: file.name
+            }));
+            document.getElementById('ergLabel').value = '';
+            fileInput.value = '';
+            await loadArchivData();
+            showToast('PDF hochgeladen');
+        } catch (err) {
+            console.error('Fehler beim Upload:', err);
+            showToast('Fehler beim Upload: ' + (err.message || err), true);
+        }
+    }, 'Lädt…');
 }
 
 export function initArchiveEvents() {
-    document.getElementById('archivSelect')?.addEventListener('change', loadArchivData);
-    document.getElementById('saveArchivOettvBtn')?.addEventListener('click', saveArchivOettv);
-    document.getElementById('saveHallOfFameBtn')?.addEventListener('click', saveHallOfFame);
-    document.getElementById('uploadErgBtn')?.addEventListener('click', uploadErgebnisPdf);
-    document.getElementById('editBewerbeBtn')?.addEventListener('click', openBewerbeEditor);
+    document.getElementById('archivSelect').addEventListener('change', loadArchivData);
+    document.getElementById('saveArchivOettvBtn').addEventListener('click', saveArchivOettv);
+    document.getElementById('saveHallOfFameBtn').addEventListener('click', saveHallOfFame);
+    document.getElementById('uploadErgBtn').addEventListener('click', uploadErgebnisPdf);
+    document.getElementById('editBewerbeBtn').addEventListener('click', openBewerbeEditor);
+
+    document.getElementById('ergList').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-del-erg]');
+        if (!btn) return;
+        const ok = await confirmDialog({ title: 'Ergebnis löschen?', message: btn.dataset.label, confirmText: 'Löschen', danger: true });
+        if (!ok) return;
+        try {
+            // Datei evtl. schon weg → DB-Eintrag trotzdem löschen, damit kein toter Link bleibt
+            const { error: storageError } = await supabase.storage.from('pdfs').remove([btn.dataset.path]);
+            if (storageError) console.error('Storage-Fehler:', storageError);
+            throwIfError(await supabase.from('ergebnisse').delete().eq('id', btn.dataset.delErg));
+            await loadArchivData();
+            showToast('PDF gelöscht');
+        } catch (err) {
+            console.error('Fehler beim Löschen:', err);
+            showToast('Fehler beim Löschen.', true);
+        }
+    });
+
+    document.getElementById('fotoGallery').addEventListener('click', async e => {
+        const btn = e.target.closest('[data-del-foto]');
+        if (!btn) return;
+        const ok = await confirmDialog({ title: 'Foto löschen?', message: 'Das Foto wird aus der Galerie entfernt.', confirmText: 'Löschen', danger: true });
+        if (!ok) return;
+        try {
+            throwIfError(await supabase.storage.from('fotos').remove([btn.dataset.delFoto]));
+            await loadArchivData();
+            showToast('Foto gelöscht');
+        } catch (err) {
+            console.error('Fehler beim Löschen:', err);
+            showToast('Fehler beim Löschen.', true);
+        }
+    });
 }
 
 export function initFotoUpload() {
     const dropZone = document.getElementById('dropZone');
     const fotoFiles = document.getElementById('fotoFiles');
-    const uploadFotosBtn = document.getElementById('uploadFotosBtn');
+    const uploadBtn = document.getElementById('uploadFotosBtn');
+    const label = dropZone.querySelector('strong');
 
-    if (!dropZone || !fotoFiles || !uploadFotosBtn) return;
+    const picked = n => {
+        uploadBtn.style.display = n ? '' : 'none';
+        label.textContent = n ? `${n} ${n === 1 ? 'Bild' : 'Bilder'} ausgewählt` : 'Bilder hierher ziehen';
+    };
 
     dropZone.addEventListener('click', () => fotoFiles.click());
-
-    dropZone.addEventListener('dragover', (e) => {
+    dropZone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fotoFiles.click(); } });
+    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag'));
+    dropZone.addEventListener('drop', e => {
         e.preventDefault();
-        dropZone.style.background = 'rgba(92,184,116,0.2)';
-    });
-
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.style.background = 'rgba(92,184,116,0.05)';
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.style.background = 'rgba(92,184,116,0.05)';
-        if (e.dataTransfer.files.length > 0) {
+        dropZone.classList.remove('drag');
+        if (e.dataTransfer.files.length) {
             fotoFiles.files = e.dataTransfer.files;
-            uploadFotosBtn.style.display = 'block';
-            const label = dropZone.querySelector('div:nth-child(2)');
-            if (label) label.textContent = `${e.dataTransfer.files.length} Bilder ausgewählt`;
+            picked(fotoFiles.files.length);
         }
     });
-
-    fotoFiles.addEventListener('change', () => {
-        if (fotoFiles.files.length > 0) {
-            uploadFotosBtn.style.display = 'block';
-            const label = dropZone.querySelector('div:nth-child(2)');
-            if (label) label.textContent = `${fotoFiles.files.length} Bilder ausgewählt`;
-        }
-    });
-
-    uploadFotosBtn.addEventListener('click', uploadFotos);
+    fotoFiles.addEventListener('change', () => picked(fotoFiles.files.length));
+    uploadBtn.addEventListener('click', () => uploadFotos(() => picked(0)));
 }
 
-async function uploadFotos() {
-    const tId = document.getElementById('archivSelect')?.value;
+async function uploadFotos(done) {
+    const tId = selectedId();
     const t = findTournament(tId);
-    const statusDiv = document.getElementById('fotoStatus');
+    const status = document.getElementById('fotoStatus');
     const uploadBtn = document.getElementById('uploadFotosBtn');
     const fotoFiles = document.getElementById('fotoFiles');
-
-    if (!tId || !t) {
-        showToast('Bitte wähle ein Turnier aus.', true);
-        return;
-    }
+    if (!t) return;
 
     uploadBtn.disabled = true;
-    let prefix = t.fotos_prefix;
-
     try {
+        let prefix = t.fotos_prefix;
         if (!prefix) {
             prefix = tId;
-            const { error } = await supabase
-                .from('tournaments')
-                .update({ fotos_prefix: prefix })
-                .eq('id', tId);
-            if (error) throw error;
+            throwIfError(await supabase.from('tournaments').update({ fotos_prefix: prefix }).eq('id', tId));
             t.fotos_prefix = prefix;
         }
 
         const files = Array.from(fotoFiles.files);
-        let successCount = 0;
-
+        let ok = 0;
         for (let i = 0; i < files.length; i++) {
-            if (statusDiv) statusDiv.textContent = `Lade Bild ${i + 1} von ${files.length} hoch...`;
-            const file = files[i];
-            const { error } = await supabase
-                .storage
+            status.textContent = `Lade Bild ${i + 1} von ${files.length} …`;
+            const { error } = await supabase.storage
                 .from('fotos')
-                .upload(`${prefix}/${Date.now()}_${safeFileName(file.name)}`, file);
-            if (error) console.error(`Upload fehlgeschlagen (${file.name}):`, error);
-            else successCount++;
+                .upload(`${prefix}/${Date.now()}_${safeFileName(files[i].name)}`, files[i]);
+            if (error) console.error(`Upload fehlgeschlagen (${files[i].name}):`, error);
+            else ok++;
         }
-
-        const failed = files.length - successCount;
-        if (statusDiv) {
-            statusDiv.textContent = failed
-                ? `${successCount} hochgeladen, ${failed} fehlgeschlagen.`
-                : `${successCount} Bilder erfolgreich hochgeladen!`;
-        }
-
+        const failed = files.length - ok;
+        status.textContent = failed ? `${ok} hochgeladen, ${failed} fehlgeschlagen` : `${ok} Bilder hochgeladen`;
+        showToast(failed ? `${failed} Bild(er) konnten nicht hochgeladen werden.` : `${ok} Bilder hochgeladen`, failed > 0);
         fotoFiles.value = '';
-        uploadBtn.style.display = 'none';
-        const label = document.getElementById('dropZone')?.querySelector('div:nth-child(2)');
-        if (label) label.textContent = 'Bilder hierher ziehen';
-
-        showToast(failed ? `${failed} Bild(er) konnten nicht hochgeladen werden.` : `${successCount} Bilder hochgeladen!`, failed > 0);
+        done();
         await loadArchivData();
-
     } catch (err) {
         console.error('Fehler beim Upload:', err);
         showToast('Fehler beim Hochladen.', true);
     } finally {
         uploadBtn.disabled = false;
-        setTimeout(() => {
-            if (statusDiv) statusDiv.textContent = '';
-        }, 3000);
+        setTimeout(() => { status.textContent = ''; }, 4000);
     }
 }
 
 /**
- * Öffnet ein Modal zum Bearbeiten der Bewerbe eines Turniers
+ * Dialog zum Bearbeiten der Bewerbe eines (alten) Turniers
  */
 export function openBewerbeEditor() {
-    const tId = document.getElementById('archivSelect')?.value;
-    if (!tId) {
-        showToast('Bitte wähle ein Turnier aus.', true);
-        return;
-    }
-
-    const t = findTournament(tId);
-    if (!t) {
-        showToast('Turnier nicht gefunden.', true);
-        return;
-    }
-
-    // Bestehende Bewerbe laden
+    const t = findTournament(selectedId());
+    if (!t) return;
     const bewerbe = parseBewerbe(t);
 
-    // Modal erstellen
-    const modal = document.createElement('dialog');
-    modal.className = 'admin-modal';
-    modal.innerHTML = `
-        <div class="modal-header">
-            <h3>Bewerbe bearbeiten: ${esc(t.name)}</h3>
-            <button class="close-btn" onclick="this.closest('dialog').close()">×</button>
+    const rowHtml = (b = {}, i = null) => `
+        <div class="repeat-row compact bw-edit-row" ${i !== null ? `data-orig-index="${i}"` : ''}>
+            <input type="text" class="input" value="${esc(b.name || '')}" placeholder="Name" style="flex:2;">
+            <input type="text" class="input" value="${esc(b.time || '')}" placeholder="Startzeit" style="flex:1;">
+            <input type="number" class="input" value="${esc(b.min_rc || 0)}" title="Min. RC" style="width:80px;">
+            <input type="number" class="input" value="${esc(b.capacity || 20)}" title="Plätze" style="width:80px;">
+            <button type="button" class="icon-btn danger" data-remove title="Entfernen">${icon('x')}</button>
+        </div>`;
+
+    const dlg = document.createElement('dialog');
+    dlg.className = 'modal';
+    dlg.innerHTML = `
+        <div class="modal-head">
+            <h2>Bewerbe: ${esc(t.name)}</h2>
+            <button type="button" class="icon-btn" data-close aria-label="Schließen">${icon('x')}</button>
         </div>
         <div class="modal-body">
-            <div id="bewerbeEditorList">
-                ${bewerbe.map((b, i) => `
-                    <div class="bewerb-row" data-orig-index="${i}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                        <input type="text" class="input-field" value="${esc(b.name)}" placeholder="Bewerb Name" style="flex:2; min-width:150px;">
-                        <input type="text" class="input-field" value="${esc(b.time || '')}" placeholder="Startzeit" style="flex:1; min-width:100px;">
-                        <input type="number" class="input-field" value="${b.min_rc || 0}" placeholder="Min RC" style="flex:1; min-width:80px;">
-                        <input type="number" class="input-field" value="${b.capacity || 20}" placeholder="Kapazität" style="flex:1; min-width:80px;">
-                        <button class="btn-outline btn-small remove-bewerb-editor" style="color:var(--error); border-color:var(--error);">✕</button>
-                    </div>
-                `).join('')}
-            </div>
-            <button id="addBewerbEditorBtn" class="btn-outline" style="margin-top:10px; width:100%;">+ Bewerb hinzufügen</button>
-            <div style="margin-top:20px; display:flex; gap:10px;">
-                <button id="saveBewerbeEditorBtn" class="btn-outline" style="background:var(--accent); color:#000; font-weight:bold; flex:1;">Bewerbe speichern</button>
-                <button class="btn-outline" onclick="this.closest('dialog').close()" style="flex:1;">Abbrechen</button>
-            </div>
+            <p class="small muted" style="margin-bottom:12px;">Name · Startzeit · Min. RC · Plätze. Umbenennungen werden in die Hall of Fame übernommen.</p>
+            <div class="repeat-list" id="bewerbeEditorList">${bewerbe.map(rowHtml).join('')}</div>
+            <button type="button" class="btn block" data-add style="margin-top:10px;">${icon('plus')}Bewerb hinzufügen</button>
         </div>
-    `;
+        <div class="modal-foot">
+            <button type="button" class="btn" data-close>Abbrechen</button>
+            <button type="button" class="btn primary" id="saveBewerbeEditorBtn">Bewerbe speichern</button>
+        </div>`;
+    document.body.appendChild(dlg);
+    const closeDlg = () => { if (dlg.open) dlg.close(); dlg.remove(); };
+    dlg.addEventListener('close', closeDlg);
+    dlg.showModal();
 
-    document.body.appendChild(modal);
-    modal.showModal();
-
-    // WICHTIG: Modal beim Schließen aus dem DOM entfernen (Memory-Leak verhindern)
-    modal.addEventListener('close', () => {
-        modal.remove();
-        window.removeEventListener('keydown', escHandler);
+    const list = dlg.querySelector('#bewerbeEditorList');
+    dlg.addEventListener('click', e => {
+        if (e.target.closest('[data-close]')) closeDlg();
+        if (e.target.closest('[data-add]')) list.insertAdjacentHTML('beforeend', rowHtml());
+        const rm = e.target.closest('[data-remove]');
+        if (rm) {
+            if (list.children.length > 1) rm.closest('.bw-edit-row').remove();
+            else showToast('Mindestens ein Bewerb muss bleiben.', true);
+        }
     });
 
-    // Optional: ESC sauber abfangen (zusätzlich zur nativen Funktionalität)
-    const escHandler = (e) => {
-        if (e.key === 'Escape' && modal.open) modal.close();
-    };
-    window.addEventListener('keydown', escHandler);
-
-    // Event: Bewerb hinzufügen
-    modal.querySelector('#addBewerbEditorBtn').addEventListener('click', () => {
-        const list = modal.querySelector('#bewerbeEditorList');
-        const row = document.createElement('div');
-        row.className = 'bewerb-row';
-        row.style.cssText = 'display:flex; gap:10px; align-items:center; flex-wrap:wrap;';
-        row.innerHTML = `
-            <input type="text" class="input-field" placeholder="Bewerb Name" style="flex:2; min-width:150px;">
-            <input type="text" class="input-field" placeholder="Startzeit" style="flex:1; min-width:100px;">
-            <input type="number" class="input-field" value="0" placeholder="Min RC" style="flex:1; min-width:80px;">
-            <input type="number" class="input-field" value="20" placeholder="Kapazität" style="flex:1; min-width:80px;">
-            <button class="btn-outline btn-small remove-bewerb-editor" style="color:var(--error); border-color:var(--error);">✕</button>
-        `;
-        list.appendChild(row);
-
-        row.querySelector('.remove-bewerb-editor').addEventListener('click', () => {
-            if (list.children.length > 1) {
-                row.remove();
-            } else {
-                showToast('Mindestens ein Bewerb muss bleiben.', true);
-            }
-        });
-    });
-
-    // Event: Bewerb entfernen (für bestehende)
-    modal.querySelectorAll('.remove-bewerb-editor').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const list = modal.querySelector('#bewerbeEditorList');
-            if (list.children.length > 1) {
-                btn.closest('.bewerb-row').remove();
-            } else {
-                showToast('Mindestens ein Bewerb muss bleiben.', true);
-            }
-        });
-    });
-
-    // Event: Speichern
-    modal.querySelector('#saveBewerbeEditorBtn').addEventListener('click', async () => {
-        const rows = modal.querySelectorAll('#bewerbeEditorList .bewerb-row');
+    dlg.querySelector('#saveBewerbeEditorBtn').addEventListener('click', async () => {
         const newBewerbe = [];
         const renamed = {}; // alter Name → neuer Name
-
-        rows.forEach(row => {
+        list.querySelectorAll('.bw-edit-row').forEach(row => {
             const inputs = row.querySelectorAll('input');
             const name = inputs[0].value.trim();
             if (!name) return;
-
             // Bestehenden Bewerb als Basis nehmen, damit Felder wie prize/duration erhalten bleiben
             const origIndex = row.getAttribute('data-orig-index');
             const orig = origIndex !== null ? bewerbe[parseInt(origIndex, 10)] : null;
             if (orig && orig.name !== name) renamed[orig.name] = name;
-
             newBewerbe.push({
                 duration: 3,
                 ...(orig || {}),
-                name: name,
+                name,
                 time: inputs[1].value.trim(),
                 min_rc: parseInt(inputs[2].value, 10) || 0,
                 capacity: parseInt(inputs[3].value, 10) || 20
             });
         });
 
+        if (!newBewerbe.length) {
+            showToast('Mindestens ein Bewerb benötigt.', true);
+            return;
+        }
+
         // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
         let newHof = t.hall_of_fame;
         if (newHof && Object.keys(renamed).length > 0) {
             newHof = {};
-            for (const [key, val] of Object.entries(t.hall_of_fame)) {
-                newHof[renamed[key] || key] = val;
-            }
-        }
-
-        if (newBewerbe.length === 0) {
-            showToast('Mindestens ein Bewerb benötigt.', true);
-            return;
+            for (const [key, val] of Object.entries(t.hall_of_fame)) newHof[renamed[key] || key] = val;
         }
 
         try {
             const update = { bewerbe: JSON.stringify(newBewerbe) };
             if (newHof !== t.hall_of_fame) update.hall_of_fame = newHof;
-
-            const { error } = await supabase
-                .from('tournaments')
-                .update(update)
-                .eq('id', tId);
-
-            if (error) throw error;
-
-            // Lokalen Cache aktualisieren
+            throwIfError(await supabase.from('tournaments').update(update).eq('id', t.id));
             t.bewerbe = newBewerbe;
             if (update.hall_of_fame) t.hall_of_fame = newHof;
-
-            modal.close();
-            showToast('Bewerbe gespeichert!');
-
-            // Archiv neu laden (für Hall of Fame)
+            closeDlg();
+            showToast('Bewerbe gespeichert');
             await loadArchivData();
-
         } catch (err) {
             console.error('Fehler beim Speichern:', err);
             showToast('Fehler beim Speichern.', true);
