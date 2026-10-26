@@ -9,9 +9,6 @@ const lbImg = document.getElementById("lbImg");
 const lbCount = document.getElementById("lbCount");
 const lbCaption = document.getElementById("lbCaption");
 
-// DEBUG: Prüfen ob Caption-Element existiert
-console.log('lbCaption Element:', lbCaption);
-
 export function initGallery() {
     if (!lb) return;
 
@@ -33,15 +30,11 @@ export function initGallery() {
 
 export function setGalleries(data) {
     galleries = data;
-    console.log('Galleries gesetzt:', galleries);  // DEBUG
 }
 
 export function openLightbox(galleryId, index) {
     lbList = galleries[galleryId] || [];
-    console.log('Öffne Lightbox:', { galleryId, index, lbList });  // DEBUG
-
     if (!lbList.length) {
-        console.warn('Keine Bilder für diese Galerie');
         return;
     }
 
@@ -53,7 +46,6 @@ export function openLightbox(galleryId, index) {
 
 function showLb() {
     const item = lbList[lbIndex];
-    console.log('Zeige Bild:', item);  // DEBUG
 
     // Unterstützt beide Formate: String oder Objekt
     if (typeof item === 'string') {
@@ -64,7 +56,6 @@ function showLb() {
         if (lbCaption && item.caption) {
             lbCaption.textContent = item.caption;
             lbCaption.style.display = 'block';
-            console.log('Caption gesetzt:', item.caption);  // DEBUG
         } else if (lbCaption) {
             lbCaption.style.display = 'none';
         }

@@ -5,3 +5,42 @@
   from = "/"
   to = "/public/index.html"
   status = 200
+
+# Sicherheits-Header für alle Seiten
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# Admin-Bereich nicht in Suchmaschinen
+[[headers]]
+  for = "/public/admin.html"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+
+# Bilder lange cachen (ändern sich selten)
+[[headers]]
+  for = "/icons/*"
+  [headers.values]
+    Cache-Control = "public, max-age=604800"
+
+# JS/CSS haben keine Hash-Dateinamen → Browser muss nach Updates neu prüfen
+[[headers]]
+  for = "/src/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/styles/*"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+# Interne Dateien nicht ausliefern
+[[redirects]]
+  from = "/supabase/*"
+  to = "/404"
+  status = 404
+  force = true

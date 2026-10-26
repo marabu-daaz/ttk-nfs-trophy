@@ -6,10 +6,79 @@
  */
 export function esc(s) {
     if (s === null || s === undefined) return '';
-    return String(s).replace(/[&<>"]/g, (c) => {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' };
+    return String(s).replace(/[&<>"']/g, (c) => {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
         return map[c] || c;
     });
+}
+
+/**
+ * Gibt die URL nur zurück, wenn sie http(s) oder mailto/tel ist – sonst ''.
+ * Verhindert javascript:-Links aus Admin-Eingaben.
+ */
+export function safeUrl(url) {
+    if (!url) return '';
+    const s = String(url).trim();
+    try {
+        const u = new URL(s, window.location.origin);
+        return ['http:', 'https:', 'mailto:', 'tel:'].includes(u.protocol) ? s : '';
+    } catch (e) {
+        return '';
+    }
+}
+
+/**
+ * Bereinigt Admin-HTML (Fakten, Bewerbe-Text): erlaubt einfache Formatierung,
+ * entfernt Scripts, Event-Handler (onclick=...) und javascript:-Links.
+ */
+const ALLOWED_TAGS = new Set(['DIV', 'B', 'STRONG', 'I', 'EM', 'U', 'BR', 'P', 'SPAN', 'A', 'SMALL', 'UL', 'OL', 'LI']);
+
+export function sanitizeHtml(html) {
+    if (!html) return '';
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, 'text/html');
+    const root = doc.body.firstChild;
+
+    const clean = (node) => {
+        for (const child of Array.from(node.children)) {
+            if (!ALLOWED_TAGS.has(child.tagName)) {
+                // Unbekannte Tags durch ihren Text ersetzen
+                child.replaceWith(doc.createTextNode(child.textContent));
+                continue;
+            }
+            for (const attr of Array.from(child.attributes)) {
+                const keep = child.tagName === 'A' && ['href', 'target', 'rel'].includes(attr.name);
+                if (!keep) child.removeAttribute(attr.name);
+            }
+            if (child.tagName === 'A') {
+                const href = safeUrl(child.getAttribute('href'));
+                if (href) child.setAttribute('href', href);
+                else child.removeAttribute('href');
+                child.setAttribute('rel', 'noreferrer');
+            }
+            clean(child);
+        }
+    };
+    clean(root);
+    return root.innerHTML;
+}
+
+/**
+ * Macht einen Dateinamen Storage-tauglich (keine Umlaute, Leerzeichen etc.)
+ */
+export function safeFileName(name) {
+    return String(name)
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/ß/g, 'ss')
+        .replace(/[^a-zA-Z0-9.\-_]/g, '_');
+}
+
+/**
+ * Supabase wirft bei Fehlern nicht, sondern liefert { error } zurück.
+ * Diese Hilfsfunktion macht daraus eine Exception, damit try/catch greift.
+ */
+export function throwIfError(result) {
+    if (result?.error) throw result.error;
+    return result;
 }
 
 /**
@@ -30,9 +99,6 @@ export function istWartelisteFuer(reg, bewerbName) {
     return reg.waitlist === true;
 }
 
-/**
- * Toast-Benachrichtigung (funktioniert in Frontend UND Admin)
- */
 /**
  * Toast-Benachrichtigung (funktioniert in Frontend UND Admin)
  */

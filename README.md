@@ -6,21 +6,24 @@ Diese Webanwendung ermöglicht die Verwaltung von Nennungen, Finanzen, Turnier-S
 
 ## Inhalt
 
-Statische Single-Page-Website (`index.html`), keine Build-Tools nötig.
+Statische Website (Vanilla JS, ES-Module), keine Build-Tools nötig.
+Gehostet auf **Netlify**, Daten in **Supabase**.
+
+| Seite | Pfad |
+|---|---|
+| Öffentliche Seite | `/` (→ `public/index.html`) |
+| Admin-Dashboard | `/public/admin.html` |
+| Live-Ticker | `/public/live.html` |
 
 ## Lokal ansehen
 
-Einfach `index.html` im Browser öffnen, oder:
+Wegen der ES-Module und absoluten Pfade (`/src/...`) muss ein lokaler Server
+im **Projekt-Root** laufen – direktes Öffnen der HTML-Datei funktioniert nicht:
 
 ```bash
 python -m http.server 8000
-# http://localhost:8000
+# http://localhost:8000/public/index.html
 ```
-
-## Deployment
-
-Kann direkt über GitHub Pages ausgeliefert werden:
-Settings → Pages → Branch `main`, Ordner `/ (root)`.
 
 ---
 
@@ -31,7 +34,11 @@ Die Website wurde komplett überarbeitet – von einer einzelnen HTML-Datei zu e
 ### 1. Neue Ordner-Struktur
 Die alte index.html (mit allem drin) wurde aufgeteilt:
 
-- config.js                 # Supabase Credentials
+- config.js                 # Supabase Credentials (Anon-Keys, öffentlich – Schutz über RLS)
+- netlify.toml              # Redirect / → public/index.html, Header
+- icons/                    # Favicons, PWA-Icons, logo.png
+- supabase/
+  - hardening.sql         # RLS-Prüfung, Duplikat-Schutz, serverseitige Warteliste
 - public/
   - index.html            # Öffentliche Seite
   - admin.html            # Admin-Dashboard
@@ -120,13 +127,18 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
 
 ## Deployment
 
-Die App kann auf jedem statischen Hosting (Netlify, Vercel, GitHub Pages, etc.) deployed werden.
+Netlify deployed automatisch bei jedem Push auf `main`. Konfiguration in `netlify.toml`
+(Publish-Ordner = Projekt-Root, Rewrite `/` → `/public/index.html`, Security- und Cache-Header).
 
-Für GitHub Pages:
-1. Branch auf main setzen
-2. Ordner /public als Root setzen (oder Root, wenn index.html im Hauptverzeichnis liegt)
+Wichtig: Die Ordnerstruktur muss erhalten bleiben (src/, styles/, icons/, config.js müssen neben public/ liegen).
 
-Wichtig: Die Ordnerstruktur muss erhalten bleiben (src/, styles/, config.js müssen neben public/ liegen).
+## Supabase
+
+`supabase/hardening.sql` enthält Prüf-Abfragen und Härtungen (im SQL-Editor abschnittweise ausführen):
+- Öffentliche View `public_registrations` ohne E-Mail/Telefon
+- Unique-Index gegen doppelte Nennungen (gleiche Person = E-Mail + Name pro Turnier)
+- Trigger, der die Warteliste serverseitig berechnet (keine Überbuchung, keine Manipulation)
+- Vorlage für RLS-Policies
 
 ---
 
@@ -146,4 +158,7 @@ Alle Rechte vorbehalten – TTK Naturfreunde Stadlau
 ## Änderungshistorie
 
 - 06/2026, Version 1.0: Initiale Single-Page-Version
+- 10/2026, Version 2.1: Code-Review – Supabase-Fehlerbehandlung im Admin, Bewerbe-Editor verliert keine Daten mehr,
+  Saldo-Berechnung, sichere Dateinamen bei Uploads, Logo als Datei statt Base64, Spam-Honeypot,
+  RFC-konforme Kalender-Dateien, Live-Ticker pausiert im Hintergrund, Netlify-Header
 - 08/2026, Version 2.0: Komplettes Refactoring – Modulare Struktur, XSS-Schutz, neue Features, Fehlerbehandlung, Adminbereich

@@ -1,6 +1,6 @@
 // src/admin/setup.js
 import { supabase } from '../shared/supabase.js';
-import { esc, showToast, formatForDateTimeLocal, parseBewerbe } from '../shared/utils.js';
+import { esc, showToast, safeFileName } from '../shared/utils.js';
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, DEFAULT_BEWERBE } from '../shared/constants.js';
 
 const QRCode = window.QRCode;
@@ -127,6 +127,14 @@ export function downloadQR(divId, filename) {
     }
 }
 
+/**
+ * Gebühr parsen: leeres Feld → Standard, 0 ist erlaubt (z.B. Gratis-Turnier)
+ */
+function parseFee(value, fallback) {
+    const n = parseInt(value, 10);
+    return Number.isNaN(n) || n < 0 ? fallback : n;
+}
+
 export async function saveSetup() {
     if (!activeTournamentId) {
         showToast('Kein aktives Turnier.', true);
@@ -140,7 +148,7 @@ export async function saveSetup() {
     try {
         const updatedBewerbeList = getBewerbeFromDOM();
 
-        // --- NEU: Zeitplan & Sponsoren Zeilen auslesen ---
+        // Zeitplan & Sponsoren Zeilen auslesen
         const scheduleData = [];
         document.querySelectorAll('.schedule-row').forEach(row => {
             const time = row.querySelector('.sched-time').value.trim();
@@ -157,10 +165,9 @@ export async function saveSetup() {
             // Wenn neue Datei gewählt → hochladen
             if (fileInput.files.length > 0) {
                 const file = fileInput.files[0];
-                const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
                 const { data: up, error: upErr } = await supabase.storage
                     .from('sponsoren')
-                    .upload(`${Date.now()}_${safeName}`, file);
+                    .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
                 if (upErr) {
                     console.error('Sponsor-Upload fehlgeschlagen:', upErr);
                     showToast('Sponsor-Bild konnte nicht hochgeladen werden: ' + upErr.message, true);
@@ -185,7 +192,6 @@ export async function saveSetup() {
             fact4Title: document.getElementById('setupFact4Title')?.value.trim() || '',
             fact4Text: document.getElementById('setupFact4Text')?.value.trim() || '',
 
-            // --- HIER DIE NEUEN FELDER ---
             showSchedule: document.getElementById('setupShowSchedule')?.checked || false,
             schedule: scheduleData,
             showSponsors: document.getElementById('setupShowSponsors')?.checked || false,
@@ -202,8 +208,8 @@ export async function saveSetup() {
             date_iso: document.getElementById('setupDateIso')?.value ? new Date(document.getElementById('setupDateIso').value).toISOString() : new Date().toISOString(),
             subtitle: document.getElementById('setupSubtitle')?.value.trim() || '',
             oettv_url: document.getElementById('setupOettvUrl')?.value.trim() || '',
-            fee_normal: parseInt(document.getElementById('setupFeeNormal')?.value, 10) || DEFAULT_FEE_NORMAL,
-            fee_nfs: parseInt(document.getElementById('setupFeeNfs')?.value, 10) || DEFAULT_FEE_NFS,
+            fee_normal: parseFee(document.getElementById('setupFeeNormal')?.value, DEFAULT_FEE_NORMAL),
+            fee_nfs: parseFee(document.getElementById('setupFeeNfs')?.value, DEFAULT_FEE_NFS),
             bewerbe: JSON.stringify(updatedBewerbeList),
             turnier_info: JSON.stringify(infoObj),
             show_ttop_button: showTtop,
@@ -214,10 +220,11 @@ export async function saveSetup() {
         const pdfInput = document.getElementById('setupPdf');
         if (pdfInput && pdfInput.files.length > 0) {
             const file = pdfInput.files[0];
-            const { data: uploadData, error: uploadErr } = await supabase.storage.from('pdfs').upload(`${Date.now()}_${file.name}`, file);
-            if (!uploadErr && uploadData) {
-                updateData.ausschreibung_path = uploadData.path;
-            }
+            const { data: uploadData, error: uploadErr } = await supabase.storage
+                .from('pdfs')
+                .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
+            if (uploadErr) throw uploadErr;
+            updateData.ausschreibung_path = uploadData.path;
         }
 
         const { error } = await supabase.from('tournaments').update(updateData).eq('id', activeTournamentId);

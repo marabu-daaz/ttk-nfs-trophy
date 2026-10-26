@@ -1,6 +1,6 @@
 // src/frontend/app.js
 import { supabase, publicPdfUrl, publicFotoUrl, publicSponsorUrl } from '../shared/supabase.js';
-import { esc, showToast, rcNum, istWartelisteFuer, parseBewerbe, parseTurnierInfo } from '../shared/utils.js';
+import { esc, showToast, rcNum, istWartelisteFuer, parseBewerbe, parseTurnierInfo, safeUrl, sanitizeHtml } from '../shared/utils.js';
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS } from '../shared/constants.js';
 import { initGallery, setGalleries, openLightbox } from './gallery.js';
 
@@ -68,16 +68,14 @@ async function init() {
 // ==========================================
 // IMPRESSUM TOGGLE
 // ==========================================
-// src/frontend/app.js
-
 function setupImpressumToggle() {
     setupAccordion('impressumHeader', 'impressumContent', 'impressumIcon', 'footerImpressumLink', 'impressum');
     setupAccordion('datenschutzHeader', 'datenschutzContent', 'datenschutzIcon', 'footerDatenschutzLink', 'datenschutz');
-    setupAccordion('rekordeHeader', 'rekordeContent', 'rekordeIcon', null, 'rekorde');   // ← NEU
+    setupAccordion('rekordeHeader', 'rekordeContent', 'rekordeIcon', null, 'rekorde');
 }
 
 /**
- * Generischer Accordion-Setup für Impressum + Datenschutz
+ * Generischer Accordion-Setup für Impressum, Datenschutz und Rekorde
  */
 function setupAccordion(headerId, contentId, iconId, footerLinkId, sectionId) {
     const header = document.getElementById(headerId);
@@ -140,69 +138,63 @@ function renderHero(t) {
     startCountdown(t.date_iso);
 }
 
+/**
+ * Blendet eine Sektion samt Menüpunkt ein/aus
+ */
+function toggleSection(sectionId, visible) {
+    const sec = document.getElementById(sectionId);
+    if (sec) sec.style.display = visible ? "block" : "none";
+    const navLink = document.querySelector(`#navList a[href="#${sectionId}"]`);
+    if (navLink?.parentElement) navLink.parentElement.style.display = visible ? "" : "none";
+}
+
 function renderTurnierInfo(t) {
-    // (Bestehender Code in renderTurnierInfo...)
     const tInfo = parseTurnierInfo(t);
 
-    // --- NEU: Zeitplan rendern ---
-    const zeitplanSec = document.getElementById("zeitplan");
+    // Zeitplan
     const timelineGrid = document.getElementById("timelineGrid");
-
-    if (tInfo.showSchedule && tInfo.schedule && tInfo.schedule.length > 0) {
-        zeitplanSec.style.display = "block";
+    const showSchedule = !!(tInfo.showSchedule && tInfo.schedule && tInfo.schedule.length > 0);
+    toggleSection("zeitplan", showSchedule);
+    if (showSchedule && timelineGrid) {
         timelineGrid.innerHTML = tInfo.schedule.map(item => `
-    <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--line); border-left: 3px solid var(--green-neon); border-radius: 6px; padding: 14px 16px; transition: border-color 0.2s, background 0.2s;"
-         onmouseover="this.style.background='rgba(255,255,255,0.06)';"
-         onmouseout="this.style.background='rgba(255,255,255,0.03)';">
-        <div style="font-family: 'Archivo', sans-serif; font-weight: 700; color: var(--green-neon); font-size: 15px; letter-spacing: 0.05em; margin-bottom: 4px;">${esc(item.time)}</div>
-        <div style="color: #fff; font-size: 14px; line-height: 1.4;">${esc(item.text)}</div>
-    </div>
-`).join("");
-    } else {
-        if (zeitplanSec) zeitplanSec.style.display = "none";
+            <div class="timeline-item">
+                <div style="font-family: 'Archivo', sans-serif; font-weight: 700; color: var(--green-neon); font-size: 15px; letter-spacing: 0.05em; margin-bottom: 4px;">${esc(item.time)}</div>
+                <div style="color: #fff; font-size: 14px; line-height: 1.4;">${esc(item.text)}</div>
+            </div>
+        `).join("");
     }
 
-    // --- NEU: Sponsoren rendern ---
-    const sponsorenSec = document.getElementById("sponsoren");
+    // Sponsoren
     const sponsorenGrid = document.getElementById("sponsorenGrid");
-
-    if (tInfo.showSponsors && tInfo.sponsors && tInfo.sponsors.length > 0) {
-        sponsorenSec.style.display = "block";
+    const showSponsors = !!(tInfo.showSponsors && tInfo.sponsors && tInfo.sponsors.length > 0);
+    toggleSection("sponsoren", showSponsors);
+    if (showSponsors && sponsorenGrid) {
         sponsorenGrid.innerHTML = tInfo.sponsors.map(s => {
-            // Neu: logoPath (Storage-Pfad) → public URL; Alt: logoUrl (externe URL)
-            const src = s.logoPath ? publicSponsorUrl(s.logoPath) : (s.logoUrl || '');
+            // logoPath (Storage-Pfad) → public URL; Alt: logoUrl (externe URL)
+            const src = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
             if (!src) return '';
-            return `
-            <a href="${esc(s.link)}" target="_blank" rel="noreferrer"
-               style="display: block; transition: transform 0.2s;">
-                <img src="${esc(src)}" alt="Sponsor"
-     style="max-height: 120px; max-width: 320px; opacity: 0.85; filter: grayscale(0%); transition: all 0.3s;"
-                     onmouseover="this.style.opacity='1'; this.style.filter='grayscale(0%)';"
-                     onmouseout="this.style.opacity='0.7'; this.style.filter='grayscale(100%)';">
-            </a>
-        `;
+            const img = `<img src="${esc(src)}" alt="Sponsor" loading="lazy">`;
+            const link = safeUrl(s.link);
+            return link
+                ? `<a class="sponsor-link" href="${esc(link)}" target="_blank" rel="noreferrer">${img}</a>`
+                : `<div class="sponsor-link">${img}</div>`;
         }).join("");
-    } else {
-        if (sponsorenSec) sponsorenSec.style.display = "none";
     }
 
     if (tInfo.bewerbeHeadline) {
         const h = document.getElementById("pubBewerbeHeadline");
-        if (h) h.innerHTML = tInfo.bewerbeHeadline;
+        if (h) h.innerHTML = sanitizeHtml(tInfo.bewerbeHeadline);
     }
     if (tInfo.bewerbeText) {
         const pt = document.getElementById("pubBewerbeText");
-        if (pt) pt.innerHTML = tInfo.bewerbeText;
+        if (pt) pt.innerHTML = sanitizeHtml(tInfo.bewerbeText);
     }
 
     const factsGrid = document.getElementById("pubFactsGrid");
     if (factsGrid && tInfo.fact1Title) {
-        factsGrid.innerHTML = `
-            <div class="fact"><div class="k mono">${esc(tInfo.fact1Title)}</div><div class="v">${tInfo.fact1Text || ''}</div></div>
-            <div class="fact"><div class="k mono">${esc(tInfo.fact2Title)}</div><div class="v">${tInfo.fact2Text || ''}</div></div>
-            <div class="fact"><div class="k mono">${esc(tInfo.fact3Title)}</div><div class="v">${tInfo.fact3Text || ''}</div></div>
-            <div class="fact"><div class="k mono">${esc(tInfo.fact4Title)}</div><div class="v">${tInfo.fact4Text || ''}</div></div>
-        `;
+        factsGrid.innerHTML = [1, 2, 3, 4].map(n => `
+            <div class="fact"><div class="k mono">${esc(tInfo[`fact${n}Title`])}</div><div class="v">${sanitizeHtml(tInfo[`fact${n}Text`])}</div></div>
+        `).join("");
     }
 }
 
@@ -222,8 +214,8 @@ function renderBewerbe(t) {
         `;
     }).join("");
 
-    const feeNormal = t.fee_normal || DEFAULT_FEE_NORMAL;
-    const feeNfs = t.fee_nfs || DEFAULT_FEE_NFS;
+    const feeNormal = t.fee_normal ?? DEFAULT_FEE_NORMAL;
+    const feeNfs = t.fee_nfs ?? DEFAULT_FEE_NFS;
     const noteEl = document.getElementById("bewerbeNote");
     if (noteEl) {
         noteEl.textContent = `Nenngeld pro Bewerb ${feeNormal} €, für NFS-Mitglieder ${feeNfs} €. Barzahlung vor Ort. Die Teilnehmerzahl pro Bewerb ist begrenzt.`;
@@ -246,9 +238,9 @@ function renderForm(t) {
     }
 
     const feeNEl = document.getElementById("feeNormalDisplay");
-    if (feeNEl) feeNEl.textContent = `${t.fee_normal || DEFAULT_FEE_NORMAL} €`;
+    if (feeNEl) feeNEl.textContent = `${t.fee_normal ?? DEFAULT_FEE_NORMAL} €`;
     const feeNfsEl = document.getElementById("feeNfsDisplay");
-    if (feeNfsEl) feeNfsEl.textContent = `${t.fee_nfs || DEFAULT_FEE_NFS} €`;
+    if (feeNfsEl) feeNfsEl.textContent = `${t.fee_nfs ?? DEFAULT_FEE_NFS} €`;
 
     const checks = document.getElementById("bewerbChecks");
     if (checks) {
@@ -302,10 +294,21 @@ function renderForm(t) {
             return;
         }
 
+        // Honeypot: Bots füllen das versteckte Feld aus → Erfolg vortäuschen, nichts speichern
+        if (v("website")) {
+            form.reset();
+            showSuccessMessage(t, selected, [], form);
+            return;
+        }
+
         btn.disabled = true;
         btn.textContent = "Sende...";
 
         try {
+            // Frischen Nennstand holen, damit die Wartelisten-Berechnung aktuell ist
+            const { data: freshRegs, error: freshErr } = await supabase.from("public_registrations").select("*");
+            if (!freshErr && freshRegs) cachedRegs = freshRegs;
+
             const rcWert = rcNum(v("rc"));
             const waitlistBewerbe = [];
 
@@ -358,11 +361,16 @@ function renderForm(t) {
                 needs_receipt: receiptChecked
             });
 
-            if (error) throw error;
+            if (error) {
+                // 23505 = unique_violation (diese Person ist für dieses Turnier bereits genannt)
+                if (error.code === '23505') {
+                    showToast(`${v("vorname")} ${v("nachname")} ist für dieses Turnier bereits genannt. Für Änderungen bitte bei der Turnierleitung melden.`, true);
+                    return;
+                }
+                throw error;
+            }
 
             form.reset();
-            localStorage.removeItem('nfs_form_draft');
-            document.querySelectorAll("#regForm input").forEach(i => i.classList.remove("valid", "invalid"));
 
             // Erfolgsmeldung mit Kalender-Button
             showSuccessMessage(t, selected, waitlistBewerbe, form);
@@ -393,9 +401,16 @@ function showSuccessMessage(t, selected, waitlistBewerbe, form) {
 
     const tName = t.name || 'NFS Trophy';
 
-    // ICS-Kalender erstellen
-    let icsEvents = "";
-    selected.forEach(bewerbName => {
+    // ICS-Kalender erstellen (RFC 5545: CRLF, UID + DTSTAMP Pflicht, Sonderzeichen escapen)
+    const icsEsc = s => String(s).replace(/\\/g, '\\\\').replace(/([,;])/g, '\\$1').replace(/\n/g, '\\n');
+    const formatICS = (d) => {
+        const pad = n => String(n).padStart(2, '0');
+        return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    };
+    const dtStamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+    const icsLines = [];
+
+    selected.forEach((bewerbName, idx) => {
         const bewerbObj = t.parsedBewerbe.find(b => b.name === bewerbName);
         const isWl = waitlistBewerbe.includes(bewerbName);
         const wlText = isWl ? " (Warteliste)" : "";
@@ -420,25 +435,26 @@ function showSuccessMessage(t, selected, waitlistBewerbe, form) {
         }
         let dEnd = new Date(dStart.getTime() + bewerbDauer * 60 * 60 * 1000);
 
-        const formatICS = (d) => {
-            const pad = n => String(n).padStart(2, '0');
-            return `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
-        };
-
-        icsEvents += `BEGIN:VEVENT
-SUMMARY:${eventTitle}
-DESCRIPTION:Tischtennisturnier - TTK Naturfreunde Stadlau.\\nBewerb: ${bewerbName}
-LOCATION:Erzherzog-Karl-Straße 108\\, 1220 Wien
-DTSTART:${formatICS(dStart)}
-DTEND:${formatICS(dEnd)}
-END:VEVENT
-`;
+        icsLines.push(
+            'BEGIN:VEVENT',
+            `UID:${t.id}-${idx}-${Date.now()}@nfs-trophy.com`,
+            `DTSTAMP:${dtStamp}`,
+            `SUMMARY:${icsEsc(eventTitle)}`,
+            `DESCRIPTION:${icsEsc(`Tischtennisturnier - TTK Naturfreunde Stadlau.\nBewerb: ${bewerbName}`)}`,
+            `LOCATION:${icsEsc('Erzherzog-Karl-Straße 108, 1220 Wien')}`,
+            `DTSTART:${formatICS(dStart)}`,
+            `DTEND:${formatICS(dEnd)}`,
+            'END:VEVENT'
+        );
     });
 
-    const icsData = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//NFS Trophy//DE
-${icsEvents}END:VCALENDAR`;
+    const icsData = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//NFS Trophy//DE',
+        ...icsLines,
+        'END:VCALENDAR'
+    ].join('\r\n') + '\r\n';
 
     const icsFile = new File([icsData], "nfs_trophy.ics", { type: 'text/calendar' });
     const icsUrl = URL.createObjectURL(icsFile);
@@ -549,33 +565,26 @@ function renderCurrentFiles(t) {
 
     // ÖTTV Button
     const live = document.getElementById("ergLive");
-    if (live && t.oettv_url) {
-        live.href = t.oettv_url;
+    const oettvUrl = safeUrl(t.oettv_url);
+    if (live && oettvUrl) {
+        live.href = oettvUrl;
         live.classList.remove("disabled");
         live.textContent = "Zum ÖTTV-Ergebnissystem";
     }
 
-    // ============================================
-    // TTOP Button (in der gleichen Kachel)
-    // ============================================
+    // TTOP Button (nur wenn im Admin aktiviert UND eine gültige URL vorhanden ist)
     const ttopBtn = document.getElementById("ergTtop");
-    console.log('TTOP Button:', ttopBtn);
-    console.log('show_ttop_button:', t.show_ttop_button);
-    console.log('ttop_url:', t.ttop_url);
-
     if (ttopBtn) {
-        // Prüfe ob der Button angezeigt werden soll UND ob eine URL vorhanden ist
-        if (t.show_ttop_button && t.ttop_url && t.ttop_url.trim() !== '') {
+        const ttopUrl = safeUrl(t.ttop_url);
+        if (t.show_ttop_button && ttopUrl) {
             ttopBtn.style.display = 'inline-block';
-            ttopBtn.href = t.ttop_url;
+            ttopBtn.href = ttopUrl;
             ttopBtn.target = "_blank";
             ttopBtn.rel = "noreferrer";
             ttopBtn.classList.remove("disabled");
             ttopBtn.textContent = "TTOP Bewerbe";
-            console.log('TTOP Button wird angezeigt mit URL:', t.ttop_url);
         } else {
             ttopBtn.style.display = 'none';
-            console.log('TTOP Button wird ausgeblendet. show_ttop_button:', t.show_ttop_button, 'ttop_url:', t.ttop_url);
         }
     }
 }
@@ -593,19 +602,17 @@ async function renderArchive(tournaments, ergebnisse) {
         return;
     }
 
-    // src/frontend/app.js - ca. Zeile 450-470
     const fotosByTournament = {};
     await Promise.all(tournaments.map(async (t) => {
         if (!t.fotos_prefix) return;
         const prefix = String(t.fotos_prefix).replace(/^\/+|\/+$/g, "");
         try {
             const { data: files, error } = await supabase.storage.from("fotos").list(prefix, {
-                limit: 200,
+                limit: 1000,
                 sortBy: { column: "name", order: "asc" },
             });
             if (error || !files) return;
 
-            // ====== NEU: Sortierung und Gruppierung ======
             // Hole die Bewerbe für dieses Turnier
             const bewerbe = parseBewerbe(t);
             const bewerbNames = bewerbe.map(b => b.name.toLowerCase());
@@ -630,8 +637,6 @@ async function renderArchive(tournaments, ergebnisse) {
                 });
 
             // Erstelle URLs mit Metadaten
-            // src/frontend/app.js - ca. Zeile 460-480
-
             fotosByTournament[t.id] = sortedFiles.map(f => {
                 const url = publicFotoUrl(`${prefix}/${f.name}`);
                 if (!url) return null;
@@ -678,7 +683,8 @@ async function renderArchive(tournaments, ergebnisse) {
     container.innerHTML = tournaments.map((t, idx) => {
         const chips = [];
         if (t.ausschreibung_path) chips.push(`<a class="chip" href="${publicPdfUrl(t.ausschreibung_path)}" target="_blank">Ausschreibung</a>`);
-        if (t.oettv_url) chips.push(`<a class="chip" href="${esc(t.oettv_url)}" target="_blank">Ergebnisse ÖTTV</a>`);
+        const archivOettvUrl = safeUrl(t.oettv_url);
+        if (archivOettvUrl) chips.push(`<a class="chip" href="${esc(archivOettvUrl)}" target="_blank" rel="noreferrer">Ergebnisse ÖTTV</a>`);
         ergFor(t.id).forEach(e => chips.push(`<a class="chip" href="${publicPdfUrl(e.path)}" target="_blank">${esc(e.label)}</a>`));
 
         const fotos = fotosByTournament[t.id] || [];
@@ -888,8 +894,8 @@ function renderRekorde(tournaments) {
 
             addStat(bewerb.p1, 'win', '(1. Platz)');
             addStat(bewerb.p2, 'podium', '(2. Platz)');
-            addStat(bewerb.p3, 'podium', '(3. Platz)');
-            addStat(bewerb.p3_1, 'podium', '(3. Platz)');
+            // p3 ist das alte Feld, p3_1 das neue – nur eines zählen, sonst doppelt
+            addStat(bewerb.p3_1 || bewerb.p3, 'podium', '(3. Platz)');
             addStat(bewerb.p3_2, 'podium', '(3. Platz)');
             addStat(bewerb.trost, 'trost', '');
         });

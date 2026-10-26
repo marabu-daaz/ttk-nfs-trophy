@@ -1,7 +1,6 @@
 // src/admin/archive.js
-import { supabase, publicPdfUrl, publicFotoUrl } from '../shared/supabase.js';
-import { esc, showToast } from '../shared/utils.js';
-import { parseBewerbe } from '../shared/utils.js';
+import { supabase, publicFotoUrl } from '../shared/supabase.js';
+import { esc, showToast, parseBewerbe, safeFileName, throwIfError } from '../shared/utils.js';
 
 let allTournaments = [];
 let activeTournamentId = null;
@@ -26,8 +25,12 @@ export function populateArchivDropdown() {
         select.appendChild(option);
     });
 
-    select.addEventListener('change', loadArchivData);
     loadArchivData();
+}
+
+// Select-Werte sind immer Strings, IDs aus der DB evtl. Zahlen → als String vergleichen
+function findTournament(id) {
+    return allTournaments.find(x => String(x.id) === String(id));
 }
 
 export async function loadArchivData() {
@@ -35,7 +38,7 @@ export async function loadArchivData() {
     if (!tId) return;
 
     try {
-        const t = allTournaments.find(x => x.id === tId);
+        const t = findTournament(tId);
 
         // ÖTTV-Link
         const oettvInput = document.getElementById('archivOettvUrl');
@@ -74,13 +77,11 @@ export async function loadArchivData() {
                             const path = e.currentTarget.getAttribute('data-path');
                             const id = e.currentTarget.getAttribute('data-id');
 
-                            console.log('Lösche PDF:', { path, id }); // ← DEBUG
-
                             // Erst aus Storage löschen
                             const { error: storageError } = await supabase.storage.from('pdfs').remove([path]);
                             if (storageError) {
+                                // Datei evtl. schon weg → DB-Eintrag trotzdem löschen, damit kein toter Link bleibt
                                 console.error('Storage-Fehler:', storageError);
-                                // Falls Storage-Fehler, trotzdem Datenbank-Eintrag löschen?
                             }
 
                             // Dann aus Datenbank löschen
@@ -156,7 +157,7 @@ async function loadFotos(t) {
 
     try {
         const cleanPrefix = String(prefix).replace(/^\/+|\/+$/g, "");
-        const { data: files, error } = await supabase.storage.from("fotos").list(cleanPrefix, { limit: 100 });
+        const { data: files, error } = await supabase.storage.from("fotos").list(cleanPrefix, { limit: 1000 });
 
         if (error) throw error;
 
@@ -179,17 +180,18 @@ async function loadFotos(t) {
             const div = document.createElement('div');
             div.style.position = "relative";
             div.innerHTML = `
-                <img src="${url}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
-                <button class="delete-foto-btn" data-path="${cleanPrefix}/${f.name}" style="position: absolute; top: -5px; right: -5px; background: var(--error); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; font-weight: bold;">×</button>
+                <img src="${esc(url)}" loading="lazy" style="width: 100px; height: 100px; object-fit: cover; border-radius: 4px; border: 1px solid var(--border);">
+                <button class="delete-foto-btn" data-path="${esc(`${cleanPrefix}/${f.name}`)}" style="position: absolute; top: -5px; right: -5px; background: var(--error); color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 12px; font-weight: bold;">×</button>
             `;
             fotoGallery.appendChild(div);
         });
 
         document.querySelectorAll('.delete-foto-btn').forEach(btn => {
             btn.addEventListener('click', async (e) => {
+                const path = e.currentTarget.getAttribute('data-path');
                 if (!confirm("Foto wirklich löschen?")) return;
                 try {
-                    await supabase.storage.from('fotos').remove([e.currentTarget.getAttribute('data-path')]);
+                    throwIfError(await supabase.storage.from('fotos').remove([path]));
                     await loadArchivData();
                     showToast('Foto gelöscht!');
                 } catch (err) {
@@ -236,7 +238,7 @@ export async function saveHallOfFame() {
         if (error) throw error;
 
         // Update local cache
-        const t = allTournaments.find(x => x.id === tId);
+        const t = findTournament(tId);
         if (t) t.hall_of_fame = hofData;
 
         btn.textContent = "Erfolgreich gespeichert!";
@@ -270,7 +272,7 @@ export async function saveArchivOettv() {
 
         if (error) throw error;
 
-        const t = allTournaments.find(x => x.id === tId);
+        const t = findTournament(tId);
         if (t) t.oettv_url = url;
 
         btn.textContent = "Gespeichert!";
@@ -307,7 +309,7 @@ export async function uploadErgebnisPdf() {
         const { data: uploadData, error: uploadErr } = await supabase
             .storage
             .from('pdfs')
-            .upload(`${Date.now()}_${file.name}`, file);
+            .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
 
         if (uploadErr) throw uploadErr;
 
@@ -337,6 +339,7 @@ export async function uploadErgebnisPdf() {
 }
 
 export function initArchiveEvents() {
+    document.getElementById('archivSelect')?.addEventListener('change', loadArchivData);
     document.getElementById('saveArchivOettvBtn')?.addEventListener('click', saveArchivOettv);
     document.getElementById('saveHallOfFameBtn')?.addEventListener('click', saveHallOfFame);
     document.getElementById('uploadErgBtn')?.addEventListener('click', uploadErgebnisPdf);
@@ -386,7 +389,7 @@ export function initFotoUpload() {
 
 async function uploadFotos() {
     const tId = document.getElementById('archivSelect')?.value;
-    const t = allTournaments.find(x => x.id === tId);
+    const t = findTournament(tId);
     const statusDiv = document.getElementById('fotoStatus');
     const uploadBtn = document.getElementById('uploadFotosBtn');
     const fotoFiles = document.getElementById('fotoFiles');
@@ -416,16 +419,19 @@ async function uploadFotos() {
         for (let i = 0; i < files.length; i++) {
             if (statusDiv) statusDiv.textContent = `Lade Bild ${i + 1} von ${files.length} hoch...`;
             const file = files[i];
-            const safeName = file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_');
             const { error } = await supabase
                 .storage
                 .from('fotos')
-                .upload(`${prefix}/${Date.now()}_${safeName}`, file);
-            if (!error) successCount++;
+                .upload(`${prefix}/${Date.now()}_${safeFileName(file.name)}`, file);
+            if (error) console.error(`Upload fehlgeschlagen (${file.name}):`, error);
+            else successCount++;
         }
 
+        const failed = files.length - successCount;
         if (statusDiv) {
-            statusDiv.textContent = `${successCount} Bilder erfolgreich hochgeladen!`;
+            statusDiv.textContent = failed
+                ? `${successCount} hochgeladen, ${failed} fehlgeschlagen.`
+                : `${successCount} Bilder erfolgreich hochgeladen!`;
         }
 
         fotoFiles.value = '';
@@ -433,7 +439,7 @@ async function uploadFotos() {
         const label = document.getElementById('dropZone')?.querySelector('div:nth-child(2)');
         if (label) label.textContent = 'Bilder hierher ziehen';
 
-        showToast(`${successCount} Bilder hochgeladen!`);
+        showToast(failed ? `${failed} Bild(er) konnten nicht hochgeladen werden.` : `${successCount} Bilder hochgeladen!`, failed > 0);
         await loadArchivData();
 
     } catch (err) {
@@ -457,19 +463,14 @@ export function openBewerbeEditor() {
         return;
     }
 
-    const t = allTournaments.find(x => x.id === tId);
+    const t = findTournament(tId);
     if (!t) {
         showToast('Turnier nicht gefunden.', true);
         return;
     }
 
     // Bestehende Bewerbe laden
-    let bewerbe = [];
-    try {
-        bewerbe = typeof t.bewerbe === 'string' ? JSON.parse(t.bewerbe) : (t.bewerbe || []);
-    } catch (e) {
-        bewerbe = [];
-    }
+    const bewerbe = parseBewerbe(t);
 
     // Modal erstellen
     const modal = document.createElement('dialog');
@@ -482,7 +483,7 @@ export function openBewerbeEditor() {
         <div class="modal-body">
             <div id="bewerbeEditorList">
                 ${bewerbe.map((b, i) => `
-                    <div class="bewerb-row" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div class="bewerb-row" data-orig-index="${i}" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <input type="text" class="input-field" value="${esc(b.name)}" placeholder="Bewerb Name" style="flex:2; min-width:150px;">
                         <input type="text" class="input-field" value="${esc(b.time || '')}" placeholder="Startzeit" style="flex:1; min-width:100px;">
                         <input type="number" class="input-field" value="${b.min_rc || 0}" placeholder="Min RC" style="flex:1; min-width:80px;">
@@ -554,20 +555,36 @@ export function openBewerbeEditor() {
     modal.querySelector('#saveBewerbeEditorBtn').addEventListener('click', async () => {
         const rows = modal.querySelectorAll('#bewerbeEditorList .bewerb-row');
         const newBewerbe = [];
+        const renamed = {}; // alter Name → neuer Name
 
         rows.forEach(row => {
             const inputs = row.querySelectorAll('input');
             const name = inputs[0].value.trim();
-            if (name) {
-                newBewerbe.push({
-                    name: name,
-                    time: inputs[1].value.trim(),
-                    min_rc: parseInt(inputs[2].value, 10) || 0,
-                    capacity: parseInt(inputs[3].value, 10) || 20,
-                    duration: 3
-                });
-            }
+            if (!name) return;
+
+            // Bestehenden Bewerb als Basis nehmen, damit Felder wie prize/duration erhalten bleiben
+            const origIndex = row.getAttribute('data-orig-index');
+            const orig = origIndex !== null ? bewerbe[parseInt(origIndex, 10)] : null;
+            if (orig && orig.name !== name) renamed[orig.name] = name;
+
+            newBewerbe.push({
+                duration: 3,
+                ...(orig || {}),
+                name: name,
+                time: inputs[1].value.trim(),
+                min_rc: parseInt(inputs[2].value, 10) || 0,
+                capacity: parseInt(inputs[3].value, 10) || 20
+            });
         });
+
+        // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
+        let newHof = t.hall_of_fame;
+        if (newHof && Object.keys(renamed).length > 0) {
+            newHof = {};
+            for (const [key, val] of Object.entries(t.hall_of_fame)) {
+                newHof[renamed[key] || key] = val;
+            }
+        }
 
         if (newBewerbe.length === 0) {
             showToast('Mindestens ein Bewerb benötigt.', true);
@@ -575,15 +592,19 @@ export function openBewerbeEditor() {
         }
 
         try {
+            const update = { bewerbe: JSON.stringify(newBewerbe) };
+            if (newHof !== t.hall_of_fame) update.hall_of_fame = newHof;
+
             const { error } = await supabase
                 .from('tournaments')
-                .update({ bewerbe: JSON.stringify(newBewerbe) })
+                .update(update)
                 .eq('id', tId);
 
             if (error) throw error;
 
             // Lokalen Cache aktualisieren
             t.bewerbe = newBewerbe;
+            if (update.hall_of_fame) t.hall_of_fame = newHof;
 
             modal.close();
             showToast('Bewerbe gespeichert!');

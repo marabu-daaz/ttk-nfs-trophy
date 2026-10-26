@@ -1,10 +1,19 @@
 // src/admin/finance.js
 import { supabase } from '../shared/supabase.js';
-import { esc, showToast } from '../shared/utils.js';
+import { esc, showToast, throwIfError } from '../shared/utils.js';
 
 let expenses = [];
 let incomes = [];
 let activeTournamentId = null;
+let onChange = null;
+
+/**
+ * Callback, der nach jedem (Neu-)Laden der Buchhaltung aufgerufen wird
+ * (z.B. um den Saldo im Dashboard neu zu berechnen)
+ */
+export function setFinanceChangeHandler(fn) {
+    onChange = fn;
+}
 
 export function setFinanceTournamentId(id) {
     activeTournamentId = id;
@@ -20,9 +29,11 @@ export async function loadBookkeeping() {
         if (expData.error) throw expData.error;
         if (incData.error) throw incData.error;
 
-        expenses = expData.data || [];
-        incomes = incData.data || [];
+        // numeric-Spalten können als String kommen → in Zahlen umwandeln
+        expenses = (expData.data || []).map(e => ({ ...e, amount: Number(e.amount) || 0 }));
+        incomes = (incData.data || []).map(i => ({ ...i, amount: Number(i.amount) || 0 }));
         renderBookkeeping();
+        if (onChange) onChange();
     } catch (err) {
         console.error('Fehler beim Laden der Buchhaltung:', err);
         showToast('Fehler beim Laden der Buchhaltung.', true);
@@ -60,10 +71,11 @@ function renderBookkeeping() {
 
     document.querySelectorAll('.delete-buch-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
-            if (!confirm('Eintrag wirklich löschen?')) return;
             const table = e.currentTarget.getAttribute('data-type') === 'income' ? 'incomes' : 'expenses';
+            const id = e.currentTarget.getAttribute('data-id');
+            if (!confirm('Eintrag wirklich löschen?')) return;
             try {
-                await supabase.from(table).delete().eq('id', e.currentTarget.getAttribute('data-id'));
+                throwIfError(await supabase.from(table).delete().eq('id', id));
                 await loadBookkeeping();
             } catch (err) {
                 console.error('Fehler beim Löschen:', err);
@@ -88,11 +100,11 @@ export async function addBuchEntry(table) {
     }
 
     try {
-        await supabase.from(table).insert({
+        throwIfError(await supabase.from(table).insert({
             tournament_id: activeTournamentId,
             description: desc,
             amount: amt
-        });
+        }));
 
         document.getElementById('buchDesc').value = '';
         document.getElementById('buchAmount').value = '';

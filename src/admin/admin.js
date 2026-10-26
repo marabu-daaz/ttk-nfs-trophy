@@ -6,12 +6,14 @@ import {
     rcNum,
     istWartelisteFuer,
     parseBewerbe,
-    formatForDateTimeLocal  // ← NEU
+    parseTurnierInfo,
+    formatForDateTimeLocal,
+    throwIfError
 } from '../shared/utils.js';
-import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS } from '../shared/constants.js';
+import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, RECEIPT_SIGNER } from '../shared/constants.js';
 import {
     loadBookkeeping, setFinanceTournamentId, addBuchEntry,
-    getExpenses, getIncomes
+    getExpenses, getIncomes, setFinanceChangeHandler
 } from './finance.js';
 import {
     setSetupTournamentId, setSetupTournaments, renderSetupBewerbe,
@@ -19,7 +21,6 @@ import {
     setSetupBewerbeList, getBewerbeFromDOM, saveSetup,
     renderScheduleRow, renderSponsorRow
 } from './setup.js';
-// src/admin/admin.js - Import-Teil (ca. Zeile 15-20)
 import {
     setArchiveTournamentId,
     setArchiveTournaments,
@@ -35,10 +36,7 @@ import {
 // ==========================================
 function initTheme() {
     const toggle = document.getElementById('themeToggle');
-    console.log('Theme Toggle gefunden:', toggle); // ← DEBUG
-
     const saved = localStorage.getItem('admin-theme');
-    console.log('Gespeichertes Theme:', saved); // ← DEBUG
 
     if (saved === 'light') {
         document.body.setAttribute('data-theme', 'light');
@@ -47,7 +45,6 @@ function initTheme() {
 
     if (toggle) {
         toggle.addEventListener('click', () => {
-            console.log('Theme Toggle geklickt!'); // ← DEBUG
             const isLight = document.body.getAttribute('data-theme') === 'light';
             if (isLight) {
                 document.body.removeAttribute('data-theme');
@@ -68,7 +65,8 @@ let filteredData = [];
 let wlPositions = {};
 let allTournaments = [];
 let activeTournamentId = null;
-let currentTournamentConfig = { fee_normal: 12, fee_nfs: 8 };
+let currentTournamentConfig = { fee_normal: DEFAULT_FEE_NORMAL, fee_nfs: DEFAULT_FEE_NFS };
+let adminEventsBound = false;
 
 // ==========================================
 // 1. AUTHENTIFIZIERUNG
@@ -116,15 +114,11 @@ async function loadTournamentSetup() {
         activeTournamentId = data[0].id;
 
         const t = data[0];
-        currentTournamentConfig.fee_normal = t.fee_normal || DEFAULT_FEE_NORMAL;
-        currentTournamentConfig.fee_nfs = t.fee_nfs || DEFAULT_FEE_NFS;
+        currentTournamentConfig.fee_normal = t.fee_normal ?? DEFAULT_FEE_NORMAL;
+        currentTournamentConfig.fee_nfs = t.fee_nfs ?? DEFAULT_FEE_NFS;
 
         // Setup-Felder befüllen
         fillSetupFields(t);
-
-        // In loadTournamentSetup(), nach fillSetupFields(t):
-        console.log('show_ttop_button:', t.show_ttop_button);
-        console.log('ttop_url:', t.ttop_url);
 
         // Bewerbe laden
         const bewerbe = parseBewerbe(t);
@@ -141,14 +135,17 @@ async function loadTournamentSetup() {
         setArchiveTournamentId(activeTournamentId);
         setArchiveTournaments(allTournaments);
 
-        // Daten laden
-        await loadData();
+        // Daten laden (Buchhaltung zuerst, damit der Saldo in den Stats stimmt)
         await loadBookkeeping();
+        await loadData();
         populateArchivDropdown();
 
-        // Events initialisieren
-        initArchiveEvents();
-        initFotoUpload();
+        // Events nur einmal binden (sonst nach Logout/Login doppelt → z.B. doppelte Uploads)
+        if (!adminEventsBound) {
+            adminEventsBound = true;
+            initArchiveEvents();
+            initFotoUpload();
+        }
 
     } catch (err) {
         console.error('Fehler beim Laden des Turnier-Setups:', err);
@@ -159,7 +156,7 @@ async function loadTournamentSetup() {
 function fillSetupFields(t) {
     const s = (id, val) => {
         const el = document.getElementById(id);
-        if (el) el.value = val || '';
+        if (el) el.value = val ?? '';
     };
 
     // ============================================
@@ -172,20 +169,11 @@ function fillSetupFields(t) {
     }
 
     // ============================================
-    // TTOP CHECKBOX - KORRIGIERT!
+    // TTOP
     // ============================================
     const ttopCheckbox = document.getElementById('setupShowTtop');
-    if (ttopCheckbox) {
-        // Wichtig: t.show_ttop_button könnte undefined sein → false als Fallback
-        const isChecked = t.show_ttop_button === true;
-        ttopCheckbox.checked = isChecked;
-        console.log('🔍 TTOP Checkbox gesetzt auf:', isChecked, '(aus t.show_ttop_button:', t.show_ttop_button, ')');
-    }
-
-    // ============================================
-    // TTOP URL - KORRIGIERT!
-    // ============================================
-    s('setupTtopUrl', t.ttop_url || '');
+    if (ttopCheckbox) ttopCheckbox.checked = t.show_ttop_button === true;
+    s('setupTtopUrl', t.ttop_url);
 
     // ============================================
     // ANDERE FELDER
@@ -194,15 +182,12 @@ function fillSetupFields(t) {
     s('setupDateText', t.date_text);
     s('setupSubtitle', t.subtitle);
     s('setupOettvUrl', t.oettv_url);
-    s('setupFeeNormal', t.fee_normal || DEFAULT_FEE_NORMAL);
-    s('setupFeeNfs', t.fee_nfs || DEFAULT_FEE_NFS);
+    s('setupFeeNormal', t.fee_normal ?? DEFAULT_FEE_NORMAL);
+    s('setupFeeNfs', t.fee_nfs ?? DEFAULT_FEE_NFS);
     s('setupDateIso', formatForDateTimeLocal(t.date_iso));
 
     // Turnier-Info
-    let tInfo = {};
-    try {
-        tInfo = typeof t.turnier_info === 'string' ? JSON.parse(t.turnier_info) : (t.turnier_info || {});
-    } catch (e) { }
+    const tInfo = parseTurnierInfo(t);
 
     s('setupBewerbeHeadline', tInfo.bewerbeHeadline);
     s('setupBewerbeText', tInfo.bewerbeText);
@@ -215,7 +200,7 @@ function fillSetupFields(t) {
     s('setupFact4Title', tInfo.fact4Title);
     s('setupFact4Text', tInfo.fact4Text);
 
-    // --- HIER NEU: Zeitplan & Sponsoren LADEN ---
+    // Zeitplan & Sponsoren laden
     const showScheduleCheck = document.getElementById('setupShowSchedule');
     const scheduleContainer = document.getElementById('scheduleContainer');
     if (showScheduleCheck && scheduleContainer) {
@@ -372,8 +357,8 @@ function applyFilters() {
     });
 
     filteredData.sort((a, b) => {
-        if (sortVal === 'name_asc') return a.nachname.localeCompare(b.nachname);
-        if (sortVal === 'rc_desc') return (b.rc || 0) - (a.rc || 0);
+        if (sortVal === 'name_asc') return (a.nachname || '').localeCompare(b.nachname || '');
+        if (sortVal === 'rc_desc') return rcNum(b.rc) - rcNum(a.rc);
         return new Date(b.created_at) - new Date(a.created_at);
     });
 
@@ -393,6 +378,8 @@ function renderTable(data) {
         tbody.innerHTML = '<tr><td colspan="7">Keine Nennungen gefunden.</td></tr>';
         return;
     }
+
+    const nfsDiscount = currentTournamentConfig.fee_normal - currentTournamentConfig.fee_nfs;
 
     data.forEach(reg => {
         const bewerbeHtml = reg.bewerbeArray.map(bName => {
@@ -421,7 +408,7 @@ function renderTable(data) {
             <td>
                 <select class="select-field tag-select" data-id="${reg.id}">
                     <option value="normal" ${reg.player_tag === 'normal' ? 'selected' : ''}>Normal</option>
-                    <option value="nfs" ${reg.player_tag === 'nfs' ? 'selected' : ''}>NFS (-4€)</option>
+                    <option value="nfs" ${reg.player_tag === 'nfs' ? 'selected' : ''}>NFS (-${nfsDiscount}€)</option>
                     <option value="vip" ${reg.player_tag === 'vip' ? 'selected' : ''}>VIP (Gratis)</option>
                 </select>
             </td>
@@ -449,44 +436,49 @@ function renderTable(data) {
 function attachTableEvents() {
     document.querySelectorAll('.tag-select').forEach(select => {
         select.addEventListener('change', async (e) => {
+            const el = e.currentTarget;
             try {
-                await supabase
+                throwIfError(await supabase
                     .from('registrations')
-                    .update({ player_tag: e.currentTarget.value })
-                    .eq('id', e.currentTarget.getAttribute('data-id'));
+                    .update({ player_tag: el.value })
+                    .eq('id', el.getAttribute('data-id')));
                 await loadData();
                 showToast('Status aktualisiert!');
             } catch (err) {
                 console.error('Fehler:', err);
                 showToast('Fehler beim Aktualisieren.', true);
+                await loadData();
             }
         });
     });
 
     document.querySelectorAll('.paid-checkbox').forEach(checkbox => {
         checkbox.addEventListener('change', async (e) => {
+            // currentTarget ist nach einem await null → vorher merken
+            const el = e.currentTarget;
             try {
-                await supabase
+                throwIfError(await supabase
                     .from('registrations')
-                    .update({ has_paid: e.currentTarget.checked })
-                    .eq('id', e.currentTarget.getAttribute('data-id'));
+                    .update({ has_paid: el.checked })
+                    .eq('id', el.getAttribute('data-id')));
                 await loadData();
             } catch (err) {
                 console.error('Fehler:', err);
                 showToast('Fehler beim Aktualisieren.', true);
-                e.currentTarget.checked = !e.currentTarget.checked;
+                el.checked = !el.checked;
             }
         });
     });
 
     document.querySelectorAll('.delete-reg-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
+            const id = e.currentTarget.getAttribute('data-id');
             if (!confirm("Nennung wirklich endgültig löschen?")) return;
             try {
-                await supabase
+                throwIfError(await supabase
                     .from('registrations')
                     .delete()
-                    .eq('id', e.currentTarget.getAttribute('data-id'));
+                    .eq('id', id));
                 await loadData();
                 showToast('Nennung gelöscht!');
             } catch (err) {
@@ -612,7 +604,7 @@ function updateStats(data) {
 // 7. MODAL (BEARBEITEN)
 // ==========================================
 function openEditModal(regId) {
-    const reg = registrations.find(r => r.id === regId);
+    const reg = registrations.find(r => String(r.id) === String(regId));
     if (!reg) {
         showToast('Spieler nicht gefunden.', true);
         return;
@@ -664,9 +656,12 @@ document.getElementById('saveModalBtn')?.addEventListener('click', async () => {
 
         const wlCheckboxes = document.querySelectorAll('.modal-wl-checkbox:checked');
         const newWlBewerbe = Array.from(wlCheckboxes).map(cb => cb.getAttribute('data-bewerb'));
-        const isGloballyWaitlisted = newWlBewerbe.length > 0;
 
-        await supabase
+        // waitlist = true nur, wenn ALLE Bewerbe auf Warteliste sind (wie beim Frontend-Insert)
+        const reg = registrations.find(r => String(r.id) === String(id));
+        const isGloballyWaitlisted = newWlBewerbe.length > 0 && newWlBewerbe.length === (reg?.bewerbeArray.length || 0);
+
+        throwIfError(await supabase
             .from('registrations')
             .update({
                 rc: rc,
@@ -674,7 +669,7 @@ document.getElementById('saveModalBtn')?.addEventListener('click', async () => {
                 waitlist_bewerbe: newWlBewerbe,
                 waitlist: isGloballyWaitlisted
             })
-            .eq('id', id);
+            .eq('id', id));
 
         document.getElementById('editModal')?.close();
         await loadData();
@@ -715,10 +710,10 @@ async function changeWlPos(regId, bewerbName) {
             newCreatedAt = new Date((prev + next) / 2).toISOString();
         }
 
-        await supabase
+        throwIfError(await supabase
             .from('registrations')
             .update({ created_at: newCreatedAt })
-            .eq('id', regId);
+            .eq('id', regId));
 
         document.getElementById('editModal')?.close();
         await loadData();
@@ -734,7 +729,7 @@ async function changeWlPos(regId, bewerbName) {
 // 8. RECEIPT PDF
 // ==========================================
 function downloadReceipt(regId) {
-    const reg = registrations.find(r => r.id === regId);
+    const reg = registrations.find(r => String(r.id) === String(regId));
     if (!reg) {
         showToast('Spieler nicht gefunden.', true);
         return;
@@ -759,7 +754,7 @@ function downloadReceipt(regId) {
     doc.setFontSize(16);
     doc.text(`Betrag dankend erhalten: ${reg.fee_expected} EUR`, 20, 110);
     doc.setFontSize(10);
-    doc.text("Christian Ritter (Turnierleitung):", 20, 140);
+    doc.text(`${RECEIPT_SIGNER}:`, 20, 140);
     doc.line(20, 130, 80, 130);
 
     doc.save(`Beleg_${reg.nachname}_${reg.vorname}.pdf`);
@@ -901,6 +896,9 @@ document.getElementById('tabArchiv')?.addEventListener('click', (e) => switchTab
 document.getElementById('searchInput')?.addEventListener('input', applyFilters);
 document.getElementById('filterBewerb')?.addEventListener('change', applyFilters);
 document.getElementById('sortOrder')?.addEventListener('change', applyFilters);
+
+// Saldo in den Stats neu berechnen, sobald sich die Buchhaltung ändert
+setFinanceChangeHandler(() => updateStats(filteredData));
 
 document.getElementById('addIncomeBtn')?.addEventListener('click', () => addBuchEntry('incomes'));
 document.getElementById('addExpenseBtn')?.addEventListener('click', () => addBuchEntry('expenses'));

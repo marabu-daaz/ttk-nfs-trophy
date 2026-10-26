@@ -1215,3 +1215,43 @@ footer {
 .toast.fade-out {
     animation: fadeOut 0.3s ease forwards;
 }
+
+/* Honeypot (Spam-Schutz) – für Menschen unsichtbar */
+.hp-field {
+    position: absolute;
+    left: -9999px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+/* Sponsoren-Logos */
+.sponsor-link {
+    display: block;
+    transition: transform 0.2s;
+}
+
+.sponsor-link img {
+    max-height: 120px;
+    max-width: 320px;
+    opacity: 0.85;
+    transition: opacity 0.3s;
+}
+
+.sponsor-link:hover img {
+    opacity: 1;
+}
+
+/* Zeitplan-Kacheln */
+.timeline-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--green-neon);
+    border-radius: 6px;
+    padding: 14px 16px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.timeline-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
