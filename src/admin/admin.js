@@ -3,14 +3,14 @@
 
 import { supabase } from '../shared/supabase.js';
 import { showToast, throwIfError } from '../shared/utils.js';
-import { state, subscribe, notify, reloadAll, totals, allBewerbNames, waitingIn } from './state.js';
+import { state, subscribe, notify, reloadAll, totals, allBewerbNames, waitingIn, registrationStatus } from './state.js';
 import { icon, hydrateIcons, confirmDialog, openMail } from './ui.js';
 import * as dashboard from './dashboard.js';
 import * as registrations from './registrations.js';
 import * as bewerbe from './bewerbe.js';
 import * as checkin from './checkin.js';
 import { loadBookkeeping, setFinanceTournamentId, setFinanceChangeHandler, initFinanceView, renderFinance } from './finance.js';
-import { fillSetup, initSetupEvents, setSetupTournamentId, setSetupTournaments, setSetupSavedHandler } from './setup.js';
+import { fillSetup, initSetupEvents, setSetupTournamentId, setSetupTournaments, setSetupSavedHandler, setSetupOpenState } from './setup.js';
 import { setArchiveTournamentId, setArchiveTournaments, populateArchivDropdown, initArchiveEvents, initFotoUpload } from './archive.js';
 
 const $ = id => document.getElementById(id);
@@ -54,8 +54,11 @@ function renderSidebar() {
     $('sbTournamentName').textContent = t.name || 'Turnier';
     $('sbTournamentMeta').textContent = t.date_text || '';
     const pill = $('sbOpenToggle');
-    pill.className = `status-pill ${t.is_open ? 'open' : 'closed'}`;
-    pill.textContent = t.is_open ? 'Anmeldung offen' : 'Anmeldung geschlossen';
+    const reg = registrationStatus(t);
+    pill.className = `status-pill ${reg.open ? 'open' : 'closed'}`;
+    pill.textContent = reg.open
+        ? `Anmeldung offen${reg.deadline ? ' · bis ' + reg.deadline.toLocaleDateString('de-AT', { day: '2-digit', month: '2-digit' }) : ''}`
+        : reg.expired && t.is_open ? 'Anmeldeschluss vorbei' : 'Anmeldung geschlossen';
     $('navCountRegs').textContent = state.registrations.length || '';
     const wl = allBewerbNames().reduce((s, b) => s + waitingIn(b).length, 0);
     $('navCountWl').textContent = wl ? `${wl} WL` : '';
@@ -185,9 +188,7 @@ async function toggleOpen() {
     try {
         throwIfError(await supabase.from('tournaments').update({ is_open: open }).eq('id', t.id));
         t.is_open = open;
-        const cb = $('setupIsOpen');
-        cb.checked = open;
-        cb.dispatchEvent(new Event('change'));
+        setSetupOpenState(open);
         showToast(open ? 'Anmeldung ist jetzt offen' : 'Anmeldung ist jetzt geschlossen');
         notify();
     } catch (err) {

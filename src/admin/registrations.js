@@ -5,7 +5,7 @@ import { supabase } from '../shared/supabase.js';
 import { esc, showToast, throwIfError } from '../shared/utils.js';
 import { RECEIPT_SIGNER } from '../shared/constants.js';
 import {
-    state, reloadRegistrations, allBewerbNames, findReg, activeIn, capacityOf,
+    state, reloadRegistrations, allBewerbNames, findReg, activeIn, capacityOf, bewerbConfig,
     feeFor, autoTag, updateRegistration, deleteRegistration, waitlistFields,
 } from './state.js';
 import { icon, euro, relTime, confirmDialog, withBusy } from './ui.js';
@@ -255,7 +255,7 @@ export function openRegModal(reg = null, preset = {}) {
                 <input type="checkbox" ${has ? 'checked' : ''} aria-label="${esc(b)}">
                 <div>
                     <div>${esc(b)}</div>
-                    <div class="cap num">${taken}/${cap} belegt${full ? ' · voll' : ''}</div>
+                    <div class="cap num">${taken}/${cap} belegt${full ? ' · voll' : ''}${rcLimit(b)}</div>
                 </div>
                 <select class="input" ${has ? '' : 'disabled'} aria-label="Status in ${esc(b)}">
                     <option value="active" ${!isWl ? 'selected' : ''}>Startplatz</option>
@@ -267,6 +267,16 @@ export function openRegModal(reg = null, preset = {}) {
     updateFeePreview();
     document.getElementById('regModal').showModal();
     $('rfVorname').focus();
+}
+
+/** RC-Grenzen eines Bewerbs als Zusatztext („ · bis 1500 RC“) */
+function rcLimit(name) {
+    const b = bewerbConfig(name);
+    const min = parseInt(b.min_rc, 10) || 0, max = parseInt(b.max_rc, 10) || 0;
+    if (min && max) return ` · ${min}–${max} RC`;
+    if (min) return ` · ab ${min} RC`;
+    if (max) return ` · bis ${max} RC`;
+    return '';
 }
 
 function readBewerbe() {

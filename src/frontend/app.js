@@ -198,6 +198,25 @@ function renderTurnierInfo(t) {
     }
 }
 
+/** "ab 800 RC", "bis 1500 RC", "800–1500 RC" oder "" */
+function rcRange(b) {
+    const min = parseInt(b.min_rc, 10) || 0;
+    const max = parseInt(b.max_rc, 10) || 0;
+    if (min && max) return `${min}–${max} RC`;
+    if (min) return `ab ${min} RC`;
+    if (max) return `bis ${max} RC`;
+    return '';
+}
+
+/** Anmeldung offen? Berücksichtigt den automatischen Anmeldeschluss aus dem Admin. */
+function registrationState(t) {
+    const info = parseTurnierInfo(t);
+    const deadline = info.registrationDeadline ? new Date(info.registrationDeadline) : null;
+    const valid = deadline && !isNaN(deadline);
+    const expired = valid && Date.now() > deadline.getTime();
+    return { open: !!t.is_open && !expired, deadline: valid ? deadline : null, expired };
+}
+
 function renderBewerbe(t) {
     const grid = document.getElementById("bewerbeGrid");
     if (!grid) return;
@@ -208,7 +227,7 @@ function renderBewerbe(t) {
             <div class="bewerb">
                 <div class="n">Bewerb ${i + 1}</div>
                 <h3>${esc(b.name)}</h3>
-                <div class="t">Start ${esc(b.time)} &nbsp;|&nbsp; Max. ${cap} Plätze</div>
+                <div class="t">Start ${esc(b.time)} &nbsp;|&nbsp; Max. ${cap} Plätze${rcRange(b) ? ` &nbsp;|&nbsp; ${rcRange(b)}` : ''}</div>
                 ${b.prize && b.prize.trim() !== '' ? `<div class="p mono">Preisgeld ${esc(b.prize)}</div>` : ""}
             </div>
         `;
@@ -226,10 +245,17 @@ function renderForm(t) {
     const eyebrow = document.getElementById("anmeldeEyebrow");
     if (eyebrow) eyebrow.textContent = "Nennung " + (t.name || "");
 
-    const open = t.is_open;
+    const reg = registrationState(t);
+    const open = reg.open;
     const leadEl = document.getElementById("anmeldeLead");
     if (leadEl) {
-        leadEl.textContent = open ? "Die Nennung kann auch per E-Mail oder Telefon erfolgen." : "Für dieses Turnier ist die Anmeldung aktuell geschlossen.";
+        const fmt = d => d.toLocaleString("de-AT", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+        leadEl.textContent = open
+            ? (reg.deadline ? `Anmeldeschluss: ${fmt(reg.deadline)} Uhr. ` : "") + "Die Nennung kann auch per E-Mail oder Telefon erfolgen."
+            : reg.expired && t.is_open
+                ? `Der Anmeldeschluss (${fmt(reg.deadline)} Uhr) ist vorbei. Nachnennungen bitte per E-Mail oder Telefon.`
+                : "Für dieses Turnier ist die Anmeldung aktuell geschlossen.";
+        leadEl.classList.toggle("closed", !open);
     }
 
     const capNote = document.getElementById("capNote");
@@ -280,7 +306,8 @@ function renderForm(t) {
     form.onsubmit = async (e) => {
         e.preventDefault();
 
-        if (!t.is_open) {
+        // erneut prüfen – der Anmeldeschluss kann erreicht sein, während die Seite offen ist
+        if (!registrationState(t).open) {
             showToast("Die Anmeldung für dieses Turnier ist derzeit geschlossen.", true);
             return;
         }
@@ -320,6 +347,13 @@ function renderForm(t) {
 
                 if (minRc > 0 && tatsaechlicherRc < minRc) {
                     showToast(`Fehler: Für den Bewerb "${bewerbName}" benötigst du mindestens ${minRc} RC-Punkte!`, true);
+                    btn.disabled = false;
+                    btn.textContent = "Nennung absenden";
+                    return;
+                }
+                const maxRc = parseInt(bewerbObj?.max_rc, 10) || 0;
+                if (maxRc > 0 && tatsaechlicherRc > maxRc) {
+                    showToast(`Der Bewerb "${bewerbName}" ist nur bis ${maxRc} RC-Punkte offen – mit ${tatsaechlicherRc} RC bitte einen anderen Bewerb wählen.`, true);
                     btn.disabled = false;
                     btn.textContent = "Nennung absenden";
                     return;

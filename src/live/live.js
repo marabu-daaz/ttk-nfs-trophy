@@ -2,13 +2,16 @@
 // Live-Ticker der NFS Trophy (Daten aus Supabase-Projekt B = Turnier-Software)
 
 import { createClient } from '@supabase/supabase-js';
-import { SUPABASE_URL_B, SUPABASE_ANON_KEY_B } from '/config.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_URL_B, SUPABASE_ANON_KEY_B } from '/config.js';
 import { esc } from '../shared/utils.js';
 import { calculateRanking } from './ranking.js';
 import { computeStats } from './stats.js';
 import { formatDuration, formatDurationSeconds } from './format.js';
 
+// Projekt B = TTOP (cl-tt-system): Spieler, Spiele, Settings – wird von sync.py jede Minute komplett neu geschrieben
 const supabase = createClient(SUPABASE_URL_B, SUPABASE_ANON_KEY_B);
+// Projekt A = Website: nur für die Turnierinfo, solange TTOP noch nicht läuft
+let supabaseA = null;
 const $ = id => document.getElementById(id);
 
 const store = {
@@ -31,9 +34,12 @@ const state = {
     tournamentName: 'NFS Trophy',
     loading: false,
     loadedOnce: false,
-    lastUpdate: null,
+    lastUpdate: null,   // wann zuletzt geladen
+    dataTime: null,     // wann TTOP zuletzt synchronisiert hat (settings.last_sync)
+    lastAttempt: 0,
     realtime: false,
     error: null,
+    nextTournament: null,
 };
 
 // ==========================================
@@ -74,6 +80,7 @@ function setsFor(m, asP1) {
 async function loadData({ silent = false } = {}) {
     if (state.loading) return;
     state.loading = true;
+    state.lastAttempt = Date.now();
     if (!silent) setStatus();
     try {
         const [playersRes, settingsRes, matchesRes] = await Promise.all([
@@ -87,6 +94,7 @@ async function loadData({ silent = false } = {}) {
         state.players = playersRes.data || [];
         const settings = settingsRes.data || [];
         state.tournamentName = settings.find(s => s.key === 'meta_name')?.value || 'NFS Trophy';
+        state.dataTime = parseSyncTime(settings.find(s => s.key === 'last_sync')?.value);
 
         const names = new Set();
         state.players.forEach(p => bewerbeOf(p).forEach(b => names.add(b)));
@@ -119,7 +127,7 @@ async function loadData({ silent = false } = {}) {
     } catch (err) {
         console.error('Fehler beim Laden:', err);
         state.error = err.message || String(err);
-        if (!state.loadedOnce) renderError();
+        if (!state.loadedOnce) await renderNotLive();
         else if (!silent) toast('Aktualisierung fehlgeschlagen', true);
     } finally {
         state.loading = false;
@@ -139,10 +147,12 @@ function scheduleReload() {
 
 function initRealtime() {
     try {
+        // sync.py löscht und schreibt jede Minute alle Zeilen neu. Statt auf jede Zeile zu hören
+        // (hunderte Nachrichten pro Minute und Zuschauer), reicht der neue last_sync-Eintrag:
+        // genau ein Signal pro Sync, danach wird einmal neu geladen.
         supabase
             .channel('live-ticker')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'matches' }, scheduleReload)
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'players' }, scheduleReload)
+            .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'settings', filter: 'key=eq.last_sync' }, scheduleReload)
             .subscribe(status => {
                 state.realtime = status === 'SUBSCRIBED';
                 setStatus();
@@ -153,9 +163,11 @@ function initRealtime() {
     }
 }
 
-// Mit Echtzeit nur selten zur Sicherheit nachladen, sonst alle 20 s
+// Mit Echtzeit nur selten zur Sicherheit nachladen, sonst alle 20 s.
+// Bei Fehlern (z.B. TTOP pausiert) nur alle 60 s erneut versuchen.
 setInterval(() => {
     if (document.hidden) return;
+    if (state.error && Date.now() - state.lastAttempt < 60000) return;
     const age = state.lastUpdate ? Date.now() - state.lastUpdate.getTime() : Infinity;
     if (age > (state.realtime ? 120000 : 20000)) loadData({ silent: true });
 }, 5000);
@@ -164,28 +176,40 @@ document.addEventListener('visibilitychange', () => {
     if (!document.hidden && (!state.lastUpdate || Date.now() - state.lastUpdate.getTime() > 15000)) loadData({ silent: true });
 });
 
+/** last_sync aus TTOP ("26.10.2026 14:32:10") → Date */
+function parseSyncTime(v) {
+    const m = /^(\d{2})\.(\d{2})\.(\d{4}) (\d{2}):(\d{2}):(\d{2})$/.exec(v || '');
+    return m ? new Date(+m[3], +m[2] - 1, +m[1], +m[4], +m[5], +m[6]) : null;
+}
+
 function setStatus() {
     const dot = $('statusDot');
     const text = $('statusText');
-    const time = state.lastUpdate ? state.lastUpdate.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' }) : '';
+    const hhmm = d => d.toLocaleTimeString('de-AT', { hour: '2-digit', minute: '2-digit' });
+    const ref = state.dataTime || state.lastUpdate;
+    // TTOP synchronisiert jede Minute – liegt der letzte Sync länger zurück, nicht „Live“ anzeigen
+    const stale = state.dataTime && Date.now() - state.dataTime.getTime() > 3 * 60000;
     if (state.loading && !state.loadedOnce) {
         dot.className = 'dot loading'; text.textContent = 'Lade…';
+    } else if (state.error && !state.loadedOnce) {
+        dot.className = 'dot'; text.textContent = 'Noch nicht live';
     } else if (state.error) {
         dot.className = 'dot offline'; text.textContent = 'Offline';
-    } else if (state.realtime) {
+    } else if (state.realtime && !stale) {
         dot.className = 'dot live'; text.textContent = 'Live';
     } else {
-        dot.className = 'dot poll'; text.textContent = time ? `Stand ${time}` : 'Verbinde…';
+        dot.className = 'dot poll'; text.textContent = ref ? `Stand ${hhmm(ref)}` : 'Verbinde…';
     }
-    $('lastUpdate').textContent = state.lastUpdate
-        ? `Stand: ${state.lastUpdate.toLocaleTimeString('de-AT')}${state.realtime ? ' · Echtzeit aktiv' : ''}`
-        : '';
+    $('lastUpdate').textContent = state.dataTime
+        ? `Daten der Turniersoftware: ${state.dataTime.toLocaleTimeString('de-AT')}${state.realtime ? ' · Echtzeit aktiv' : ''}`
+        : state.lastUpdate ? `Stand: ${state.lastUpdate.toLocaleTimeString('de-AT')}` : '';
 }
 
 // ==========================================
 // RENDERN
 // ==========================================
 function renderAll() {
+    document.querySelector('.tabs').hidden = false;
     $('tournamentName').textContent = state.tournamentName;
     document.title = `Live · ${state.tournamentName}`;
     renderChips();
@@ -206,11 +230,40 @@ function renderTab() {
     })[state.tab]();
 }
 
-function renderError() {
-    const panel = $(`tab-${state.tab}`);
-    const target = state.tab === 'table' ? $('tableContainer') : state.tab === 'player' ? $('playerContainer') : panel;
-    target.innerHTML = `<div class="empty"><div class="big">📡</div>
-        Die Live-Daten sind gerade nicht erreichbar.<br><span class="muted">Wir versuchen es automatisch weiter.</span></div>`;
+/**
+ * TTOP ist nicht erreichbar (z.B. außerhalb des Turniers pausiert):
+ * statt einer Fehlermeldung Infos zum nächsten Turnier von der Website zeigen.
+ */
+async function renderNotLive() {
+    if (!state.nextTournament) {
+        try {
+            supabaseA ||= createClient(SUPABASE_URL, SUPABASE_ANON_KEY, { auth: { persistSession: false } });
+            const { data } = await supabaseA.from('tournaments')
+                .select('name, date_text, date_iso, is_open')
+                .order('date_iso', { ascending: false })
+                .limit(1);
+            state.nextTournament = data?.[0] || null;
+        } catch { /* Turnierinfo ist nur ein Extra */ }
+    }
+    const t = state.nextTournament;
+    const days = t?.date_iso ? Math.ceil((new Date(t.date_iso) - Date.now()) / 864e5) : null;
+    $('tournamentName').textContent = t?.name || 'NFS Trophy';
+    $('bewerbChips').hidden = true;
+    document.querySelector('.tabs').hidden = true;
+    TABS.forEach(x => { $(`tab-${x}`).hidden = x !== 'live'; });
+    document.querySelectorAll('#tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.tab === 'live')));
+    $('tab-live').innerHTML = `
+        <div class="card not-live">
+            <div class="nl-icon">🏓</div>
+            <h2>Der Live-Ticker startet am Turniertag</h2>
+            ${t ? `<p class="nl-when"><strong>${esc(t.name)}</strong>${t.date_text ? ' · ' + esc(t.date_text) : ''}${days > 0 ? ` · noch ${days} ${days === 1 ? 'Tag' : 'Tage'}` : ''}</p>` : ''}
+            <p class="muted">Sobald gespielt wird, siehst du hier alle Tische, laufende Spiele, Ergebnisse, die Tabelle und deinen persönlichen Spielplan – live.</p>
+            <div class="nl-actions">
+                ${t?.is_open ? '<a class="btn primary" href="/#anmelden">Jetzt nennen</a>' : ''}
+                <a class="btn" href="/#nennstand">Nennstand ansehen</a>
+                <a class="btn" href="/">Zur Turnierseite</a>
+            </div>
+        </div>`;
 }
 
 function renderChips() {

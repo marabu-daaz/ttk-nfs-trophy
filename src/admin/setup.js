@@ -4,29 +4,60 @@
 import { supabase, publicSponsorUrl, publicPdfUrl } from '../shared/supabase.js';
 import { esc, showToast, safeFileName, parseTurnierInfo, parseBewerbe, formatForDateTimeLocal, throwIfError } from '../shared/utils.js';
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, DEFAULT_BEWERBE } from '../shared/constants.js';
-import { icon, confirmDialog, promptDialog, withBusy } from './ui.js';
+import { icon, confirmDialog, promptDialog, formDialog, withBusy } from './ui.js';
+import { countInBewerb, renameBewerbInRegistrations } from './state.js';
 
-let setupBewerbeList = [];
+let setupBewerbeList = [];   // [{ ...bewerb, _orig: ursprünglicher Name | null }]
 let allTournaments = [];
 let activeTournamentId = null;
 let onSaved = () => { };
+let baseline = '';           // Formularzustand nach dem Laden/Speichern (für „ungespeichert“)
 
 export function setSetupTournamentId(id) { activeTournamentId = id; }
 export function setSetupTournaments(data) { allTournaments = data; }
 export function setSetupSavedHandler(fn) { onSaved = fn; }
+
+const $ = id => document.getElementById(id);
+const currentTournament = () => allTournaments.find(t => String(t.id) === String(activeTournamentId));
+
+// ==========================================
+// UNGESPEICHERTE ÄNDERUNGEN
+// ==========================================
+function snapshot() {
+    return JSON.stringify([...document.querySelectorAll('#view-setup input, #view-setup select, #view-setup textarea')]
+        .map(el => el.type === 'checkbox' ? el.checked : el.type === 'file' ? el.files.length : el.value));
+}
+
+export function isSetupDirty() {
+    return baseline !== '' && snapshot() !== baseline;
+}
+
+function markClean() {
+    baseline = snapshot();
+    updateDirtyUi();
+}
+
+function updateDirtyUi() {
+    const dirty = isSetupDirty();
+    document.querySelector('#view-setup .save-bar')?.classList.toggle('dirty', dirty);
+    const hint = $('setupDirtyHint');
+    if (hint) hint.textContent = dirty ? 'Ungespeicherte Änderungen' : 'Alles gespeichert';
+    // Punkt am Menüeintrag, damit man es auch aus anderen Bereichen sieht
+    document.querySelector('#mainNav a[data-view="setup"]')?.classList.toggle('dirty', dirty);
+}
 
 // ==========================================
 // FELDER BEFÜLLEN
 // ==========================================
 export function fillSetup(t) {
     const s = (id, val) => {
-        const el = document.getElementById(id);
+        const el = $(id);
         if (el) el.value = val ?? '';
     };
 
-    document.getElementById('setupIsOpen').checked = !!t.is_open;
+    $('setupIsOpen').checked = !!t.is_open;
     updateOpenLabel(!!t.is_open);
-    document.getElementById('setupShowTtop').checked = t.show_ttop_button === true;
+    $('setupShowTtop').checked = t.show_ttop_button === true;
     s('setupTtopUrl', t.ttop_url);
     s('setupName', t.name);
     s('setupDateText', t.date_text);
@@ -36,12 +67,12 @@ export function fillSetup(t) {
     s('setupFeeNfs', t.fee_nfs ?? DEFAULT_FEE_NFS);
     s('setupDateIso', formatForDateTimeLocal(t.date_iso));
 
-    const cur = document.getElementById('setupPdfCurrent');
-    cur.innerHTML = t.ausschreibung_path
+    $('setupPdfCurrent').innerHTML = t.ausschreibung_path
         ? `Aktuell: <a href="${esc(publicPdfUrl(t.ausschreibung_path))}" target="_blank" rel="noopener">${esc(t.ausschreibung_path.replace(/^\d+_/, ''))}</a>`
         : 'Noch keine Ausschreibung hochgeladen.';
 
     const info = parseTurnierInfo(t);
+    s('setupDeadline', info.registrationDeadline ? formatForDateTimeLocal(info.registrationDeadline) : '');
     s('setupBewerbeHeadline', info.bewerbeHeadline);
     s('setupBewerbeText', info.bewerbeText);
     [1, 2, 3, 4].forEach(n => {
@@ -49,64 +80,94 @@ export function fillSetup(t) {
         s(`setupFact${n}Text`, info[`fact${n}Text`]);
     });
 
-    document.getElementById('setupShowSchedule').checked = !!info.showSchedule;
-    document.getElementById('scheduleContainer').innerHTML = '';
+    $('setupShowSchedule').checked = !!info.showSchedule;
+    $('scheduleContainer').innerHTML = '';
     (info.schedule?.length ? info.schedule : [{}]).forEach(item => renderScheduleRow(item.time, item.text));
 
-    document.getElementById('setupShowSponsors').checked = !!info.showSponsors;
-    document.getElementById('sponsorsContainer').innerHTML = '';
+    $('setupShowSponsors').checked = !!info.showSponsors;
+    $('sponsorsContainer').innerHTML = '';
     if (info.sponsors?.length) {
         info.sponsors.forEach(sp => renderSponsorRow(sp.logoPath || '', sp.link, sp.logoUrl || (sp.logoPath ? publicSponsorUrl(sp.logoPath) : '')));
     } else {
         renderSponsorRow();
     }
 
-    setupBewerbeList = parseBewerbe(t);
+    setupBewerbeList = parseBewerbe(t).map(b => ({ ...b, _orig: b.name }));
     renderSetupBewerbe();
     generateQRCodes(t.oettv_url);
+    updateDeadlineHint();
+    markClean();
 }
 
 function updateOpenLabel(isOpen) {
-    const label = document.getElementById('setupIsOpenLabel');
-    const hint = document.getElementById('setupIsOpenHint');
-    label.innerHTML = `Anmeldung ist <span style="color:var(${isOpen ? '--accent' : '--danger'})">${isOpen ? 'geöffnet' : 'geschlossen'}</span>`;
-    hint.textContent = isOpen ? 'Spieler können sich auf der Website anmelden.' : 'Das Formular auf der Website ist deaktiviert.';
+    $('setupIsOpenLabel').innerHTML = `Anmeldung ist <span style="color:var(${isOpen ? '--accent' : '--danger'})">${isOpen ? 'geöffnet' : 'geschlossen'}</span>`;
+    $('setupIsOpenHint').textContent = isOpen ? 'Spieler können sich auf der Website anmelden.' : 'Das Formular auf der Website ist deaktiviert.';
+}
+
+/** Von außen (z.B. Seitenleiste) geändert – ohne die Seite als „ungespeichert“ zu markieren */
+export function setSetupOpenState(open) {
+    const wasClean = !isSetupDirty();
+    $('setupIsOpen').checked = open;
+    updateOpenLabel(open);
+    if (wasClean) markClean();
+}
+
+function updateDeadlineHint() {
+    const v = $('setupDeadline').value;
+    const hint = $('setupDeadlineHint');
+    if (!v) { hint.textContent = 'Optional. Danach ist das Formular automatisch geschlossen.'; return; }
+    const d = new Date(v);
+    hint.textContent = d < new Date()
+        ? '⚠️ Liegt in der Vergangenheit – die Anmeldung ist damit auf der Website geschlossen.'
+        : `Anmeldung schließt automatisch am ${d.toLocaleString('de-AT', { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}.`;
 }
 
 // ==========================================
 // BEWERBE
 // ==========================================
 export function renderSetupBewerbe() {
-    const container = document.getElementById('bewerbeContainer');
-    if (!container) return;
-    container.innerHTML = setupBewerbeList.map((b, index) => `
-        <div class="repeat-row">
+    const container = $('bewerbeContainer');
+    container.innerHTML = setupBewerbeList.map((b, index) => {
+        const regs = b._orig ? countInBewerb(b._orig) : 0;
+        return `
+        <div class="repeat-row bewerb-row" data-index="${index}">
+            <div class="order-btns">
+                <button type="button" class="icon-btn" data-move="-1" title="Nach oben" ${index === 0 ? 'disabled' : ''}>${icon('arrowUp')}</button>
+                <button type="button" class="icon-btn" data-move="1" title="Nach unten" ${index === setupBewerbeList.length - 1 ? 'disabled' : ''}>${icon('arrowDown')}</button>
+            </div>
             <div class="bewerb-editor">
                 <div class="field"><label>Name</label><input type="text" class="input bewerb-name" value="${esc(b.name)}"></div>
                 <div class="field"><label>Startzeit</label><input type="text" class="input bewerb-time" value="${esc(b.time || '')}" placeholder="Sa 09:00"></div>
                 <div class="field"><label>Dauer (h)</label><input type="number" class="input bewerb-duration" value="${esc(b.duration || 3)}" min="1"></div>
-                <div class="field"><label>Min. RC</label><input type="number" class="input bewerb-rc" value="${esc(b.min_rc || 0)}" min="0"></div>
+                <div class="field"><label>Min. RC</label><input type="number" class="input bewerb-rc" value="${esc(b.min_rc || '')}" min="0" placeholder="–"></div>
+                <div class="field"><label>Max. RC</label><input type="number" class="input bewerb-maxrc" value="${esc(b.max_rc || '')}" min="0" placeholder="–"></div>
                 <div class="field"><label>Plätze</label><input type="number" class="input bewerb-cap" value="${esc(b.capacity || 20)}" min="1"></div>
                 <div class="field"><label>Preisgeld</label><input type="text" class="input bewerb-prize" value="${esc(b.prize || '')}" placeholder="optional"></div>
-                <button type="button" class="icon-btn danger remove-bewerb-btn" data-index="${index}" title="Bewerb entfernen" style="margin-bottom:4px;">${icon('trash')}</button>
+                <button type="button" class="icon-btn danger remove-bewerb-btn" title="Bewerb entfernen" style="margin-bottom:4px;">${icon('trash')}</button>
             </div>
-        </div>`).join('') || '<div class="muted small">Noch keine Bewerbe.</div>';
+            ${regs ? `<div class="bewerb-regs small muted">${regs} ${regs === 1 ? 'Nennung' : 'Nennungen'} – beim Umbenennen werden sie automatisch mitgenommen.</div>` : ''}
+        </div>`;
+    }).join('') || '<div class="muted small">Noch keine Bewerbe.</div>';
+    updateDirtyUi();
 }
 
+/** Liest die Bewerbe aus dem Formular (inkl. ursprünglichem Namen für Umbenennungen) */
 export function getBewerbeFromDOM() {
-    const q = cls => document.querySelectorAll(`#bewerbeContainer .${cls}`);
-    const names = q('bewerb-name'), times = q('bewerb-time'), durations = q('bewerb-duration'),
-        rcs = q('bewerb-rc'), caps = q('bewerb-cap'), prizes = q('bewerb-prize');
     const list = [];
-    names.forEach((n, i) => {
-        if (!n.value.trim()) return;
+    document.querySelectorAll('#bewerbeContainer .bewerb-row').forEach(row => {
+        const v = cls => row.querySelector('.' + cls).value.trim();
+        const orig = setupBewerbeList[parseInt(row.dataset.index, 10)]?._orig ?? null;
+        const num = (val, fallback) => { const n = parseInt(val, 10); return Number.isNaN(n) ? fallback : n; };
         list.push({
-            name: n.value.trim(),
-            time: times[i].value.trim(),
-            duration: parseInt(durations[i].value, 10) || 3,
-            min_rc: parseInt(rcs[i].value, 10) || 0,
-            capacity: parseInt(caps[i].value, 10) || 20,
-            prize: prizes[i].value.trim()
+            ...(setupBewerbeList[parseInt(row.dataset.index, 10)] || {}),
+            name: v('bewerb-name'),
+            time: v('bewerb-time'),
+            duration: num(v('bewerb-duration'), 3) || 3,
+            min_rc: num(v('bewerb-rc'), 0),
+            max_rc: num(v('bewerb-maxrc'), 0),
+            capacity: num(v('bewerb-cap'), 20) || 20,
+            prize: v('bewerb-prize'),
+            _orig: orig,
         });
     });
     return list;
@@ -116,7 +177,7 @@ export function getBewerbeFromDOM() {
 // ZEITPLAN & SPONSOREN
 // ==========================================
 export function renderScheduleRow(time = '', text = '') {
-    const container = document.getElementById('scheduleContainer');
+    const container = $('scheduleContainer');
     if (!container) return;
     const div = document.createElement('div');
     div.className = 'repeat-row compact schedule-row';
@@ -124,12 +185,13 @@ export function renderScheduleRow(time = '', text = '') {
         <input type="text" class="input sched-time" placeholder="08:00" value="${esc(time)}" style="width:110px;">
         <input type="text" class="input sched-text grow" placeholder="z.B. Hallenöffnung" value="${esc(text)}" style="flex:1;">
         <button type="button" class="icon-btn danger" title="Entfernen">${icon('x')}</button>`;
-    div.querySelector('button').addEventListener('click', () => div.remove());
+    div.querySelector('button').addEventListener('click', () => { div.remove(); updateDirtyUi(); });
     container.appendChild(div);
+    updateDirtyUi();
 }
 
 export function renderSponsorRow(logoPath = '', link = '', logoUrl = '') {
-    const container = document.getElementById('sponsorsContainer');
+    const container = $('sponsorsContainer');
     if (!container) return;
     const div = document.createElement('div');
     div.className = 'repeat-row sponsor-row';
@@ -138,15 +200,22 @@ export function renderSponsorRow(logoPath = '', link = '', logoUrl = '') {
             <label>Logo</label>
             <input type="file" class="input spon-file" accept="image/*">
             <input type="hidden" class="spon-logo-path" value="${esc(logoPath)}">
-            ${logoUrl ? `<img class="sponsor-preview" src="${esc(logoUrl)}" alt="">` : ''}
+            <img class="sponsor-preview" src="${esc(logoUrl)}" alt="" ${logoUrl ? '' : 'hidden'}>
         </div>
         <div class="grow field">
             <label>Website</label>
             <input type="url" class="input spon-link" placeholder="https://…" value="${esc(link)}">
         </div>
         <button type="button" class="icon-btn danger" title="Entfernen" style="margin-top:22px;">${icon('x')}</button>`;
-    div.querySelector('button').addEventListener('click', () => div.remove());
+    div.querySelector('button').addEventListener('click', () => { div.remove(); updateDirtyUi(); });
+    // Vorschau des neu gewählten Logos
+    div.querySelector('.spon-file').addEventListener('change', e => {
+        const file = e.target.files[0];
+        const img = div.querySelector('.sponsor-preview');
+        if (file) { img.src = URL.createObjectURL(file); img.hidden = false; }
+    });
     container.appendChild(div);
+    updateDirtyUi();
 }
 
 // ==========================================
@@ -165,12 +234,12 @@ export function generateQRCodes(oettvUrl) {
         }
     };
 
-    const qrA = document.getElementById('qrAnmeldung');
+    const qrA = $('qrAnmeldung');
     if (qrA) make(qrA, 'https://nfs-trophy.com/#anmelden');
 
-    const qrE = document.getElementById('qrErgebnisse');
-    const hint = document.getElementById('qrErgebnisseHint');
-    const btn = document.getElementById('downloadQrErgebnisseBtn');
+    const qrE = $('qrErgebnisse');
+    const hint = $('qrErgebnisseHint');
+    const btn = $('downloadQrErgebnisseBtn');
     if (!qrE) return;
     const ok = oettvUrl && oettvUrl.trim() && make(qrE, oettvUrl.trim());
     if (!ok) qrE.textContent = 'Kein Link hinterlegt';
@@ -179,7 +248,7 @@ export function generateQRCodes(oettvUrl) {
 }
 
 export function downloadQR(divId, filename) {
-    const box = document.getElementById(divId);
+    const box = $(divId);
     const canvas = box?.querySelector('canvas');
     const img = box?.querySelector('img');
     const src = canvas ? canvas.toDataURL() : img?.src;
@@ -204,16 +273,48 @@ function parseFee(value, fallback) {
     return Number.isNaN(n) || n < 0 ? fallback : n;
 }
 
+/** Prüft die Bewerbe. Liefert eine Fehlermeldung oder null. */
+function validateBewerbe(list) {
+    const names = list.map(b => b.name.toLowerCase());
+    if (list.some(b => !b.name)) return 'Jeder Bewerb braucht einen Namen.';
+    const dup = names.find((n, i) => names.indexOf(n) !== i);
+    if (dup) return `Der Bewerbsname „${list[names.indexOf(dup)].name}“ kommt doppelt vor.`;
+    const bad = list.find(b => b.max_rc > 0 && b.min_rc > b.max_rc);
+    if (bad) return `„${bad.name}“: Min. RC ist größer als Max. RC.`;
+    // Gelöschte Bewerbe, für die es noch Nennungen gibt?
+    const keptOrig = new Set(list.map(b => b._orig).filter(Boolean));
+    const removed = (parseBewerbe(currentTournament()) || []).map(b => b.name).filter(n => !keptOrig.has(n) && countInBewerb(n) > 0);
+    if (removed.length) return `„${removed[0]}“ hat noch ${countInBewerb(removed[0])} Nennungen und kann nicht entfernt werden. Bitte zuerst im Bereich „Bewerbe“ abmelden – oder den Bewerb umbenennen statt löschen.`;
+    return null;
+}
+
 export async function saveSetup() {
     if (!activeTournamentId) {
         showToast('Kein aktives Turnier.', true);
         return;
     }
 
-    await withBusy(document.getElementById('saveSetupBtn'), async () => {
+    const bewerbeList = getBewerbeFromDOM();
+    const problem = validateBewerbe(bewerbeList);
+    if (problem) {
+        showToast(problem, true);
+        document.getElementById('set-bewerbe').scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
+    const renames = bewerbeList.filter(b => b._orig && b._orig !== b.name && countInBewerb(b._orig) > 0);
+    if (renames.length) {
+        const ok = await confirmDialog({
+            title: 'Bewerb umbenennen?',
+            message: renames.map(b => `„${b._orig}“ → „${b.name}“ (${countInBewerb(b._orig)} Nennungen werden mitgenommen)`).join('\n'),
+            confirmText: 'Umbenennen & speichern',
+        });
+        if (!ok) return;
+    }
+    const noTime = bewerbeList.filter(b => b.time && !/\d{1,2}[:.]\d{2}/.test(b.time));
+
+    await withBusy($('saveSetupBtn'), async () => {
         try {
-            const updatedBewerbeList = getBewerbeFromDOM();
-            const val = id => document.getElementById(id)?.value.trim() || '';
+            const val = id => $(id)?.value.trim() || '';
 
             const scheduleData = [];
             document.querySelectorAll('.schedule-row').forEach(row => {
@@ -245,37 +346,54 @@ export async function saveSetup() {
                 if (logoPath) sponsorsData.push({ logoPath, link });
             }
 
+            const deadline = $('setupDeadline').value;
             const infoObj = {
                 bewerbeHeadline: val('setupBewerbeHeadline'),
                 bewerbeText: val('setupBewerbeText'),
-                showSchedule: document.getElementById('setupShowSchedule').checked,
+                showSchedule: $('setupShowSchedule').checked,
                 schedule: scheduleData,
-                showSponsors: document.getElementById('setupShowSponsors').checked,
-                sponsors: sponsorsData
+                showSponsors: $('setupShowSponsors').checked,
+                sponsors: sponsorsData,
+                registrationDeadline: deadline ? new Date(deadline).toISOString() : '',
             };
             [1, 2, 3, 4].forEach(n => {
                 infoObj[`fact${n}Title`] = val(`setupFact${n}Title`);
                 infoObj[`fact${n}Text`] = val(`setupFact${n}Text`);
             });
 
-            const dateIso = document.getElementById('setupDateIso').value;
+            const cleanBewerbe = bewerbeList.map(({ _orig, ...b }) => {
+                if (!b.max_rc) delete b.max_rc;
+                return b;
+            });
+
+            const dateIso = $('setupDateIso').value;
             const updateData = {
-                is_open: document.getElementById('setupIsOpen').checked,
+                is_open: $('setupIsOpen').checked,
                 name: val('setupName') || 'NFS Trophy',
                 date_text: val('setupDateText'),
                 date_iso: dateIso ? new Date(dateIso).toISOString() : new Date().toISOString(),
                 subtitle: val('setupSubtitle'),
                 oettv_url: val('setupOettvUrl'),
-                fee_normal: parseFee(document.getElementById('setupFeeNormal').value, DEFAULT_FEE_NORMAL),
-                fee_nfs: parseFee(document.getElementById('setupFeeNfs').value, DEFAULT_FEE_NFS),
-                bewerbe: JSON.stringify(updatedBewerbeList),
+                fee_normal: parseFee($('setupFeeNormal').value, DEFAULT_FEE_NORMAL),
+                fee_nfs: parseFee($('setupFeeNfs').value, DEFAULT_FEE_NFS),
+                bewerbe: JSON.stringify(cleanBewerbe),
                 turnier_info: JSON.stringify(infoObj),
-                show_ttop_button: document.getElementById('setupShowTtop').checked,
+                show_ttop_button: $('setupShowTtop').checked,
                 ttop_url: val('setupTtopUrl')
             };
 
+            // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
+            const t = currentTournament();
+            const allRenames = bewerbeList.filter(b => b._orig && b._orig !== b.name);
+            if (t?.hall_of_fame && allRenames.some(b => t.hall_of_fame[b._orig])) {
+                const hof = {};
+                const map = Object.fromEntries(allRenames.map(b => [b._orig, b.name]));
+                Object.entries(t.hall_of_fame).forEach(([k, v]) => { hof[map[k] || k] = v; });
+                updateData.hall_of_fame = hof;
+            }
+
             // PDF Upload
-            const pdfInput = document.getElementById('setupPdf');
+            const pdfInput = $('setupPdf');
             if (pdfInput && pdfInput.files.length > 0) {
                 const file = pdfInput.files[0];
                 const { data: uploadData, error: uploadErr } = await supabase.storage
@@ -287,9 +405,14 @@ export async function saveSetup() {
 
             throwIfError(await supabase.from('tournaments').update(updateData).eq('id', activeTournamentId));
 
-            setupBewerbeList = updatedBewerbeList;
+            // Nennungen auf neue Bewerbsnamen umstellen
+            let moved = 0;
+            for (const b of renames) moved += await renameBewerbInRegistrations(b._orig, b.name);
+
             if (pdfInput) pdfInput.value = '';
-            showToast('Turnier-Einstellungen gespeichert');
+            showToast(moved ? `Gespeichert – ${moved} Nennungen auf neue Bewerbsnamen umgestellt` : 'Turnier-Einstellungen gespeichert');
+            if (noTime.length) showToast(`Hinweis: Startzeit von „${noTime[0].name}“ enthält keine Uhrzeit (z.B. „Sa 09:00“) – der Kalender-Eintrag auf der Website braucht sie.`, true);
+            baseline = '';
             await onSaved();
         } catch (err) {
             console.error('Fehler beim Speichern:', err);
@@ -302,36 +425,52 @@ export async function saveSetup() {
 // SAISONWECHSEL / LÖSCHEN
 // ==========================================
 export async function createNewTournament() {
-    const ok = await confirmDialog({
-        title: 'Saisonwechsel durchführen?',
-        message: 'Das aktuelle Turnier wandert ins Archiv. Danach wird ein neues, leeres Turnier angelegt – Nennliste und Kassenbuch starten bei null.',
-        confirmText: 'Weiter',
+    const cur = currentTournament();
+    const next = new Date(cur?.date_iso || Date.now());
+    next.setMonth(next.getMonth() + 6);
+    const res = await formDialog({
+        title: 'Saisonwechsel: neues Turnier',
+        intro: 'Das aktuelle Turnier wandert ins Archiv. Nennliste und Kassenbuch des neuen Turniers starten leer. Die Anmeldung ist zunächst geschlossen.',
+        fields: [
+            { id: 'name', label: 'Name des neuen Turniers', placeholder: 'z.B. 10. NFS Trophy', required: true },
+            { id: 'dateText', label: 'Datum (Text auf der Website)', placeholder: 'z.B. 12.–13. September 2027', half: true },
+            { id: 'dateIso', label: 'Turnierbeginn', type: 'datetime-local', value: formatForDateTimeLocal(next.toISOString()), half: true },
+            { id: 'copy', label: 'Einstellungen übernehmen', type: 'checkbox', checked: true, help: 'Bewerbe, Nenngeld, Untertitel, Website-Texte, Zeitplan und Sponsoren vom aktuellen Turnier.' },
+        ],
+        confirmText: 'Neues Turnier anlegen',
     });
-    if (!ok) return;
+    if (!res || !res.name) return;
 
-    const newName = await promptDialog({
-        title: 'Neues Turnier',
-        label: 'Name des neuen Turniers',
-        placeholder: 'z.B. 10. NFS Trophy',
-        confirmText: 'Turnier anlegen',
-    });
-    if (!newName) return;
+    const newTournament = {
+        name: res.name,
+        date_text: res.dateText,
+        date_iso: res.dateIso ? new Date(res.dateIso).toISOString() : next.toISOString(),
+        is_open: false,
+        capacity: 20,
+        fee_normal: DEFAULT_FEE_NORMAL,
+        fee_nfs: DEFAULT_FEE_NFS,
+        bewerbe: JSON.stringify(DEFAULT_BEWERBE),
+    };
+    if (res.copy && cur) {
+        const info = parseTurnierInfo(cur);
+        delete info.registrationDeadline; // Anmeldeschluss gehört zum alten Turnier
+        Object.assign(newTournament, {
+            fee_normal: cur.fee_normal ?? DEFAULT_FEE_NORMAL,
+            fee_nfs: cur.fee_nfs ?? DEFAULT_FEE_NFS,
+            subtitle: cur.subtitle || '',
+            bewerbe: JSON.stringify(parseBewerbe(cur)),
+            turnier_info: JSON.stringify(info),
+        });
+    }
 
     try {
-        throwIfError(await supabase.from('tournaments').insert({
-            name: newName,
-            date_iso: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString(),
-            is_open: false,
-            capacity: 20,
-            fee_normal: DEFAULT_FEE_NORMAL,
-            fee_nfs: DEFAULT_FEE_NFS,
-            bewerbe: JSON.stringify(DEFAULT_BEWERBE)
-        }));
-        showToast('Neues Turnier angelegt – bitte jetzt die Daten im Setup anpassen.');
+        throwIfError(await supabase.from('tournaments').insert(newTournament));
+        showToast(`„${res.name}“ angelegt – bitte Daten prüfen und Anmeldung öffnen, wenn es losgeht.`);
+        baseline = '';
         await onSaved();
     } catch (err) {
         console.error('Fehler beim Erstellen:', err);
-        showToast('Fehler beim Erstellen des neuen Turniers.', true);
+        showToast('Fehler beim Erstellen des neuen Turniers: ' + (err.message || err), true);
     }
 }
 
@@ -340,7 +479,7 @@ export async function deleteTournament() {
         showToast('Das ist das einzige Turnier – Löschen nicht möglich.', true);
         return;
     }
-    const current = allTournaments.find(t => String(t.id) === String(activeTournamentId));
+    const current = currentTournament();
     const name = await promptDialog({
         title: 'Turnier endgültig löschen?',
         label: `Zur Bestätigung den Namen eintippen: ${current?.name || ''}`,
@@ -356,6 +495,7 @@ export async function deleteTournament() {
     try {
         throwIfError(await supabase.from('tournaments').delete().eq('id', activeTournamentId));
         showToast('Turnier gelöscht');
+        baseline = '';
         await onSaved();
     } catch (err) {
         console.error('Fehler beim Löschen:', err);
@@ -367,12 +507,12 @@ export async function deleteTournament() {
 // EVENTS (einmalig binden)
 // ==========================================
 export function initSetupEvents() {
-    const on = (id, fn) => document.getElementById(id)?.addEventListener('click', e => { e.preventDefault(); fn(); });
+    const on = (id, fn) => $(id)?.addEventListener('click', e => { e.preventDefault(); fn(); });
     on('addScheduleBtn', () => renderScheduleRow());
     on('addSponsorBtn', () => renderSponsorRow());
     on('addBewerbBtn', () => {
         setupBewerbeList = getBewerbeFromDOM();
-        setupBewerbeList.push({ name: 'Neuer Bewerb', time: 'Sa 09:00', min_rc: 0, prize: '', capacity: 20, duration: 3 });
+        setupBewerbeList.push({ name: 'Neuer Bewerb', time: 'Sa 09:00', min_rc: 0, prize: '', capacity: 20, duration: 3, _orig: null });
         renderSetupBewerbe();
         const names = document.querySelectorAll('#bewerbeContainer .bewerb-name');
         names[names.length - 1]?.select();
@@ -383,12 +523,40 @@ export function initSetupEvents() {
     on('downloadQrAnmeldungBtn', () => downloadQR('qrAnmeldung', 'QR_Anmeldung.png'));
     on('downloadQrErgebnisseBtn', () => downloadQR('qrErgebnisse', 'QR_Ergebnisse.png'));
 
-    document.getElementById('bewerbeContainer').addEventListener('click', e => {
-        const btn = e.target.closest('.remove-bewerb-btn');
-        if (!btn) return;
-        setupBewerbeList = getBewerbeFromDOM();
-        setupBewerbeList.splice(parseInt(btn.dataset.index, 10), 1);
-        renderSetupBewerbe();
+    $('bewerbeContainer').addEventListener('click', e => {
+        const row = e.target.closest('.bewerb-row');
+        if (!row) return;
+        const idx = parseInt(row.dataset.index, 10);
+        const move = e.target.closest('[data-move]');
+        if (move && !move.disabled) {
+            setupBewerbeList = getBewerbeFromDOM();
+            const to = idx + parseInt(move.dataset.move, 10);
+            [setupBewerbeList[idx], setupBewerbeList[to]] = [setupBewerbeList[to], setupBewerbeList[idx]];
+            renderSetupBewerbe();
+            return;
+        }
+        if (e.target.closest('.remove-bewerb-btn')) {
+            setupBewerbeList = getBewerbeFromDOM();
+            const b = setupBewerbeList[idx];
+            const n = b._orig ? countInBewerb(b._orig) : 0;
+            if (n > 0) {
+                showToast(`„${b._orig}“ hat noch ${n} Nennungen – bitte zuerst im Bereich „Bewerbe“ abmelden.`, true);
+                return;
+            }
+            setupBewerbeList.splice(idx, 1);
+            renderSetupBewerbe();
+        }
     });
-    document.getElementById('setupIsOpen').addEventListener('change', e => updateOpenLabel(e.target.checked));
+
+    $('setupIsOpen').addEventListener('change', e => updateOpenLabel(e.target.checked));
+    $('setupDeadline').addEventListener('input', updateDeadlineHint);
+    $('setupDeadlineClear').addEventListener('click', () => { $('setupDeadline').value = ''; updateDeadlineHint(); updateDirtyUi(); });
+
+    // Ungespeicherte Änderungen erkennen
+    const view = $('view-setup');
+    view.addEventListener('input', updateDirtyUi);
+    view.addEventListener('change', updateDirtyUi);
+    window.addEventListener('beforeunload', e => {
+        if (isSetupDirty()) { e.preventDefault(); e.returnValue = ''; }
+    });
 }

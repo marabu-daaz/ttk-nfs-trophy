@@ -319,6 +319,14 @@
                                         <label for="setupSubtitle">Untertitel</label>
                                         <input type="text" id="setupSubtitle" class="input">
                                     </div>
+                                    <div class="field full">
+                                        <label for="setupDeadline">Anmeldeschluss</label>
+                                        <div class="row">
+                                            <input type="datetime-local" id="setupDeadline" class="input grow">
+                                            <button type="button" class="btn" id="setupDeadlineClear">Entfernen</button>
+                                        </div>
+                                        <div class="help" id="setupDeadlineHint"></div>
+                                    </div>
                                     <div class="field">
                                         <label for="setupFeeNormal">Nenngeld pro Bewerb (€)</label>
                                         <input type="number" id="setupFeeNormal" class="input" min="0">
@@ -333,7 +341,7 @@
                             <div class="card settings-section" id="set-bewerbe">
                                 <div class="card-head">
                                     <h2>Bewerbe &amp; Startzeiten</h2>
-                                    <span class="hint">Erscheinen im Anmeldeformular. Startzeit z.B. „Sa 09:30“.</span>
+                                    <span class="hint">Startzeit z.B. „Sa 09:30“ · RC-Grenzen werden im Anmeldeformular geprüft</span>
                                 </div>
                                 <div class="repeat-list" id="bewerbeContainer"></div>
                                 <button id="addBewerbBtn" class="btn block" style="margin-top:10px;"><i data-icon="plus"></i>Bewerb hinzufügen</button>
@@ -446,8 +454,11 @@
                             </div>
 
                             <div class="save-bar">
-                                <span class="small muted">Änderungen werden erst mit „Speichern“ übernommen.</span>
-                                <button id="saveSetupBtn" class="btn primary">Einstellungen speichern</button>
+                                <span class="small" id="setupDirtyHint">Alles gespeichert</span>
+                                <div style="display:flex; gap:8px;">
+                                    <a class="btn" href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website ansehen</a>
+                                    <button id="saveSetupBtn" class="btn primary">Einstellungen speichern</button>
+                                </div>
                             </div>
                         </div>
                     </div>

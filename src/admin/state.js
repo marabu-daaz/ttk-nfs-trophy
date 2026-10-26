@@ -221,6 +221,41 @@ export async function removeFromBewerb(reg, bewerb) {
     return true;
 }
 
+/**
+ * Anmeldestatus eines Turniers inkl. automatischem Anmeldeschluss (turnier_info.registrationDeadline).
+ * Liefert { open, deadline: Date|null, expired }
+ */
+export function registrationStatus(t) {
+    let info = {};
+    try { info = typeof t?.turnier_info === 'string' ? JSON.parse(t.turnier_info) : (t?.turnier_info || {}); } catch { /* ungültig */ }
+    const deadline = info.registrationDeadline ? new Date(info.registrationDeadline) : null;
+    const expired = !!deadline && !isNaN(deadline) && Date.now() > deadline.getTime();
+    return { open: !!t?.is_open && !expired, deadline: deadline && !isNaN(deadline) ? deadline : null, expired };
+}
+
+/** Anzahl Nennungen (aktuelles Turnier) in einem Bewerb */
+export function countInBewerb(name) {
+    return state.registrations.filter(r => r.bewerbeArray.includes(name)).length;
+}
+
+/**
+ * Bewerb umbenennen: alle Nennungen des aktuellen Turniers mitziehen
+ * (bewerbe_list, waitlist_bewerbe, bewerb), damit niemand „verloren geht“.
+ */
+export async function renameBewerbInRegistrations(oldName, newName) {
+    const affected = state.registrations.filter(r => r.bewerbeArray.includes(oldName));
+    for (const r of affected) {
+        const map = list => list.map(b => (b === oldName ? newName : b));
+        const bewerbe = map(r.bewerbeArray);
+        await updateRegistration(r.id, {
+            bewerb: bewerbe[0],
+            bewerbe_list: bewerbe,
+            ...waitlistFields(bewerbe, map(r.wlBewerbe)),
+        });
+    }
+    return affected.length;
+}
+
 export async function deleteRegistration(id) {
     throwIfError(await supabase.from('registrations').delete().eq('id', id));
 }

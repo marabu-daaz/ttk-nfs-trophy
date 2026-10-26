@@ -184,6 +184,46 @@ export function promptDialog({ title, label, value = '', placeholder = '', confi
     });
 }
 
+/**
+ * Formular-Dialog. fields: [{ id, label, type = 'text'|'checkbox'|'datetime-local'|..., value, checked, help, required }]
+ * Liefert ein Objekt { id: wert } oder null bei Abbruch.
+ */
+export function formDialog({ title, intro = '', fields, confirmText = 'OK' }) {
+    return new Promise(resolve => {
+        const { dlg, finish } = buildDialog('', resolve, null);
+        dlg.innerHTML = `
+            <form>
+                <div class="modal-head"><h2>${esc(title)}</h2></div>
+                <div class="modal-body">
+                    ${intro ? `<p class="confirm-text" style="margin-bottom:14px;">${esc(intro)}</p>` : ''}
+                    <div class="form-grid">
+                        ${fields.map(f => f.type === 'checkbox' ? `
+                            <label class="switch full"><input type="checkbox" data-f="${esc(f.id)}" ${f.checked ? 'checked' : ''}><span class="track"></span>
+                                <span>${esc(f.label)}${f.help ? `<br><span class="small muted">${esc(f.help)}</span>` : ''}</span></label>` : `
+                            <div class="field ${f.half ? '' : 'full'}">
+                                <label>${esc(f.label)}</label>
+                                <input class="input" type="${esc(f.type || 'text')}" data-f="${esc(f.id)}" value="${esc(f.value ?? '')}" placeholder="${esc(f.placeholder || '')}" ${f.required ? 'required' : ''}>
+                                ${f.help ? `<div class="help">${esc(f.help)}</div>` : ''}
+                            </div>`).join('')}
+                    </div>
+                </div>
+                <div class="modal-foot">
+                    <button type="button" class="btn" data-cancel>Abbrechen</button>
+                    <button type="submit" class="btn primary">${esc(confirmText)}</button>
+                </div>
+            </form>`;
+        dlg.querySelector('[data-cancel]').addEventListener('click', () => finish(null));
+        dlg.querySelector('form').addEventListener('submit', e => {
+            e.preventDefault();
+            const out = {};
+            dlg.querySelectorAll('[data-f]').forEach(el => { out[el.dataset.f] = el.type === 'checkbox' ? el.checked : el.value.trim(); });
+            finish(out);
+        });
+        dlg.showModal();
+        dlg.querySelector('input:not([type="checkbox"])')?.focus();
+    });
+}
+
 /** Setzt einen Button in einen Lade-Zustand, solange fn läuft */
 export async function withBusy(btn, fn, busyText = 'Speichere…') {
     if (!btn) return fn();

@@ -300,6 +300,10 @@ a {
     border-top: 1px solid var(--border);
 }
 
+.tabs[hidden] {
+    display: none;
+}
+
 .tabs-inner {
     display: flex;
     gap: 2px;
@@ -1260,4 +1264,60 @@ a {
         animation: none !important;
         transition: none !important;
     }
+}
+
+/* ----- NOCH NICHT LIVE (TTOP pausiert) ----- */
+.not-live {
+    padding: 36px 22px;
+    text-align: center;
+    background:
+        radial-gradient(500px 240px at 50% 0%, rgba(92, 184, 116, 0.18), transparent 70%),
+        var(--surface);
+}
+
+.not-live .nl-icon {
+    font-size: 44px;
+    margin-bottom: 10px;
+}
+
+.not-live h2 {
+    font-size: 22px;
+    margin-bottom: 10px;
+}
+
+.not-live p {
+    max-width: 460px;
+    margin: 0 auto 10px;
+}
+
+.not-live .nl-when {
+    color: var(--text-2);
+}
+
+.nl-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 18px;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 18px;
+    border-radius: 99px;
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.btn.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-ink);
 }
