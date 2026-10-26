@@ -39,9 +39,12 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
 - icons/                    # Favicons, PWA-Icons, logo.png
 - supabase/
   - hardening.sql         # RLS-Prüfung, Duplikat-Schutz, serverseitige Warteliste
+  - admin-features.sql    # Spalte checked_in für den Check-in
+  - live-realtime.sql     # Echtzeit für den Live-Ticker (Projekt B)
 - public/
   - index.html            # Öffentliche Seite
   - admin.html            # Admin-Dashboard
+  - live.html             # Live-Ticker (Daten aus Projekt B)
 - src/
   - shared/               # Gemeinsame Funktionen
     - supabase.js       # Supabase Client
@@ -51,14 +54,26 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
     - app.js            # Frontend Hauptlogik
     - gallery.js        # Lightbox-Logik
   - admin/
-    - admin.js          # Admin Hauptlogik
-    - finance.js        # Finanz-Tab
+    - admin.js          # Einstieg: Login, Navigation, Laden
+    - state.js          # Zentraler Datenzustand + Wartelisten-Logik
+    - ui.js             # Icons, Dialoge, Formatierung
+    - dashboard.js      # Übersicht mit Diagramm
+    - registrations.js  # Nennungen, Anlegen/Bearbeiten, Exporte, Beleg
+    - bewerbe.js        # Startplätze, Wartelisten, Nachrücken
+    - checkin.js        # Check-in am Turniertag
+    - finance.js        # Kasse & Kassenbuch
     - setup.js          # Turnier-Setup
     - archive.js        # Archiv & Medien
+  - live/
+    - live.js           # Live-Ticker (Echtzeit, Ansichten)
+    - ranking.js        # Reihung der Tabelle (unverändert übernommen)
+    - stats.js          # Statistik-Berechnung
+    - format.js         # Zeitformatierung
 - styles/
   - shared.css            # Gemeinsame Styles
   - style.css             # Frontend Styles
-  - admin.css             # Admin Styles (Dark/Light Mode)
+  - admin.css             # Admin Styles (NFS-Grün, Dark/Light)
+  - live.css              # Live-Ticker Styles (mobile-first)
 
 ### 2. Sicherheitsverbesserungen
 - XSS-Schutz: Alle Nutzereingaben werden mit esc() escaped – keine script-Einschleusung mehr
@@ -140,6 +155,18 @@ Wichtig: Die Ordnerstruktur muss erhalten bleiben (src/, styles/, icons/, config
 - Trigger, der die Warteliste serverseitig berechnet (keine Überbuchung, keine Manipulation)
 - Vorlage für RLS-Policies
 
+`supabase/admin-features.sql` (Projekt A): Spalte `checked_in` für den Check-in.
+
+`supabase/live-realtime.sql` (Projekt B): gibt `matches`/`players` für Supabase Realtime frei,
+damit Ergebnisse sofort im Live-Ticker erscheinen. Ohne Freigabe lädt der Ticker alle 20 s nach.
+
+## Live-Ticker – Links
+
+`/public/live.html` akzeptiert Parameter, z.B. für QR-Codes in der Halle:
+- `?tab=live|table|player|queue|pots|stats|system` – Startansicht
+- `?bewerb=Offene%20Klasse` – Bewerb vorauswählen
+- `?fav=<Spieler-ID>` – Spieler-Ansicht eines Favoriten (wird beim „Teilen“ erzeugt)
+
 ---
 
 ## Team
@@ -158,6 +185,9 @@ Alle Rechte vorbehalten – TTK Naturfreunde Stadlau
 ## Änderungshistorie
 
 - 06/2026, Version 1.0: Initiale Single-Page-Version
+- 10/2026, Version 3.0: Admin und Live-Ticker neu gestaltet (NFS-Design, Dark/Light, mobil). Admin: Übersicht
+  mit Diagramm, Nennungen anlegen/bearbeiten, Bewerbs-Übersicht mit Nachrücken, Check-in, Kasse.
+  Live-Ticker: Echtzeit-Updates, Spieler-Ansicht mit nächstem Spiel, alle Tische auf einen Blick
 - 10/2026, Version 2.1: Code-Review – Supabase-Fehlerbehandlung im Admin, Bewerbe-Editor verliert keine Daten mehr,
   Saldo-Berechnung, sichere Dateinamen bei Uploads, Logo als Datei statt Base64, Spam-Honeypot,
   RFC-konforme Kalender-Dateien, Live-Ticker pausiert im Hintergrund, Netlify-Header
