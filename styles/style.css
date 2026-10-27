@@ -3151,9 +3151,12 @@ footer .meta a:hover {
 ========================================= */
 @media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
 
-    /* Inhalt nicht endlos breit auf großen Handys/Klapphandys */
-    .wrap {
-        max-width: 640px;
+    /* Inhalt nutzt die ganze Breite, schmaler gleichmäßiger Rand */
+    .wrap,
+    nav .inner {
+        max-width: none;
+        padding-left: 20px;
+        padding-right: 20px;
     }
 
     /* Grundschrift etwas größer */
@@ -3377,5 +3380,72 @@ footer .meta a:hover {
         border-bottom: none !important;
         text-decoration: underline;
         text-underline-offset: 4px;
+    }
+}
+
+/* ---------- Handy-Menü: hell, gut lesbar, große Einträge ---------- */
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+    nav ul {
+        background: var(--card) !important;
+        border-top: 1px solid var(--hair);
+        border-bottom: 1px solid var(--hair);
+        padding: 4px 20px 10px !important;
+        box-shadow: 0 18px 30px rgba(16, 35, 26, .18) !important;
+    }
+
+    nav ul li {
+        border-bottom: 1px solid var(--hair) !important;
+    }
+
+    nav ul li:last-child {
+        border-bottom: 0 !important;
+    }
+
+    nav ul a {
+        color: var(--ink) !important;
+        font-size: 18px;
+        font-weight: 600;
+        padding: 15px 2px;
+    }
+
+    nav ul a.active,
+    nav ul a:hover {
+        color: var(--brand) !important;
+    }
+
+    .menu-btn {
+        width: 44px;
+        height: 44px;
+        border-radius: 12px;
+        border: 1px solid var(--hair-strong);
+        background: var(--card);
+        color: var(--ink) !important;
+        font-size: 22px;
+        line-height: 1;
+    }
+}
+
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+    nav ul {
+        align-items: stretch !important;
+        text-align: left;
+    }
+
+    nav ul li {
+        width: 100%;
+    }
+
+    nav ul a {
+        display: flex !important;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    /* kleiner Pfeil rechts als Hinweis „hier geht's hin“ */
+    nav ul a::after {
+        content: "›";
+        font-size: 22px;
+        font-weight: 400;
+        color: var(--ink-3);
     }
 }
