@@ -142,8 +142,9 @@ function enrichAll(players, entries) {
 
     data.players = players.map(p => {
         const list = (byPlayer.get(p.id) || []).sort((a, b) => tournamentTime(b.tournament) - tournamentTime(a.tournament));
-        // Nicht erschienen (nach „Turnier abschließen“): bleibt im Verlauf, zählt aber nicht
-        const attended = list.filter(e => !e.no_show);
+        // Gezählt wird nur, wer wirklich gespielt hat: nicht „nicht erschienen“ und nicht nur Warteliste.
+        // Beides bleibt im Verlauf sichtbar.
+        const attended = list.filter(e => !e.no_show && e.bewerbe.length > 0);
         const key = nameKey(p.vorname, p.nachname);
         // Erfolge nur aus Turnieren, bei denen die Person auch dabei war
         const played = new Set(attended.map(e => String(e.tournament.id)));
@@ -315,7 +316,7 @@ function renderBody() {
 
     const list = applyFilters();
     root.innerHTML = tiles + `
-        <div class="result-count">${list.length} von ${data.players.length} Spielern</div>
+        <div class="result-count">${list.length} von ${data.players.length} Spielern ${attendLegend()}</div>
         <div class="table-wrap">
             <table class="table responsive players-table">
                 <thead>
@@ -347,10 +348,31 @@ function shortName(t) {
     return `${t.name}${year ? ' ' + year : ''}`;
 }
 
+/** Ein Kästchen je Turnier: dabei · nur Warteliste · nicht erschienen · nicht dabei */
+const ATTEND = {
+    on: 'dabei',
+    wl: 'nicht reingerutscht (Warteliste)',
+    noshow: 'genannt, nicht erschienen',
+    '': 'nicht dabei',
+};
+
+function attendState(p, t) {
+    const e = p.entries.find(x => String(x.tournament.id) === String(t.id));
+    if (!e) return '';
+    if (e.no_show) return 'noshow';
+    return e.bewerbe.length ? 'on' : 'wl';
+}
+
 function attendDots(p, timeline) {
-    const ids = p.played;
-    return `<div class="attend" aria-label="${p.count} Teilnahmen">${timeline.map(t =>
-        `<span class="${ids.has(String(t.id)) ? 'on' : ''}" title="${esc(shortName(t))}"></span>`).join('')}</div>`;
+    return `<div class="attend" aria-label="${p.count} Teilnahmen">${timeline.map(t => {
+        const s = attendState(p, t);
+        return `<span class="${s}" title="${esc(shortName(t))}: ${ATTEND[s]}"></span>`;
+    }).join('')}</div>`;
+}
+
+function attendLegend() {
+    return `<span class="attend-legend">${['on', 'wl', 'noshow', ''].map(s =>
+        `<span><i class="attend-key ${s}"></i>${esc(ATTEND[s].replace(' (Warteliste)', ''))}</span>`).join('')}</span>`;
 }
 
 function titleChips(p) {
@@ -687,10 +709,11 @@ async function exportExcel() {
         const XLSX = await import('xlsx');
         const timeline = timelineTournaments();
         const rows = [['Nachname', 'Vorname', 'Verein', 'RC', 'E-Mail', 'Telefon', 'Turniere', 'Siege', 'Podestplätze', ...timeline.map(shortName), 'Notiz']];
+        // x = dabei, WL = nur Warteliste, n.e. = nicht erschienen
+        const mark = { on: 'x', wl: 'WL', noshow: 'n.e.', '': '' };
         currentList().forEach(p => {
-            const ids = new Set(p.entries.map(e => String(e.tournament.id)));
             rows.push([p.nachname, p.vorname, p.verein || '', p.rc ?? '', p.email || '', p.telefon || '', p.count, p.wins, p.podiums,
-                ...timeline.map(t => (ids.has(String(t.id)) ? 'x' : '')), p.notiz || '']);
+                ...timeline.map(t => mark[attendState(p, t)]), p.notiz || '']);
         });
         const ws = XLSX.utils.aoa_to_sheet(rows);
         ws['!cols'] = rows[0].map((h, i) => ({ wch: i < 2 ? 16 : i === 4 ? 26 : Math.max(6, Math.min(18, String(h).length + 2)) }));

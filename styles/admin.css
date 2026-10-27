@@ -2716,8 +2716,40 @@ dialog.modal[open] {
     background: var(--surface-3);
 }
 
-.attend span.on {
+/* Teilnahme je Turnier: dabei · nur Warteliste · nicht erschienen · nicht dabei */
+.attend span.on,
+.attend-key.on {
     background: var(--accent);
+}
+
+.attend span.wl,
+.attend-key.wl {
+    background: var(--warn);
+}
+
+.attend span.noshow,
+.attend-key.noshow {
+    background: var(--danger);
+}
+
+.attend-legend {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-left: 14px;
+}
+
+.attend-legend>span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.attend-key {
+    width: 9px;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--surface-3);
 }
 
 .chip.medal.gold {
