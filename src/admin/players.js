@@ -31,6 +31,13 @@ export function nameKey(...parts) {
         .toLowerCase().replace(/ß/g, 'ss').replace(/[^a-z]+/g, ' ').trim();
 }
 
+/** Wie nameKey, aber „jun./sen.“ immer ans Ende – „Rudolf jun. Holzer“ = „Rudolf Holzer jun.“ */
+function hofKey(...parts) {
+    const words = nameKey(...parts).split(' ').filter(Boolean);
+    const SUFFIX = { jun: 'jun', jr: 'jun', sen: 'sen', sr: 'sen' };
+    return [...words.filter(w => !SUFFIX[w]), ...words.filter(w => SUFFIX[w]).map(w => SUFFIX[w])].join(' ');
+}
+
 const POS = { p1: 1, p2: 2, p3_1: 3, p3_2: 3, trost: 'T' };
 const POS_LABEL = { 1: 'Sieg', 2: '2. Platz', 3: '3. Platz', T: 'Trostbewerb' };
 
@@ -43,10 +50,12 @@ function hallOfFameIndex() {
                 if (!POS[key] || !text) return;
                 // „Vorname Nachname (VEREIN)“ bzw. bei Doppel „A B/C D (V1/V2)“
                 String(text).replace(/\(.*?\)/g, '').split('/').forEach(name => {
-                    const k = nameKey(name);
+                    const k = hofKey(name);
                     if (!k) return;
+                    // Vor-/Nachname vertauscht, Zusatz (jun./sen.) bleibt hinten
                     const words = k.split(' ');
-                    const swapped = [...words.slice(1), words[0]].join(' ');
+                    const sfx = ['jun', 'sen'].includes(words[words.length - 1]) ? [words.pop()] : [];
+                    const swapped = [...words.slice(1), words[0], ...sfx].join(' ');
                     [k, swapped].forEach(kk => {
                         if (!idx.has(kk)) idx.set(kk, []);
                         idx.get(kk).push({ tournament: t, bewerb, pos: POS[key] });
@@ -130,7 +139,7 @@ function enrichAll(players, entries) {
         const key = nameKey(p.vorname, p.nachname);
         // Erfolge nur aus Turnieren, bei denen die Person auch dabei war
         const played = new Set(list.map(e => String(e.tournament.id)));
-        const titles = (hof.get(key) || []).filter(h => played.has(String(h.tournament.id)));
+        const titles = (hof.get(hofKey(p.vorname, p.nachname)) || []).filter(h => played.has(String(h.tournament.id)));
         const last = list[0]?.tournament || null;
         return {
             ...p,
