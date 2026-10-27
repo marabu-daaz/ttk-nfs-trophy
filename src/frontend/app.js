@@ -414,7 +414,6 @@ function renderForm(t) {
         }).join("");
     }
 
-    setupMobileCta(open);
 
     const form = document.getElementById("regForm");
     const btn = document.getElementById("submitBtn");
@@ -542,25 +541,6 @@ function renderForm(t) {
             btn.textContent = "Nennung absenden";
         }
     };
-}
-
-/**
- * Handy: schwebender „Jetzt nennen“-Knopf – nur bei offener Anmeldung und nur,
- * solange weder der Startbereich noch das Formular zu sehen ist.
- */
-function setupMobileCta(open) {
-    const cta = document.getElementById("mobileCta");
-    if (!cta || !open) return;
-    const watched = [document.getElementById("top"), document.getElementById("anmelden")].filter(Boolean);
-    const inView = el => {
-        const r = el.getBoundingClientRect();
-        return r.bottom > 0 && r.top < window.innerHeight;
-    };
-    // Zwei Positionsabfragen pro Scroll-Ereignis – billig genug, um direkt zu rechnen
-    const update = () => { cta.hidden = watched.some(inView); };
-    window.addEventListener("scroll", update, { passive: true });
-    window.addEventListener("resize", update);
-    update();
 }
 
 /**

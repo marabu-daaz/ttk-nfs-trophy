@@ -1735,42 +1735,6 @@ footer {
         padding: 12px 0;
     }
 
-    /* Schwebender Nenn-Knopf */
-    .mobile-cta {
-        position: fixed;
-        left: 16px;
-        right: 16px;
-        bottom: calc(14px + env(safe-area-inset-bottom));
-        z-index: 60;
-        display: block;
-        padding: 16px;
-        text-align: center;
-        font-family: 'Archivo', sans-serif;
-        font-weight: 700;
-        font-size: 16px;
-        letter-spacing: .02em;
-        text-decoration: none;
-        color: var(--green-deep);
-        background: var(--green-neon);
-        border-radius: 10px;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
-    }
-
-    .mobile-cta[hidden] {
-        display: none;
-    }
-
-    /* Platz, damit der schwebende Knopf nichts verdeckt */
-    footer {
-        padding-bottom: 90px;
-    }
-}
-
-/* Schwebender Knopf nur am Handy */
-@media (min-width: 761px) and (pointer: fine), (min-width: 1101px) {
-    .mobile-cta {
-        display: none !important;
-    }
 }
 
 /* =========================================
