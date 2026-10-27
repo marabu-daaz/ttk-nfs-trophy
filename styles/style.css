@@ -637,6 +637,39 @@ aside.side .small {
     line-height: 1.6;
 }
 
+aside.side .side-manage {
+    margin-top: 28px;
+    padding-top: 22px;
+    border-top: 1px solid rgba(13, 40, 24, .15);
+}
+
+aside.side .side-manage h4 {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 500;
+    font-size: 17px;
+    margin-bottom: 6px;
+}
+
+aside.side .side-manage p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: rgba(13, 40, 24, .6);
+    margin-bottom: 12px;
+}
+
+aside.side .side-manage a {
+    font-family: 'Archivo', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    text-decoration: none;
+    border-bottom: 1px solid currentColor;
+    padding-bottom: 1px;
+}
+
+aside.side .side-manage a:hover span {
+    margin-left: 4px;
+}
+
 /* ----- NENNSTAND ----- */
 .stand-top {
     display: flex;
@@ -1256,17 +1289,6 @@ footer {
     background: rgba(255, 255, 255, 0.06);
 }
 
-/* Hinweis „Hier abmelden“ unter dem Formular */
-.manage-hint {
-    margin-top: 14px;
-    font-size: 14px;
-    color: var(--muted);
-}
-
-.manage-hint a {
-    color: var(--green-neon);
-}
-
 /* ----- Abmeldeseite ----- */
 .manage-page nav .inner {
     justify-content: space-between;
@@ -1401,14 +1423,15 @@ footer {
 }
 
 /* Anmelde-Status unter der Überschrift */
+/* Die Anmeldung liegt auf hellem Hintergrund → dunkle Schrift */
 .anmelde-lead {
     margin-top: 14px;
-    color: var(--muted);
+    color: rgba(13, 40, 24, .65);
     font-size: 16px;
     max-width: 640px;
 }
 
 .anmelde-lead.closed {
-    color: #f0b34a;
-    font-weight: 500;
+    color: #8a5a00;
+    font-weight: 600;
 }

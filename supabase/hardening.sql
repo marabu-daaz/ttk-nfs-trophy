@@ -65,8 +65,7 @@ create unique index if not exists registrations_tournament_person_uniq
 
 -- ----------------------------------------------------------------------------
 -- 3. WARTELISTE SERVERSEITIG berechnen
---    HINWEIS: Nach supabase/admins.sql diesen Abschnitt nicht erneut ausführen –
---    admins.sql (Schritt 4) enthält die aktuelle Version mit is_admin().
+--    VORAUSSETZUNG: supabase/admins.sql (Funktion is_admin()).
 -- ----------------------------------------------------------------------------
 -- Bisher berechnet nur der Browser, ob ein Bewerb voll ist. Jeder kann aber mit
 -- dem öffentlichen Key direkt "waitlist: false" senden, und zwei gleichzeitige
@@ -110,8 +109,8 @@ declare
     selected    jsonb;
     wl          jsonb := '[]'::jsonb;
 begin
-    -- Admins dürfen Werte frei setzen (z.B. manuell nachrücken lassen)
-    if auth.role() = 'authenticated' then
+    -- Admins (Liste in public.admins, siehe admins.sql) dürfen Werte frei setzen
+    if public.is_admin() then
         return new;
     end if;
 

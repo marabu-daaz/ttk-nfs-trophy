@@ -111,8 +111,7 @@ const wrap = (inner: string) =>
 const cancelBox = (token: string) => `
   <p style="margin-top:20px;padding:12px 14px;background:#f3f6f2;border-radius:6px;font-size:13px;color:#3d5445;">
     Du kannst doch nicht? Dann melde dich bitte hier ab – so rückt jemand von der Warteliste nach:<br>
-    <a href="${esc(cancelUrl(token))}" style="color:#1a4d2e;font-weight:bold;">Nennung verwalten / abmelden</a><br>
-    <span style="color:#6b7f70;">Mail verloren? Auf nfs-trophy.com/abmelden kannst du den Link jederzeit neu anfordern.</span>
+    <a href="${esc(cancelUrl(token))}" style="color:#1a4d2e;font-weight:bold;">Nennung verwalten / abmelden</a>
   </p>`;
 
 // ============================================================
