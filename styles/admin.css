@@ -2862,3 +2862,35 @@ dialog.modal[open] {
         gap: 4px;
     }
 }
+
+/* ----- DATENSICHERUNG ----- */
+.backup-actions {
+    align-items: center;
+}
+
+#backupHint.warn {
+    color: var(--warn);
+    font-weight: 600;
+}
+
+/* ----- ERINNERUNGSMAIL ----- */
+.reminder-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-size: 13px;
+    color: var(--text-2);
+}
+
+.reminder-stats b {
+    color: var(--text);
+    font-size: 15px;
+}
+
+.reminder-stats .warn,
+.reminder-stats .warn b {
+    color: var(--warn);
+}

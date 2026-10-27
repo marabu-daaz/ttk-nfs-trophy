@@ -11,6 +11,7 @@ import {
 import { icon, euro, relTime, confirmDialog, withBusy } from './ui.js';
 import { historyFor } from './audit.js';
 import { ensurePlayers, searchPlayers, invalidatePlayers } from './players.js';
+import { suggestPromotions } from './bewerbe.js';
 
 const filters = { search: '', bewerb: 'all', status: 'all', sort: 'time_desc' };
 let filtered = [];
@@ -174,7 +175,7 @@ async function onTableChange(e) {
     }
 }
 
-export async function confirmDelete(reg) {
+export async function confirmDelete(reg, { suggest = true } = {}) {
     const ok = await confirmDialog({
         title: 'Nennung löschen?',
         message: `${reg.fullName} wird mit allen Bewerben endgültig gelöscht.`,
@@ -185,7 +186,10 @@ export async function confirmDelete(reg) {
     try {
         await deleteRegistration(reg.id);
         showToast('Nennung gelöscht');
+        invalidatePlayers();
         await reloadRegistrations();
+        // Frei gewordene Startplätze → Nachrücker vorschlagen
+        if (suggest) await suggestPromotions(reg.activeBewerbe);
         return true;
     } catch (err) {
         showToast('Löschen fehlgeschlagen: ' + (err.message || err), true);
@@ -203,7 +207,11 @@ function initRegModal() {
     dlg.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', () => dlg.close()));
     document.getElementById('regForm').addEventListener('submit', onRegSubmit);
     document.getElementById('rfDelete').addEventListener('click', async () => {
-        if (editing && await confirmDelete(editing)) dlg.close();
+        const reg = editing;
+        if (reg && await confirmDelete(reg, { suggest: false })) {
+            dlg.close();
+            await suggestPromotions(reg.activeBewerbe);
+        }
     });
     document.getElementById('rfTag').addEventListener('change', updateFeePreview);
     document.getElementById('rfCopyLink').addEventListener('click', async () => {
@@ -428,6 +436,8 @@ async function onRegSubmit(e) {
             document.getElementById('regModal').close();
             invalidatePlayers();
             await reloadRegistrations();
+            // Startplatz aufgegeben (Bewerb abgewählt oder auf Warteliste) → Nachrücker vorschlagen
+            if (editing) await suggestPromotions(editing.activeBewerbe.filter(b => !sel.includes(b) || wl.includes(b)), editing.id);
         } catch (err) {
             console.error(err);
             if (err.code === '23505') showToast('Diese Person ist für dieses Turnier bereits genannt.', true);

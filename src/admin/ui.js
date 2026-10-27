@@ -116,7 +116,7 @@ export function openMail({ to = [], bcc = [], subject = '', body = '' }) {
  * Das Ergebnis wird direkt beim Klick übergeben – nicht erst im 'close'-Event,
  * auf das man sich nicht in jedem Browser verlassen kann.
  */
-function buildDialog(cls, resolve, fallback) {
+export function buildDialog(cls, resolve, fallback) {
     const dlg = document.createElement('dialog');
     dlg.className = `modal ${cls}`;
     document.body.appendChild(dlg);

@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /public/admin.html
+Disallow: /abmelden
+
+Sitemap: https://nfs-trophy.com/sitemap.xml

@@ -26,14 +26,14 @@
     <link rel="stylesheet" href="/styles/admin.css" />
 
     <!-- Bibliotheken für PDF/QR -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/4.2.1/jspdf.umd.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/5.0.8/jspdf.plugin.autotable.min.js" defer></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
 
     <script type="importmap">
     {
         "imports": {
-            "xlsx": "https://esm.sh/xlsx@0.18.5"
+            "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs"
         }
     }
     </script>
@@ -137,6 +137,7 @@
                             <div class="sub">Alle Anmeldungen des aktuellen Turniers</div>
                         </div>
                         <div class="actions">
+                            <button class="btn" id="reminderBtn"><i data-icon="mail"></i>Erinnerung senden</button>
                             <button class="btn" id="copyEmailsBtn"><i data-icon="copy"></i>E-Mails kopieren</button>
                             <button class="btn" id="exportAdminBtn"><i data-icon="sheet"></i>Excel</button>
                             <button class="btn" id="exportPdfBtn"><i data-icon="printer"></i>PDF-Liste</button>
@@ -476,6 +477,10 @@
                             <h1>Archiv &amp; Medien</h1>
                             <div class="sub">Ergebnisse, Sieger und Fotos vergangener Turniere</div>
                         </div>
+                        <div class="actions backup-actions">
+                            <span class="small muted" id="backupHint"></span>
+                            <button class="btn" id="backupBtn" title="Alle Daten als Datei herunterladen"><i data-icon="download"></i>Datensicherung</button>
+                        </div>
                     </div>
 
                     <div class="card">
@@ -509,7 +514,7 @@
                             <div class="form-grid" style="margin-bottom:12px;">
                                 <div class="field">
                                     <label for="ergLabel">Bezeichnung</label>
-                                    <input type="text" id="ergLabel" class="input" placeholder="z.B. Raster Bewerb 1">
+                                    <input type="text" id="ergLabel" class="input" value="Ergebnisse PDF" placeholder="Ergebnisse PDF">
                                 </div>
                                 <div class="field">
                                     <label for="ergFile">PDF-Datei</label>

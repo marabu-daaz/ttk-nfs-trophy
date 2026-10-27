@@ -27,7 +27,8 @@ const FIELD_LABELS = {
         ausschreibung_path: 'Ausschreibung', fotos_prefix: 'Fotos',
     },
 };
-const HIDDEN = new Set(['bewerb', 'waitlist', 'id', 'tournament_id', '_name']);
+// Technische Felder (Mail-Versand) – Änderungen daran sind kein eigener Protokolleintrag
+const HIDDEN = new Set(['bewerb', 'waitlist', 'id', 'tournament_id', '_name', 'link_sent_at', 'reminder_sent_at']);
 const TAG = { normal: 'Normal', nfs: 'NFS', vip: 'VIP' };
 const LONG = new Set(['bewerbe', 'turnier_info', 'hall_of_fame', 'created_at']);
 
@@ -147,6 +148,7 @@ function renderList() {
         return;
     }
     const items = entries.map(e => ({ e, d: describe(e) }))
+        .filter(({ e, d }) => !(e.action === 'UPDATE' && !d.changes.length))
         .filter(({ e, d }) => !query || `${d.title} ${d.sub || ''} ${e.actor} ${d.changes.map(c => c.label + c.to).join(' ')}`.toLowerCase().includes(query));
     if (!items.length) {
         box.innerHTML = `<div class="empty">${icon('clock')}<div>${entries.length ? 'Keine Treffer.' : 'Noch keine Einträge für dieses Turnier.'}</div></div>`;
@@ -183,5 +185,5 @@ export async function historyFor(regId) {
         .eq('table_name', 'registrations').eq('record_id', String(regId))
         .order('created_at', { ascending: false }).limit(30);
     if (error) return null;
-    return (data || []).map(e => ({ e, d: describe(e) }));
+    return (data || []).map(e => ({ e, d: describe(e) })).filter(({ e, d }) => !(e.action === 'UPDATE' && !d.changes.length));
 }

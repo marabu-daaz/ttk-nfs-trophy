@@ -11,6 +11,8 @@ import * as bewerbe from './bewerbe.js';
 import * as checkin from './checkin.js';
 import * as audit from './audit.js';
 import * as players from './players.js';
+import { initBackup, renderBackupHint } from './backup.js';
+import { openReminderDialog } from './reminder.js';
 import { loadBookkeeping, setFinanceTournamentId, setFinanceChangeHandler, initFinanceView, renderFinance } from './finance.js';
 import { fillSetup, initSetupEvents, setSetupTournamentId, setSetupTournaments, setSetupSavedHandler, setSetupOpenState } from './setup.js';
 import { setArchiveTournamentId, setArchiveTournaments, populateArchivDropdown, initArchiveEvents, initFotoUpload } from './archive.js';
@@ -28,7 +30,7 @@ const VIEWS = {
     kasse: { title: 'Kasse', render: renderKasse },
     spieler: { title: 'Spieler', render: players.render },
     setup: { title: 'Turnier-Setup', render: null },
-    archiv: { title: 'Archiv & Medien', render: null },
+    archiv: { title: 'Archiv & Medien', render: renderBackupHint },
     protokoll: { title: 'Protokoll', render: audit.render },
 };
 let currentView = null;
@@ -152,6 +154,7 @@ function initOnce() {
     checkin.initCheckinView();
     audit.initAuditView();
     players.initPlayersView();
+    initBackup();
     initFinanceView();
     initSetupEvents();
     initArchiveEvents();
@@ -178,6 +181,7 @@ function initOnce() {
         if (action === 'mail-all') mailAll();
     });
     $('topAddBtn').addEventListener('click', () => registrations.openRegModal());
+    $('reminderBtn').addEventListener('click', openReminderDialog);
     $('sbOpenToggle').addEventListener('click', toggleOpen);
     $('menuBtn').addEventListener('click', () => document.body.classList.toggle('nav-open'));
     $('scrim').addEventListener('click', () => document.body.classList.remove('nav-open'));

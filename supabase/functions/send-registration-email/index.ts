@@ -16,6 +16,15 @@
 //     - hoechstens alle 10 Minuten, Antwort verraet nicht,
 //       ob es die Adresse gibt
 //
+//  4) { action: "notify_promoted", registration_id, bewerb }   (nur Admins)
+//     - Mail an den Nachruecker: Startplatz ist fix, inkl. Abmeldelink
+//
+//  5) { action: "send_reminder", text?, include_waitlist?, resend?, test? }  (nur Admins)
+//     - persoenliche Erinnerung vor dem Turnier (Bewerbe, Startzeiten, Abmeldelink)
+//     - eine Mail pro Adresse; merkt sich Versendete (reminder_sent_at),
+//       damit man nach dem Tageslimit von Resend einfach fortsetzen kann
+//     - test: nur eine Beispielmail an den angemeldeten Admin
+//
 //  Secrets: RESEND_API_KEY, optional ADMIN_EMAIL, SITE_URL.
 //  SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
 // ============================================================
@@ -101,6 +110,36 @@ function jwtRole(token: string): string | null {
 function isServiceCall(req: Request) {
   const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
   return !!token && (token === SERVICE_KEY || jwtRole(token) === "service_role");
+}
+
+/** Eingeloggter Admin? Prueft die Datenbank-Funktion is_admin() mit dem Token des Aufrufers. */
+async function adminEmail(req: Request): Promise<string | null> {
+  const token = (req.headers.get("Authorization") || "").replace(/^Bearer\s+/i, "");
+  if (!token || jwtRole(token) !== "authenticated") return null;
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/is_admin`, {
+    method: "POST",
+    headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!res.ok || (await res.json()) !== true) return null;
+  try {
+    const p = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return p.email || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Mehrere Mails in einem Aufruf (max. 100). Liefert false, wenn Resend ablehnt (z.B. Tageslimit). */
+async function sendBatch(mails: { to: string; subject: string; html: string }[]) {
+  const res = await fetch("https://api.resend.com/emails/batch", {
+    method: "POST",
+    headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify(mails.map((m) => ({ from: FROM, ...m }))),
+  });
+  const body = await res.text();
+  if (!res.ok) console.error(`Resend Batch Fehler (${res.status}): ${body}`);
+  return { ok: res.ok, status: res.status, body };
 }
 
 // ---------- Mail-Bausteine ----------
@@ -229,7 +268,7 @@ async function handleCancel(token: string, bewerbe: string[] | null) {
     ${nextUp.length
       ? `<p style="background:#e8f5ec;padding:10px 14px;">Platz frei – nächste auf der Warteliste:<br>${
           nextUp.map((n) => `<strong>${esc(n.bewerb)}:</strong> ${esc(n.name)}${n.email ? ` (${esc(n.email)})` : ""}`).join("<br>")}<br>
-          Nachrücken im Admin unter „Bewerbe“.</p>`
+          <a href="${esc(SITE_URL)}/public/admin.html#/bewerbe" style="color:#1a4d2e;font-weight:bold;">Im Admin nachrücken lassen</a></p>`
       : freed.length ? `<p>Platz frei in ${freed.map(esc).join(", ")} – niemand auf der Warteliste.</p>` : ""}`)));
   await Promise.all(tasks);
 
@@ -278,6 +317,131 @@ async function handleResendLink(emailRaw: string) {
 }
 
 // ============================================================
+// Gemeinsam fuer 4) und 5)
+// ============================================================
+async function activeTournament() {
+  const [t] = await db("tournaments?select=id,name,date_text,bewerbe&order=date_iso.desc&limit=1") || [];
+  return t || null;
+}
+
+/** Startzeit je Bewerb aus der Turnier-Konfiguration ({ name, time, ... } als JSON) */
+function bewerbTimes(t: any): Record<string, string> {
+  let list: any = t?.bewerbe;
+  if (typeof list === "string") { try { list = JSON.parse(list); } catch { list = []; } }
+  return Object.fromEntries((Array.isArray(list) ? list : [])
+    .filter((b: any) => b && typeof b === "object" && b.name)
+    .map((b: any) => [b.name, String(b.time || "").trim()]));
+}
+
+function regLists(r: any) {
+  const list = asList(r.bewerbe_list).length ? asList(r.bewerbe_list) : (r.bewerb ? [r.bewerb] : []);
+  const wl = asList(r.waitlist_bewerbe).length ? asList(r.waitlist_bewerbe) : (r.waitlist ? list : []);
+  return { active: list.filter((b) => !wl.includes(b)), waiting: list.filter((b) => wl.includes(b)) };
+}
+
+// ============================================================
+// 4) Nachruecker benachrichtigen (Admin)
+// ============================================================
+async function handleNotifyPromoted(registrationId: string, bewerb: string) {
+  if (!/^[0-9a-f-]{36}$/i.test(registrationId || "") || !bewerb) return json({ ok: false, reason: "bad_request" }, 400);
+  const [r] = await db(`registrations?id=eq.${encodeURIComponent(registrationId)}&select=vorname,email,cancel_token,tournament_id`) || [];
+  if (!r) return json({ ok: false, reason: "not_found" });
+  if (!r.email) return json({ ok: false, reason: "no_email" });
+  const [t] = await db(`tournaments?id=eq.${encodeURIComponent(r.tournament_id)}&select=name,date_text,bewerbe`) || [];
+  const time = bewerbTimes(t)[bewerb];
+
+  const ok = await sendMail(r.email, `${t?.name || "NFS Trophy"}: Du bist im Bewerb „${bewerb}“ nachgerückt`, wrap(`
+    <h2 style="color:#1a4d2e;margin:0 0 16px;">Du bist nachgerückt!</h2>
+    <p>Hallo ${esc(r.vorname)},</p>
+    <p>gute Nachrichten: Im Bewerb <strong>${esc(bewerb)}</strong> ist ein Platz frei geworden und du bist von der
+       Warteliste nachgerückt. Dein Startplatz bei der ${esc(t?.name || "NFS Trophy")}${t?.date_text ? ` (${esc(t.date_text)})` : ""} ist damit fix.</p>
+    ${time ? `<p>Start des Bewerbs: <strong>${esc(time)}</strong></p>` : ""}
+    <p>Bei Fragen einfach auf diese Mail antworten.</p>
+    ${r.cancel_token ? cancelBox(r.cancel_token) : ""}`));
+  return json({ ok });
+}
+
+// ============================================================
+// 5) Erinnerung vor dem Turnier (Admin)
+// ============================================================
+const BATCH = 50;
+
+async function handleReminder(opts: { text?: string; include_waitlist?: boolean; resend?: boolean; test?: boolean }, admin: string) {
+  const t = await activeTournament();
+  if (!t) return json({ ok: false, reason: "no_tournament" });
+  const times = bewerbTimes(t);
+  const regs = await db(`registrations?tournament_id=eq.${encodeURIComponent(t.id)}&select=id,vorname,nachname,email,bewerbe_list,bewerb,waitlist_bewerbe,waitlist,cancel_token,reminder_sent_at&order=created_at.asc`) || [];
+
+  // Wer bekommt eine Erinnerung? Startplatz – oder auf Wunsch auch nur Warteliste
+  const eligible = regs.filter((r: any) => {
+    if (!String(r.email || "").includes("@")) return false;
+    const { active, waiting } = regLists(r);
+    return active.length > 0 || (opts.include_waitlist && waiting.length > 0);
+  });
+
+  // Eine Mail pro Adresse (z.B. Eltern, die ihre Kinder nennen)
+  const groups = new Map<string, any[]>();
+  for (const r of eligible) {
+    const key = String(r.email).trim().toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
+  }
+  let todo = [...groups.entries()];
+  if (!opts.resend && !opts.test) todo = todo.filter(([, rs]) => rs.some((r) => !r.reminder_sent_at));
+
+  const extra = String(opts.text || "").trim().slice(0, 3000);
+  const build = (rs: any[]) => {
+    const people = rs.map((r) => {
+      const { active, waiting } = regLists(r);
+      const lines = [
+        ...active.map((b) => `<li><strong>${esc(b)}</strong>${times[b] ? ` – Start ${esc(times[b])}` : ""}</li>`),
+        ...(opts.include_waitlist ? waiting.map((b) => `<li>${esc(b)} <span style="color:#966f08;">(Warteliste)</span></li>`) : []),
+      ].join("");
+      return `<p style="margin:14px 0 4px;"><strong>${esc(r.vorname)} ${esc(r.nachname)}</strong></p>
+        <ul style="margin:0 0 6px;padding-left:18px;">${lines}</ul>
+        ${r.cancel_token ? `<a href="${esc(cancelUrl(r.cancel_token))}" style="color:#1a4d2e;font-size:13px;">Kann doch nicht? Hier abmelden</a>` : ""}`;
+    }).join("");
+    const first = rs[0];
+    return wrap(`
+      <h2 style="color:#1a4d2e;margin:0 0 16px;">Bald geht's los: ${esc(t.name)}</h2>
+      <p>Hallo ${esc(rs.length === 1 ? first.vorname : "zusammen")},</p>
+      <p>eine kurze Erinnerung an die ${esc(t.name)}${t.date_text ? ` am ${esc(t.date_text)}` : ""}. ${rs.length === 1 ? "Du bist" : "Ihr seid"} für folgende Bewerbe gemeldet:</p>
+      ${people}
+      ${extra ? `<p style="margin-top:18px;">${esc(extra).replace(/\n/g, "<br>")}</p>` : ""}
+      <p style="margin-top:18px;">TTK Naturfreunde Stadlau, Erzherzog-Karl-Straße 108, 1220 Wien</p>
+      <p style="margin-top:14px;padding:12px 14px;background:#f3f6f2;border-radius:6px;font-size:13px;color:#3d5445;">
+        Falls du doch nicht kommen kannst, melde dich bitte über den Link oben ab – dann rückt jemand von der Warteliste nach.</p>`);
+  };
+  const subject = `${t.name}: Erinnerung${t.date_text ? ` – ${t.date_text}` : ""}`;
+
+  if (opts.test) {
+    if (!todo.length) return json({ ok: false, reason: "nobody" });
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(todo[0][1]));
+    return json({ ok, test: true, to: admin, recipients: groups.size });
+  }
+
+  let sent = 0;
+  let stopped: string | null = null;
+  for (let i = 0; i < todo.length; i += BATCH) {
+    if (i) await new Promise((r) => setTimeout(r, 700)); // Resend: max. 2 Anfragen pro Sekunde
+    const chunk = todo.slice(i, i + BATCH);
+    const res = await sendBatch(chunk.map(([email, rs]) => ({ to: email, subject, html: build(rs) })));
+    if (!res.ok) {
+      stopped = res.status === 429 ? "limit" : "error";
+      break;
+    }
+    const ids = chunk.flatMap(([, rs]) => rs.map((r) => r.id));
+    await db(`registrations?id=in.(${ids.map(encodeURIComponent).join(",")})`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ reminder_sent_at: new Date().toISOString() }),
+    });
+    sent += chunk.length;
+  }
+  return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
+}
+
+// ============================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
@@ -285,6 +449,14 @@ Deno.serve(async (req) => {
 
     if (payload?.action === "cancel") return await handleCancel(payload.token, payload.bewerbe ?? null);
     if (payload?.action === "resend_link") return await handleResendLink(payload.email);
+
+    // Admin-Aktionen: nur mit Login eines Admins aus der Admin-Liste
+    if (payload?.action === "notify_promoted" || payload?.action === "send_reminder") {
+      const admin = await adminEmail(req);
+      if (!admin) return json({ ok: false, reason: "forbidden" }, 403);
+      if (payload.action === "notify_promoted") return await handleNotifyPromoted(payload.registration_id, payload.bewerb);
+      return await handleReminder(payload, admin);
+    }
 
     // Ab hier: nur der Database-Webhook (Service-Role) darf Bestaetigungen ausloesen
     if (!isServiceCall(req)) {

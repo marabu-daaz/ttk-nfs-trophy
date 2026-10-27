@@ -1,6 +1,7 @@
 // src/admin/bewerbe.js
 // Bewerbs-Übersicht: Startplätze, Wartelisten, Nachrücken, Abmelden, Mails
 
+import { supabase } from '../shared/supabase.js';
 import { esc, showToast } from '../shared/utils.js';
 import {
     state, allBewerbNames, activeIn, waitingIn, capacityOf, bewerbConfig, findReg,
@@ -150,11 +151,50 @@ async function promote(reg, b) {
     if (reg.email) {
         const send = await confirmDialog({
             title: 'Nachrücker informieren?',
-            message: `Soll eine E-Mail an ${reg.fullName} (${reg.email}) vorbereitet werden?`,
-            confirmText: 'E-Mail schreiben',
-            cancelText: 'Später',
+            message: `${reg.fullName} bekommt eine E-Mail an ${reg.email}: Startplatz in „${b}“ ist fix (mit Startzeit und Abmeldelink).`,
+            confirmText: 'E-Mail senden',
+            cancelText: 'Nicht senden',
         });
-        if (send) mailPlayer(findReg(reg.id) || reg, b, 'promoted');
+        if (send) await notifyPromoted(findReg(reg.id) || reg, b);
+    } else {
+        showToast(`${reg.fullName} hat keine E-Mail-Adresse – bitte telefonisch informieren.`, true);
+    }
+}
+
+/** Nachrück-Mail über die Edge Function – bei Problemen auf das eigene Mailprogramm ausweichen */
+async function notifyPromoted(reg, b) {
+    const { data, error } = await supabase.functions.invoke('send-registration-email', {
+        body: { action: 'notify_promoted', registration_id: reg.id, bewerb: b },
+    });
+    if (!error && data?.ok) {
+        showToast(`E-Mail an ${reg.fullName} gesendet`);
+        return;
+    }
+    console.error('Nachrück-Mail fehlgeschlagen:', error || data);
+    const fallback = await confirmDialog({
+        title: 'E-Mail konnte nicht gesendet werden',
+        message: 'Soll stattdessen dein Mailprogramm mit einem fertigen Text geöffnet werden?',
+        confirmText: 'Mailprogramm öffnen',
+    });
+    if (fallback) mailPlayer(reg, b, 'promoted');
+}
+
+/**
+ * Nach dem Entfernen/Ändern einer Nennung: für jeden frei gewordenen Startplatz
+ * den nächsten auf der Warteliste vorschlagen.
+ */
+export async function suggestPromotions(freedBewerbe, excludeId = null) {
+    for (const b of freedBewerbe) {
+        // Wer gerade selbst auf die Warteliste gesetzt wurde, ist nicht „der Nächste“
+        const next = waitingIn(b).find(r => String(r.id) !== String(excludeId));
+        if (!next || activeIn(b).length >= capacityOf(b)) continue;
+        const go = await confirmDialog({
+            title: 'Platz frei geworden',
+            message: `In „${b}“ ist jetzt ein Platz frei. ${next.fullName} (WL 1) nachrücken lassen?`,
+            confirmText: 'Nachrücken',
+            cancelText: 'Nein',
+        });
+        if (go) await promote(next, b);
     }
 }
 
@@ -177,16 +217,7 @@ async function remove(reg, b) {
     showToast(`${reg.fullName} aus „${b}“ abgemeldet`);
 
     // Platz frei geworden → Nachrücker vorschlagen
-    const next = waitingIn(b)[0];
-    if (wasActive && next && activeIn(b).length < capacityOf(b)) {
-        const go = await confirmDialog({
-            title: 'Platz frei geworden',
-            message: `In „${b}“ ist jetzt ein Platz frei. ${next.fullName} (WL 1) nachrücken lassen?`,
-            confirmText: 'Nachrücken',
-            cancelText: 'Nein',
-        });
-        if (go) await promote(next, b);
-    }
+    if (wasActive) await suggestPromotions([b]);
 }
 
 function mailPlayer(reg, b, kind) {

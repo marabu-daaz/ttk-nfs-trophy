@@ -39,8 +39,10 @@ async function init() {
         }
 
         activeTournament = tournaments[0];
+        let regsFailed = false;
         cachedRegs = await loadRegs(activeTournament.id).catch(err => {
             console.error('Nennstand konnte nicht geladen werden:', err);
+            regsFailed = true;
             return [];
         });
         const archive = tournaments.filter(t => t.id !== activeTournament.id);
@@ -52,7 +54,8 @@ async function init() {
         renderTurnierInfo(activeTournament);
         renderBewerbe(activeTournament);
         renderForm(activeTournament);
-        renderNennstand(activeTournament, cachedRegs);
+        if (regsFailed) showNennstandError();
+        else renderNennstand(activeTournament, cachedRegs);
         renderCurrentFiles(activeTournament);
         await renderArchive(archive, ergebnisse || []);
         renderRekorde(tournaments);
@@ -69,7 +72,10 @@ async function init() {
     } catch (err) {
         console.error('Fehler beim Initialisieren:', err);
         showToast('Fehler beim Laden der Daten.', true);
-        document.getElementById("archiveList").innerHTML = '<div class="loading">Verbindung zu Supabase fehlgeschlagen</div>';
+        document.getElementById("archiveList").innerHTML = '<div class="loading">Das Archiv kann gerade nicht geladen werden. Bitte versuche es später noch einmal.</div>';
+        showNennstandError();
+        const heroDate = document.getElementById("heroDate");
+        if (heroDate) heroDate.textContent = "Wien";
     }
 }
 
@@ -163,6 +169,62 @@ function renderHero(t) {
         aus.classList.remove("disabled");
     }
     startCountdown(t.date_iso);
+    renderEventSchema(t);
+}
+
+/**
+ * Strukturierte Daten (schema.org), damit Google das Turnier als Veranstaltung anzeigen kann.
+ * Nur mit festem Termin – „Frühjahr 2027“ hat ein Platzhalter-Datum und würde falsch angezeigt.
+ */
+function renderEventSchema(t) {
+    document.getElementById("eventSchema")?.remove();
+    const start = t.date_iso ? new Date(t.date_iso) : null;
+    if (!start || isNaN(start) || !/\d{1,2}\./.test(t.date_text || "")) return;
+
+    // Zweitägig, wenn ein Bewerb am Sonntag startet
+    const twoDays = (t.parsedBewerbe || []).some(b => /\bso\b|sonntag/i.test(b.time || ""));
+    const end = new Date(start);
+    end.setDate(end.getDate() + (twoDays ? 1 : 0));
+    end.setHours(20, 0, 0, 0);
+
+    const reg = registrationState(t);
+    const data = {
+        "@context": "https://schema.org",
+        "@type": "SportsEvent",
+        name: `${t.name} – Tischtennisturnier`,
+        sport: "Tischtennis",
+        description: t.subtitle || "RC-Ranglistenturnier des TTK Naturfreunde Stadlau in Wien-Donaustadt",
+        startDate: start.toISOString(),
+        endDate: end.toISOString(),
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        image: ["https://nfs-trophy.com/og-image.png"],
+        url: "https://nfs-trophy.com/",
+        location: {
+            "@type": "Place",
+            name: "TTK Naturfreunde Stadlau",
+            address: {
+                "@type": "PostalAddress",
+                streetAddress: "Erzherzog-Karl-Straße 108",
+                postalCode: "1220",
+                addressLocality: "Wien",
+                addressCountry: "AT",
+            },
+        },
+        organizer: { "@type": "Organization", name: "TTK Naturfreunde Stadlau", url: "https://nfs-trophy.com/" },
+        offers: {
+            "@type": "Offer",
+            price: String(t.fee_normal ?? DEFAULT_FEE_NORMAL),
+            priceCurrency: "EUR",
+            url: "https://nfs-trophy.com/#anmelden",
+            availability: reg.open ? "https://schema.org/InStock" : "https://schema.org/SoldOut",
+        },
+    };
+    const script = document.createElement("script");
+    script.type = "application/ld+json";
+    script.id = "eventSchema";
+    script.textContent = JSON.stringify(data);
+    document.head.appendChild(script);
 }
 
 /**
@@ -555,6 +617,14 @@ function showSuccessMessage(t, selected, waitlistBewerbe, form) {
         form.style.display = "grid";
         URL.revokeObjectURL(icsUrl);
     };
+}
+
+/** Statt „Noch keine Nennungen“ ehrlich sagen, dass der Nennstand gerade nicht geladen werden konnte */
+function showNennstandError() {
+    const grid = document.getElementById("standGrid");
+    if (grid) grid.innerHTML = `<div class="loading" style="grid-column:1/-1;">Der Nennstand kann gerade nicht geladen werden. Bitte lade die Seite in ein paar Minuten neu.</div>`;
+    const meta = document.getElementById("standMeta");
+    if (meta) meta.textContent = "";
 }
 
 function renderNennstand(t, regs) {

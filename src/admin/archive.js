@@ -171,7 +171,7 @@ export async function uploadErgebnisPdf() {
             throwIfError(await supabase.from('ergebnisse').insert({
                 tournament_id: tId, label, path: uploadData.path, file_name: file.name
             }));
-            document.getElementById('ergLabel').value = '';
+            document.getElementById('ergLabel').value = 'Ergebnisse PDF';
             fileInput.value = '';
             await loadArchivData();
             showToast('PDF hochgeladen');
