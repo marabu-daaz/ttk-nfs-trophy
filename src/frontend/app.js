@@ -166,7 +166,9 @@ function renderHero(t) {
     if (heroTitle) heroTitle.innerHTML = `<span class="t-part">${esc(cleanName)}</span><br class="t-br"> <em class="t-part">Trophy</em>`;
 
     const heroTagline = document.getElementById("heroTagline");
-    if (heroTagline && t.subtitle) heroTagline.textContent = t.subtitle;
+    // Wörter mit Bindestrich (z.B. „Wien-Donaustadt“) nicht auseinanderbrechen
+    const keepHyphens = text => esc(text).replace(/\S+-\S+/g, w => `<span class="t-part">${w}</span>`);
+    if (heroTagline) heroTagline.innerHTML = keepHyphens(t.subtitle || heroTagline.textContent.trim());
 
     const aus = document.getElementById("heroAusschreibung");
     if (aus && t.ausschreibung_path) {
