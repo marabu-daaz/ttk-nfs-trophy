@@ -77,6 +77,7 @@ async function init() {
         showToast('Fehler beim Laden der Daten.', true);
         document.getElementById("archiveList").innerHTML = '<div class="loading">Das Archiv kann gerade nicht geladen werden. Bitte versuche es später noch einmal.</div>';
         showNennstandError();
+        document.getElementById("heroPhotoWrap")?.remove();
         const heroDate = document.getElementById("heroDate");
         if (heroDate) heroDate.textContent = "Wien";
     }
@@ -242,14 +243,15 @@ function toggleSection(sectionId, visible) {
 
 /** Titelfoto (im Admin pro Turnier): rechts im Kopfbereich, Countdown als Karte darunter */
 function renderHeroPhoto(path) {
-    const box = document.querySelector('.hero-grid .countdown-box');
+    const wrap = document.getElementById('heroPhotoWrap');
+    if (!wrap) return;
     const src = path ? publicFotoUrl(path) : null;
-    if (!box || !src || box.closest('.hero-visual')) return;
-    const wrap = document.createElement('div');
-    wrap.className = 'hero-visual';
-    wrap.innerHTML = `<div class="hero-photo-wrap"><img class="hero-photo" src="${esc(src)}" alt="Siegerehrung bei der NFS Trophy" fetchpriority="high" decoding="async"></div>`;
-    box.before(wrap);
-    wrap.appendChild(box);
+    if (!src) {
+        wrap.remove();   // kein Foto: nur der Countdown
+        return;
+    }
+    if (wrap.querySelector('img')) return;
+    wrap.innerHTML = `<img class="hero-photo" src="${esc(src)}" alt="Siegerehrung bei der NFS Trophy" fetchpriority="high">`;
     document.querySelector('header.hero')?.classList.add('has-photo');
 }
 
@@ -280,7 +282,7 @@ function renderTurnierInfo(t) {
             const src = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
             if (!src) return '';
             const name = String(s.name || '').trim();
-            const img = `<img src="${esc(src)}" alt="${esc(name || 'Sponsor')}" loading="lazy">`;
+            const img = `<img src="${esc(src)}" alt="${esc(name || 'Sponsor')}" decoding="async">`;   // nicht lazy: kleiner Bereich, soll sicher erscheinen
             const link = safeUrl(s.link);
             return link
                 ? `<a class="sponsor-link" href="${esc(link)}" target="_blank" rel="noreferrer"${name ? ` title="${esc(name)}"` : ''}>${img}</a>`

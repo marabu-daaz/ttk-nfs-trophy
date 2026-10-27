@@ -27,7 +27,10 @@
     <meta name="twitter:image" content="https://nfs-trophy.com/og-image.png" />
 
     <!-- Theme-Farbe für Handy-Browserleiste -->
-    <meta name="theme-color" content="#0a1f14" />
+    <meta name="theme-color" content="#dce5de" />
+    <!-- Verbindungen früh aufbauen: Daten/Titelfoto (Supabase), Bibliothek (esm.sh) -->
+    <link rel="preconnect" href="https://amjvuowsufiecsaentdn.supabase.co" crossorigin />
+    <link rel="preconnect" href="https://esm.sh" crossorigin />
     <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="stylesheet" href="/styles/fonts.css" />
     <!-- CSS Imports -->
@@ -74,7 +77,10 @@
                     <a href="#" class="btn disabled" id="heroAusschreibung">Ausschreibung folgt</a>
                 </div>
             </div>
-            <div class="countdown-box fade">
+            <div class="hero-visual fade">
+            <!-- Platz fürs Titelfoto (im Admin pro Turnier) ist reserviert → kein Layout-Sprung -->
+            <div class="hero-photo-wrap" id="heroPhotoWrap"></div>
+            <div class="countdown-box">
                 <div class="cap mono" id="cdCap">Bis Turnierstart</div>
                 <div class="countdown">
                     <div class="cd-item">
@@ -94,6 +100,7 @@
                         <div class="cd-lbl">Sek</div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
     </header>
@@ -285,21 +292,21 @@
             <div class="current-files" style="margin-top: 20px;">
                 <!-- Livestream Tisch 1 -->
                 <div class="file-card">
-                    <div class="k mono">📺 Livestream</div>
+                    <div class="k mono"><span class="live-dot" aria-hidden="true"></span>Livestream</div>
                     <h3>Tisch 1</h3>
                     <a href="https://www.ttk-naturfreunde-stadlau.at/nfs-livecam-1/" target="_blank" rel="noreferrer"
                         class="btn" style="align-self:flex-start;">
-                        📺 Zum Livestream
+                        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Zum Livestream
                     </a>
                 </div>
 
                 <!-- Livestream Tisch 5 -->
                 <div class="file-card">
-                    <div class="k mono">📺 Livestream</div>
+                    <div class="k mono"><span class="live-dot" aria-hidden="true"></span>Livestream</div>
                     <h3>Tisch 5</h3>
                     <a href="https://www.ttk-naturfreunde-stadlau.at/nfs-livecam-2/" target="_blank" rel="noreferrer"
                         class="btn" style="align-self:flex-start;">
-                        📺 Zum Livestream
+                        <svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>Zum Livestream
                     </a>
                 </div>
             </div>
@@ -397,12 +404,12 @@
                         referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 </div>
                 <a href="https://maps.app.goo.gl/AcA5HV328tivPEsi6" target="_blank" rel="noreferrer" class="btn"
-                    style="width:100%;text-align:center;">📍 Route planen</a>
+                    style="width:100%;text-align:center;"><svg class="btn-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a7 7 0 0 0-7 7c0 5.25 7 13 7 13s7-7.75 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>Route planen</a>
             </div>
         </div>
     </section>
 
-    <section class="block" id="impressum" style="border-bottom:none;padding-top:0;">
+    <section class="block" id="impressum">
         <div class="wrap">
             <div class="archive-header" id="impressumHeader"
                 style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
@@ -439,7 +446,7 @@
         </div>
     </section>
 
-    <section class="block" id="datenschutz" style="border-bottom:none;padding-top:0;">
+    <section class="block" id="datenschutz">
         <div class="wrap">
             <div class="archive-header" id="datenschutzHeader"
                 style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
