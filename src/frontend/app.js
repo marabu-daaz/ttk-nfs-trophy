@@ -1161,17 +1161,6 @@ document.querySelectorAll("#navList a").forEach(a => {
     });
 });
 
-// Google-Karte erst auf Wunsch laden
-document.getElementById("mapLoadBtn")?.addEventListener("click", () => {
-    const wrap = document.getElementById("mapWrap");
-    const iframe = document.createElement("iframe");
-    iframe.src = wrap.dataset.src;
-    iframe.title = "Karte: TTK Naturfreunde Stadlau";
-    iframe.allowFullscreen = true;
-    iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    wrap.replaceChildren(iframe);
-});
-
 // Jahr im Footer
 document.getElementById("year").textContent = new Date().getFullYear();
 

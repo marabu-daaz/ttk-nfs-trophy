@@ -983,24 +983,6 @@ aside.side .side-manage a:hover span {
     filter: invert(.92) hue-rotate(180deg) saturate(.6) brightness(.95);
 }
 
-.map-consent {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    padding: 20px;
-    text-align: center;
-}
-
-.map-consent p {
-    max-width: 340px;
-    font-size: 12px;
-    line-height: 1.5;
-    color: var(--muted);
-}
-
 /* Tastaturfokus sichtbar (Aufklapp-Bereiche, Galerie, Buttons) */
 [role="button"]:focus-visible,
 a:focus-visible,

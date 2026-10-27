@@ -387,13 +387,12 @@
             <div class="venue">
                 <h3>Anfahrt</h3>
                 <p class="addr">TTK Naturfreunde Stadlau<br>Erzherzog-Karl-Straße 108<br>1220 Wien, Österreich</p>
-                <!-- Google Maps erst nach Klick laden (vorher keine Daten an Google) -->
-                <div class="map-wrap" id="mapWrap"
-                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2657.7726993655133!2d16.44824751318765!3d48.230251271133916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476d01dd8fc6e50d%3A0x121a67df7cba7c6e!2sTTK%20Naturfreunde%20Stadlau!5e0!3m2!1sde!2sat!4v1788207890148!5m2!1sde!2sat">
-                    <div class="map-consent">
-                        <button type="button" class="btn" id="mapLoadBtn">Karte anzeigen</button>
-                        <p>Beim Anzeigen wird die Karte von Google Maps geladen. Dabei werden Daten (z.&nbsp;B. deine IP-Adresse) an Google übermittelt.</p>
-                    </div>
+                <div class="map-wrap">
+                    <iframe
+                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2657.7726993655133!2d16.44824751318765!3d48.230251271133916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476d01dd8fc6e50d%3A0x121a67df7cba7c6e!2sTTK%20Naturfreunde%20Stadlau!5e0!3m2!1sde!2sat!4v1788207890148!5m2!1sde!2sat"
+                        width="400" height="300" style="border:0;" allowfullscreen="" loading="lazy"
+                        title="Karte: TTK Naturfreunde Stadlau"
+                        referrerpolicy="strict-origin-when-cross-origin"></iframe>
                 </div>
                 <a href="https://maps.app.goo.gl/AcA5HV328tivPEsi6" target="_blank" rel="noreferrer" class="btn"
                     style="width:100%;text-align:center;">📍 Route planen</a>
@@ -499,10 +498,10 @@
                 <div class="imp-block">
                     <div class="k mono">Hosting & externe Inhalte</div>
                     <p>Die Website wird bei Netlify (Netlify, Inc., USA) gehostet; beim Aufruf verarbeitet der Server
-                        technisch notwendige Daten wie die IP-Adresse. Schriftarten werden von unserem eigenen Server
-                        geladen, nicht von Google. Die Karte von Google Maps wird erst angezeigt, wenn du auf „Karte
-                        anzeigen“ klickst – erst dann werden Daten an Google übermittelt. Links zu Livestreams und
-                        zum ÖTTV-Ergebnissystem führen auf externe Seiten mit eigenen Datenschutzbestimmungen.</p>
+                        technisch notwendige Daten wie die IP-Adresse. Im Bereich „Anfahrt“ ist eine Karte von Google Maps
+                        (Google Ireland Ltd.) eingebunden; beim Laden der Karte werden Daten wie deine IP-Adresse an
+                        Google übermittelt. Links zu Livestreams und zum ÖTTV-Ergebnissystem führen auf externe Seiten
+                        mit eigenen Datenschutzbestimmungen.</p>
                 </div>
                 <div class="imp-block">
                     <div class="k mono">Fotos & Videos</div>
