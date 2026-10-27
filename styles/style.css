@@ -3514,3 +3514,45 @@ footer .meta a:hover {
         grid-row: auto;
     }
 }
+
+/* Handy: Titel in einer Zeile, wenn Platz (Schrift wächst mit der Breite) */
+.t-part {
+    white-space: nowrap;
+}
+
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+    h1.title {
+        font-size: clamp(30px, 11.2vw, 66px) !important;
+    }
+
+    h1.title .t-br {
+        display: none;
+    }
+}
+
+/* Große Handys / Querformat: Nenngeld und „Schon genannt?“ nebeneinander (Desktop unverändert) */
+@media (min-width: 600px) and (max-width: 760px), (pointer: coarse) and (min-width: 600px) and (max-width: 1100px) {
+    aside.side {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+        column-gap: 0;
+        align-items: start;
+    }
+
+    aside.side>* {
+        grid-column: 1;
+        padding-right: 28px;
+    }
+
+    aside.side .side-manage {
+        grid-column: 2;
+        grid-row: 1 / span 10;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        border-top: none !important;
+        padding-left: 28px;
+        padding-right: 0;
+        border-left: 1px solid var(--hair);
+        align-self: stretch;
+    }
+}

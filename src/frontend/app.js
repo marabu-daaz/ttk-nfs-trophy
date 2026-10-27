@@ -162,7 +162,8 @@ function renderHero(t) {
 
     const cleanName = (t.name || "NFS").replace(/\s*[-–—\s]\s*Trophy/i, "").trim();
     const heroTitle = document.getElementById("heroTitle");
-    if (heroTitle) heroTitle.innerHTML = esc(cleanName) + '<br><em>Trophy</em>';
+    // Desktop: zwei Zeilen; Handy: eine Zeile, falls Platz (Umbruch nur zwischen Name und „Trophy“)
+    if (heroTitle) heroTitle.innerHTML = `<span class="t-part">${esc(cleanName)}</span><br class="t-br"> <em class="t-part">Trophy</em>`;
 
     const heroTagline = document.getElementById("heroTagline");
     if (heroTagline && t.subtitle) heroTagline.textContent = t.subtitle;
