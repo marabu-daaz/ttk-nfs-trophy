@@ -1389,19 +1389,19 @@ footer {
 }
 
 /* Sponsoren-Logos */
-.sponsor-link {
+.partner-logo {
     display: block;
     transition: transform 0.2s;
 }
 
-.sponsor-link img {
+.partner-logo img {
     max-height: 120px;
     max-width: 320px;
     opacity: 0.85;
     transition: opacity 0.3s;
 }
 
-.sponsor-link:hover img {
+.partner-logo:hover img {
     opacity: 1;
 }
 
@@ -2349,7 +2349,7 @@ footer .meta div {
 }
 
 /* ---------- Sponsoren ---------- */
-.sponsor-link img {
+.partner-logo img {
     display: block;
     height: 110px;
     width: auto;
@@ -2360,7 +2360,7 @@ footer .meta div {
     box-shadow: var(--shadow);
 }
 
-.sponsor-link:hover {
+.partner-logo:hover {
     transform: translateY(-2px);
 }
 
@@ -2411,4 +2411,22 @@ footer .meta div {
 .hero-photo-wrap .hero-photo {
     width: 100%;
     height: 100%;
+}
+
+/* ---------- Partner & Sponsoren: eigener dunkler Abschnitt (wie der Nennstand) ---------- */
+#partner {
+    background: var(--green-deep);
+    color: #fff;
+    padding: clamp(60px, 8vw, 110px) 0 !important;
+    --green-neon: #6fcf8c;
+    --green-soft: #6fcf8c;
+    --shadow: 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+#partner h2 {
+    color: #fff;
+}
+
+#partner .partner-logo img {
+    border: 1px solid rgba(255, 255, 255, .14);
 }

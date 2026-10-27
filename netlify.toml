@@ -57,6 +57,13 @@
     Cache-Control = "public, max-age=0, must-revalidate"
 
 # Interne Dateien nicht ausliefern
+# Partner-Logos über die eigene Domain (Werbeblocker sperren fremde „…/sponsoren/…“-Bilder)
+[[redirects]]
+  from = "/partner-logo/*"
+  to = "https://amjvuowsufiecsaentdn.supabase.co/storage/v1/object/public/sponsoren/:splat"
+  status = 200
+  force = true
+
 [[redirects]]
   from = "/supabase/*"
   to = "/404"

@@ -272,22 +272,29 @@ function renderTurnierInfo(t) {
         `).join("");
     }
 
-    // Sponsoren
-    const sponsorenGrid = document.getElementById("sponsorenGrid");
+    // Sponsoren (im Code „partner“: Werbeblocker blenden Elemente mit „sponsor“ im Namen oft aus)
+    const partnerGrid = document.getElementById("partnerGrid");
     const showSponsors = !!(tInfo.showSponsors && tInfo.sponsors && tInfo.sponsors.length > 0);
-    toggleSection("sponsoren", showSponsors);
-    if (showSponsors && sponsorenGrid) {
-        sponsorenGrid.innerHTML = tInfo.sponsors.map(s => {
-            // logoPath (Storage-Pfad) → public URL; Alt: logoUrl (externe URL)
-            const src = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
-            if (!src) return '';
+    toggleSection("partner", showSponsors);
+    if (showSponsors && partnerGrid) {
+        partnerGrid.innerHTML = tInfo.sponsors.map(s => {
+            // Logo über die eigene Domain (/partner-logo/…, Netlify-Weiterleitung) – kein fremder Server,
+            // kein „sponsoren“ in der Adresse. Rückfall: direkt vom Speicherdienst. Alt: logoUrl (externe URL)
+            const direct = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
+            if (!direct) return '';
+            const src = s.logoPath ? `/partner-logo/${encodeURIComponent(s.logoPath)}` : direct;
             const name = String(s.name || '').trim();
-            const img = `<img src="${esc(src)}" alt="${esc(name || 'Sponsor')}" decoding="async">`;   // nicht lazy: kleiner Bereich, soll sicher erscheinen
+            const img = `<img src="${esc(src)}" data-fallback="${esc(direct)}" alt="${esc(name || 'Partner')}">`;
             const link = safeUrl(s.link);
             return link
-                ? `<a class="sponsor-link" href="${esc(link)}" target="_blank" rel="noreferrer"${name ? ` title="${esc(name)}"` : ''}>${img}</a>`
-                : `<div class="sponsor-link">${img}</div>`;
+                ? `<a class="partner-logo" href="${esc(link)}" target="_blank" rel="noreferrer"${name ? ` title="${esc(name)}"` : ''}>${img}</a>`
+                : `<div class="partner-logo">${img}</div>`;
         }).join("");
+        partnerGrid.querySelectorAll("img[data-fallback]").forEach(img => {
+            img.addEventListener("error", () => {
+                if (img.src !== img.dataset.fallback) img.src = img.dataset.fallback;
+            }, { once: true });
+        });
     }
 
     if (tInfo.bewerbeHeadline) {
