@@ -11,6 +11,12 @@ Danach im Supabase-SQL-Editor ausführen (vorher supabase/players.sql).
 Pro Liste wird die Kopfzeile mit „Verein“ gesucht: links davon Nachname und
 Vorname, rechts die RC-Punkte, danach die Bewerbs-Spalten (z.B. „1250“, „offen“,
 „D2300“), die über die Bewerbsnamen des Turniers zugeordnet werden.
+
+Nennlisten enthalten auch Personen, die nicht gespielt haben (Warteliste, Absage).
+Liegt im Excel-Ordner eine Datei import-korrekturen.txt, werden diese ausgelassen
+bzw. Schreibweisen korrigiert. Format je Zeile:
+    Turnier | Nachname | Vorname | nicht gespielt
+    Turnier | Nachname | Vorname | -> Nachname, Vorname
 """
 
 import json
@@ -68,6 +74,30 @@ def text(v):
     return str(v).strip()
 
 
+def clean_vorname(v):
+    """„Rudolf, jun.“ → „Rudolf jun.“ (einheitlich, damit es eine Person bleibt)"""
+    return re.sub(r",\s*(jun|sen)\.?$", r" \1.", v.strip())
+
+
+def load_corrections(path):
+    """import-korrekturen.txt → {(turnier, nachname, vorname): None (auslassen) | (nachname, vorname)}"""
+    out = {}
+    if not path.exists():
+        return out
+    for line in path.read_text(encoding="utf-8").splitlines():
+        parts = [p.strip() for p in line.split("|")]
+        if line.lstrip().startswith("#") or len(parts) != 4:
+            continue
+        turnier, nach, vor, action = parts
+        key = (turnier, nach.lower(), clean_vorname(vor).lower())
+        if action.startswith("->"):
+            new_nach, new_vor = [s.strip() for s in action[2:].split(",", 1)]
+            out[key] = (new_nach, new_vor)
+        else:
+            out[key] = None
+    return out
+
+
 def map_bewerb(header, bewerbe):
     """Spaltenkopf („1250“, „offen“, „D2300“, „E offen“) → Bewerbsname des Turniers."""
     h = header.lower().replace(" ", "")
@@ -117,7 +147,7 @@ def parse_sheet(ws, bewerbe):
     for r in rows[head_idx + 1:]:
         cells = [text(c) for c in r] + [""] * len(head)
         for v, cols, partner, end in blocks:
-            nach, vor, verein, rc = cells[v - 2], cells[v - 1], cells[v], cells[v + 1]
+            nach, vor, verein, rc = cells[v - 2], clean_vorname(cells[v - 1]), cells[v], cells[v + 1]
             if not nach or not vor or nach.lower() in ("name", "summe", "gesamt"):
                 continue
             if re.fullmatch(r"[\d.,]+", nach) or re.fullmatch(r"[\d.,]+", vor):
@@ -152,6 +182,8 @@ def main():
         sys.exit("Die Ausgabe enthält Personendaten und darf nicht im Repository liegen.")
 
     tournaments = load_tournaments()
+    corrections = load_corrections(base / "import-korrekturen.txt")
+    used = set()
     lines = [
         "-- Import alter Nennlisten in die Spielerdatenbank (erzeugt von tools/import_players.py)",
         "-- Enthält Personendaten – nicht weitergeben, nach dem Import löschen.",
@@ -177,8 +209,21 @@ def main():
                 cur["bewerbe"] = sorted(set(cur["bewerbe"]) | set(p["bewerbe"]))
                 for f in ("verein", "rc", "email"):
                     cur[f] = cur[f] or p[f]
+        # Korrekturen anwenden (nicht gespielt → weg, Tippfehler → richtiger Name)
+        skipped = 0
+        for k in list(people):
+            ck = (tname, k[0], k[1])
+            if ck not in corrections:
+                continue
+            used.add(ck)
+            if corrections[ck] is None:
+                del people[k]
+                skipped += 1
+            else:
+                people[k]["nachname"], people[k]["vorname"] = corrections[ck]
         no_bewerb = sum(1 for p in people.values() if not p["bewerbe"])
-        print(f"{tname:20} {len(people):4} Personen  ({rel}; Blätter: {', '.join(f'{s}={len(v)}' for s, v in per_sheet.items())}; ohne Bewerb: {no_bewerb})")
+        print(f"{tname:20} {len(people):4} Personen  ({rel}; Blätter: {', '.join(f'{s}={len(v)}' for s, v in per_sheet.items())}; "
+              f"ohne Bewerb: {no_bewerb}; nicht gespielt: {skipped})")
         if len(per_sheet) > 1:
             all_keys = set().union(*per_sheet.values())
             for s, keys in per_sheet.items():
@@ -192,6 +237,8 @@ def main():
                 f"{sql_str(p['verein'])}, {p['rc'] if p['rc'] is not None else 'null'}, {sql_str(p['email'])}, {sql_arr(p['bewerbe'])});"
             )
         total += len(people)
+    for ck in sorted(set(corrections) - used):
+        print(f"!! Korrektur ohne Treffer: {' | '.join(ck)}")
     lines += ["\ncommit;", "", "select count(*) as spieler, (select count(*) from public.player_entries) as teilnahmen from public.players;"]
     target.write_text("\n".join(lines) + "\n", encoding="utf-8")
     print(f"\n{total} Teilnahmen → {target}")
