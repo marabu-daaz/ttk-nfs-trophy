@@ -1756,11 +1756,7 @@ footer {
         align-items: center;
     }
 
-    /* Bestenliste & Footer: größere Tippflächen */
-    .rek-toggle {
-        min-height: 44px;
-        align-items: center !important;
-    }
+    /* Footer: größere Tippflächen */
 
     footer a {
         display: inline-block;
@@ -2253,17 +2249,6 @@ aside.side {
     border-radius: 10px;
 }
 
-#rekordeGrid>div {
-    background: var(--card) !important;
-    border-color: var(--hair) !important;
-    border-radius: var(--radius) !important;
-    box-shadow: var(--shadow);
-}
-
-#rekordeGrid li {
-    border-bottom-color: var(--hair) !important;
-}
-
 /* ---------- Kontakt ---------- */
 .cblock .k {
     color: var(--brand);
@@ -2429,4 +2414,207 @@ footer .meta div {
 
 #partner .partner-logo img {
     border: 1px solid rgba(255, 255, 255, .14);
+}
+
+/* ---------- Ewige Bestenliste (Hall of Fame) ---------- */
+.hof-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.hof-stat {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px;
+}
+
+.hof-stat .k {
+    color: var(--brand);
+    font-weight: 600;
+    font-size: 11px;
+}
+
+.hof-stat .v {
+    margin-top: 8px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+}
+
+.hof-stat .n {
+    margin-top: 4px;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.hof-table {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+}
+
+.hof-row {
+    display: grid;
+    grid-template-columns: 64px 1fr 72px 72px 72px;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+}
+
+.hof-head {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    border-bottom: 1px solid var(--hair);
+    background: var(--paper);
+}
+
+.hof-entry+.hof-entry {
+    border-top: 1px solid var(--hair);
+}
+
+.hof-entry>summary {
+    list-style: none;
+    cursor: pointer;
+}
+
+.hof-entry>summary::-webkit-details-marker {
+    display: none;
+}
+
+.hof-entry>summary:hover,
+.hof-entry[open]>summary {
+    background: var(--paper);
+}
+
+.hof-entry>summary:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+}
+
+.hof-rank {
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-weight: 700;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-2);
+    background: var(--paper);
+}
+
+.hof-rank.r1 {
+    background: #e0b93a;   /* Gold */
+    color: #10231a;
+}
+
+.hof-rank.r2 {
+    background: #c4ccd2;   /* Silber */
+    color: #10231a;
+}
+
+.hof-rank.r3 {
+    background: #94582a;   /* Bronze */
+    color: #fff;
+}
+
+.hof-name {
+    font-weight: 600;
+    color: var(--ink);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.hof-num {
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+    color: var(--ink);
+}
+
+.hof-head .hof-num {
+    font-weight: 600;
+    color: var(--ink-3);
+}
+
+.hof-detail {
+    list-style: none;
+    margin: 0;
+    padding: 4px 20px 16px 92px;
+    display: grid;
+    gap: 6px;
+    font-size: 14px;
+    color: var(--ink);
+}
+
+.hof-detail .place {
+    display: inline-block;
+    min-width: 128px;
+    margin-right: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--brand);
+}
+
+.hof-detail .place.p1 {
+    color: #7a5f0a;
+}
+
+.hof-detail .muted {
+    color: var(--ink-3);
+}
+
+.hof-more {
+    display: block;
+    margin: 20px auto 0;
+}
+
+.hof-note {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--ink-3);
+    text-align: center;
+}
+
+@media (max-width: 760px) {
+    .hof-stats {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .hof-stat {
+        padding: 16px 18px;
+    }
+
+    .hof-row {
+        grid-template-columns: 44px 1fr 44px 50px 44px;
+        gap: 4px;
+        padding: 12px 12px;
+    }
+
+    .hof-head {
+        font-size: 10px;
+        letter-spacing: .06em;
+    }
+
+    .hof-detail {
+        padding: 4px 14px 14px 60px;
+    }
+
+    .hof-detail .place {
+        display: block;
+        min-width: 0;
+    }
 }

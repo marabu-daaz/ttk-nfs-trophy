@@ -89,7 +89,6 @@ async function init() {
 function setupImpressumToggle() {
     setupAccordion('impressumHeader', 'impressumContent', 'impressumIcon', 'footerImpressumLink', 'impressum');
     setupAccordion('datenschutzHeader', 'datenschutzContent', 'datenschutzIcon', 'footerDatenschutzLink', 'datenschutz');
-    setupAccordion('rekordeHeader', 'rekordeContent', 'rekordeIcon', null, 'rekorde');
 }
 
 /**
@@ -1084,188 +1083,122 @@ function renderRekorde(tournaments) {
     if (!container) return;
 
     const stats = {};
+    let tournamentsWithResults = 0;
 
-    // 1. Alle Turniere durchgehen und Daten aggregieren
+    // 1. Alle Turniere durchgehen und Erfolge je Spieler sammeln
     tournaments.forEach(t => {
-        if (!t.hall_of_fame) return;
-
+        if (!t.hall_of_fame || !Object.keys(t.hall_of_fame).length) return;
+        tournamentsWithResults++;
         const tName = t.name || "NFS Trophy";
-        const bewerbe = parseBewerbe(t);
 
-        bewerbe.forEach((b, i) => {
+        parseBewerbe(t).forEach((b, i) => {
             const bewerb = t.hall_of_fame[b.name];
             if (!bewerb) return;
 
-            // --- SMARTE GEWICHTUNG (inkl. Doppel-Fix) ---
+            // Gewichtung für Gleichstände: offene Klasse > hohe RC-Grenze > niedrige (Doppel/Team halbiert)
             let weight = 0;
             const lowerName = b.name.toLowerCase();
-
             if (lowerName.includes('offen')) {
                 weight = 10000;
             } else if (lowerName.includes('bis')) {
                 const match = lowerName.match(/bis\s*(\d+)/);
                 if (match) {
                     weight = parseInt(match[1], 10);
-                    // Bei Doppel/Team-Bewerben den RC-Wert für die Gewichtung halbieren
-                    if (lowerName.includes('doppel') || lowerName.includes('team')) {
-                        weight = Math.floor(weight / 2);
-                    }
+                    if (lowerName.includes('doppel') || lowerName.includes('team')) weight = Math.floor(weight / 2);
                 }
             } else {
                 const match = lowerName.match(/\d+/);
                 weight = match ? parseInt(match[0], 10) : (i + 1);
             }
 
-            const addStat = (rawName, type, placeText) => {
-                if (!rawName || rawName.trim() === '') return;
-
-                const nameWithoutClubs = rawName.replace(/\([^)]*\)/g, '').trim();
-                const names = nameWithoutClubs.split('/');
-
-                names.forEach(namePart => {
-                    const n = namePart.trim();
-                    if (!n) return;
-
-                    if (!stats[n]) {
-                        stats[n] = {
-                            name: n,
-                            wins: 0, podiums: 0, trost: 0,
-                            tbWins: 0, tbPodiums: 0, tbTrost: 0,
-                            detailsWin: [], detailsPodium: [], detailsTrost: []
-                        };
-                    }
-
-                    const detailStr = `${tName}: ${b.name} ${placeText}`;
-
-                    if (type === 'win') {
-                        stats[n].wins++;
-                        stats[n].tbWins += weight;
-                        stats[n].detailsWin.push(detailStr);
-
-                        stats[n].podiums++;
-                        stats[n].tbPodiums += weight;
-                        stats[n].detailsPodium.push(detailStr);
-                    } else if (type === 'podium') {
-                        stats[n].podiums++;
-                        stats[n].tbPodiums += weight;
-                        stats[n].detailsPodium.push(detailStr);
-                    } else if (type === 'trost') {
-                        stats[n].trost++;
-                        stats[n].tbTrost += weight;
-                        stats[n].detailsTrost.push(detailStr);
-                    }
+            const add = (rawName, place) => {
+                if (!rawName || !rawName.trim()) return;
+                // Klubkürzel weg, Doppel/Team („A / B“) einzeln zählen
+                rawName.replace(/\([^)]*\)/g, '').split('/').map(s => s.trim()).filter(Boolean).forEach(n => {
+                    const p = stats[n] ||= { name: n, wins: 0, podiums: 0, trost: 0, weight: 0, items: [] };
+                    if (place === 1) p.wins++;
+                    if (place >= 1 && place <= 3) p.podiums++;
+                    if (place === 'T') p.trost++;
+                    p.weight += place === 1 ? weight * 3 : place === 'T' ? 0 : weight;
+                    p.items.push({ tournament: tName, bewerb: b.name, place });
                 });
             };
-
-            addStat(bewerb.p1, 'win', '(1. Platz)');
-            addStat(bewerb.p2, 'podium', '(2. Platz)');
-            // p3 ist das alte Feld, p3_1 das neue – nur eines zählen, sonst doppelt
-            addStat(bewerb.p3_1 || bewerb.p3, 'podium', '(3. Platz)');
-            addStat(bewerb.p3_2, 'podium', '(3. Platz)');
-            addStat(bewerb.trost, 'trost', '');
+            add(bewerb.p1, 1);
+            add(bewerb.p2, 2);
+            add(bewerb.p3_1 || bewerb.p3, 3);   // p3 ist das alte Feld – nur eines zählen
+            add(bewerb.p3_2, 3);
+            add(bewerb.trost, 'T');
         });
     });
 
     const players = Object.values(stats);
+    if (!players.length) {
+        container.innerHTML = '<div class="loading">Noch keine Ergebnisse hinterlegt.</div>';
+        return;
+    }
 
-    // 2. Intelligente Gruppierungs- & Render-Funktion
-    const renderGroupedList = (key, tbKey, detailKey) => {
-        const sorted = [...players]
-            .filter(p => p[key] > 0)
-            .sort((a, b) => b[key] - a[key] || b[tbKey] - a[tbKey] || a.name.localeCompare(b.name));
+    // 2. Rangliste: Titel, dann Podestplätze, dann Trostbewerb-Siege; gleiche Bilanz = gleicher Rang
+    const sorted = players.sort((a, b) =>
+        b.wins - a.wins || b.podiums - a.podiums || b.trost - a.trost || b.weight - a.weight || a.name.localeCompare(b.name, 'de'));
+    let rank = 0;
+    sorted.forEach((p, i) => {
+        const prev = sorted[i - 1];
+        if (!prev || prev.wins !== p.wins || prev.podiums !== p.podiums || prev.trost !== p.trost) rank = i + 1;
+        p.rank = rank;
+    });
 
-        if (sorted.length === 0) return `<div style="color:var(--text-muted); font-size:14px; margin-top:10px;">Noch keine Daten</div>`;
-
-        const groups = [];
-        let currentScore = -1;
-
-        sorted.forEach(p => {
-            if (p[key] !== currentScore) {
-                currentScore = p[key];
-                groups.push({ score: currentScore, players: [p] });
-            } else {
-                groups[groups.length - 1].players.push(p);
-            }
-        });
-
-        let htmlRows = [];
-        const maxGroups = 5;
-
-        for (let i = 0; i < Math.min(groups.length, maxGroups); i++) {
-            const group = groups[i];
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `<span style="display:inline-block; width:16px; text-align:center; color:var(--text-muted); font-size:12px;">${i + 1}.</span>`;
-
-            let namesText = "";
-            if (group.players.length <= 3) {
-                namesText = group.players.map(p => esc(p.name)).join(', ');
-            } else {
-                namesText = group.players.slice(0, 2).map(p => esc(p.name)).join(', ') +
-                    ` <span style="color:var(--text-muted); font-weight:normal; font-size:13px;">+ ${group.players.length - 2} weitere</span>`;
-            }
-
-            // --- Bessere visuelle Trennung der Details ---
-            let detailsHtml = group.players.map((p, idx) => {
-                const winsList = p[detailKey].map(d => `
-                    <div style="padding-left:14px; position:relative; margin-top:6px; color:var(--text-muted); font-size:13px;">
-                        <span style="position:absolute; left:0; top:1px; color:var(--accent); font-size:14px;">▸</span>${esc(d)}
-                    </div>`).join('');
-
-                // Füge eine dezente Linie unter jedem Spieler ein (außer beim letzten)
-                const borderBottom = idx < group.players.length - 1 ? 'border-bottom:1px dashed rgba(255,255,255,0.08); padding-bottom:14px;' : '';
-
-                return `
-                    <div style="margin-bottom:14px; ${borderBottom}">
-                        <div style="font-weight:700; color:var(--text-main); font-family:'Archivo'; font-size:14px; text-transform:uppercase; letter-spacing:0.03em;">${esc(p.name)}</div>
-                        ${winsList}
-                    </div>`;
-            }).join('');
-
-            htmlRows.push(`
-                <li style="font-size:15px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div class="rek-toggle" style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;">
-                        <span style="line-height:1.4; user-select:none;">${medal} <strong style="margin-left:8px;">${namesText}</strong></span>
-                        <span style="display:flex; align-items:center; gap:10px; user-select:none;">
-                            <span style="color:var(--accent); font-weight:600; font-family:'Archivo'; white-space:nowrap;">${group.score} x</span>
-                            <span class="toggle-icon" style="color:var(--text-muted); font-size:10px; width:12px; text-align:center;">▶</span>
-                        </span>
-                    </div>
-                    <div style="display:none; margin-top:12px; padding:16px; background:var(--bg-body); border:1px solid var(--border); border-radius:8px; max-height:280px; overflow-y:auto; line-height:1.5;">
-                        ${detailsHtml}
-                    </div>
-                </li>
-            `);
-        }
-        return `<ul style="list-style:none; padding:0; margin:15px 0 0 0; display:flex; flex-direction:column; gap:10px;">${htmlRows.join('')}</ul>`;
+    // 3. Kennzahlen
+    const leaders = (key) => {
+        const max = Math.max(...players.map(p => p[key]));
+        return { max, names: players.filter(p => p[key] === max).map(p => p.name) };
     };
+    const namesText = (names) => names.length <= 2 ? names.join(' & ') : `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
+    const topWins = leaders('wins');
+    const topPodiums = leaders('podiums');
+    const winners = players.filter(p => p.wins > 0).length;
 
-    // 3. Container füllen
+    const tile = (label, value, foot) => `
+        <div class="hof-stat">
+            <div class="k mono">${label}</div>
+            <div class="v">${esc(value)}</div>
+            <div class="n">${esc(foot)}</div>
+        </div>`;
+
+    const placeLabel = { 1: '1. Platz', 2: '2. Platz', 3: '3. Platz', T: 'Sieg Trostbewerb' };
+    const VISIBLE = 10;
+    const row = (p, i) => `
+        <details class="hof-entry${i >= VISIBLE ? ' hof-extra' : ''}"${i >= VISIBLE ? ' hidden' : ''}>
+            <summary class="hof-row">
+                <span class="hof-rank${p.rank <= 3 ? ` r${p.rank}` : ''}">${p.rank}</span>
+                <span class="hof-name">${esc(p.name)}</span>
+                <span class="hof-num">${p.wins || '–'}</span>
+                <span class="hof-num">${p.podiums || '–'}</span>
+                <span class="hof-num">${p.trost || '–'}</span>
+            </summary>
+            <ul class="hof-detail">
+                ${p.items.map(it => `<li><span class="place p${it.place}">${placeLabel[it.place]}</span>${esc(it.bewerb)} <span class="muted">· ${esc(it.tournament)}</span></li>`).join('')}
+            </ul>
+        </details>`;
+
     container.innerHTML = `
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:24px;">
-            <h3 style="color:var(--accent); font-family:'Archivo'; font-size:20px; margin-bottom:5px;">🏆 Turniersiege</h3>
-            <p style="font-size:12px; color:var(--text-muted);">Hauptbewerb</p>
-            ${renderGroupedList('wins', 'tbWins', 'detailsWin')}
+        <div class="hof-stats">
+            ${tile('Rekordsieger', namesText(topWins.names), `${topWins.max} ${topWins.max === 1 ? 'Turniersieg' : 'Turniersiege'}`)}
+            ${tile('Meiste Podestplätze', namesText(topPodiums.names), `${topPodiums.max}× unter den besten drei`)}
+            ${tile('Verschiedene Sieger', String(winners), `aus ${tournamentsWithResults} ${tournamentsWithResults === 1 ? 'Turnier' : 'Turnieren'}`)}
         </div>
-
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:24px;">
-            <h3 style="color:var(--accent); font-family:'Archivo'; font-size:20px; margin-bottom:5px;">⭐ Podestplätze</h3>
-            <p style="font-size:12px; color:var(--text-muted);">Hauptbewerb</p>
-            ${renderGroupedList('podiums', 'tbPodiums', 'detailsPodium')}
+        <div class="hof-table">
+            <div class="hof-row hof-head" aria-hidden="true">
+                <span>Rang</span><span>Spieler</span><span class="hof-num">Titel</span><span class="hof-num">Podest</span><span class="hof-num">Trost</span>
+            </div>
+            ${sorted.map(row).join('')}
         </div>
+        ${sorted.length > VISIBLE ? `<button type="button" class="btn hof-more" id="hofMore">Alle ${sorted.length} Spieler anzeigen</button>` : ''}
+        <p class="hof-note">Titel = Turniersiege · Podest = Plätze 1 bis 3 · Trost = Siege im Trostbewerb. Antippen zeigt die einzelnen Erfolge.</p>`;
 
-        <div style="background:rgba(255,255,255,0.02); border:1px solid var(--border); border-radius:8px; padding:24px;">
-            <h3 style="color:var(--accent); font-family:'Archivo'; font-size:20px; margin-bottom:5px;">🛡️ Trostbewerb-Siege</h3>
-            <p style="font-size:12px; color:var(--text-muted);">Trostbewerb</p>
-            ${renderGroupedList('trost', 'tbTrost', 'detailsTrost')}
-        </div>
-    `;
-
-    container.querySelectorAll('.rek-toggle').forEach(row => makeToggle(row, () => {
-        const details = row.nextElementSibling;
-        const open = details.style.display === 'none';
-        details.style.display = open ? 'block' : 'none';
-        row.querySelector('.toggle-icon').textContent = open ? '▼' : '▶';
-        return open;
-    }));
+    document.getElementById('hofMore')?.addEventListener('click', e => {
+        container.querySelectorAll('.hof-extra').forEach(el => { el.hidden = false; });
+        e.currentTarget.remove();
+    });
 }
 
 // ==========================================

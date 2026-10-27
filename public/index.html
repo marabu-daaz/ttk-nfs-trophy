@@ -328,25 +328,14 @@
 
     <section class="block" id="rekorde">
         <div class="wrap">
-            <div class="archive-header" id="rekordeHeader"
-                style="cursor:pointer; display:flex; justify-content:space-between; align-items:center; border-bottom:none; transition: all 0.2s;">
-                <div class="sec-head" style="margin-bottom:0;">
-                    <div class="eyebrow mono">Ewige Bestenliste</div>
-                    <h2
-                        style="margin-bottom:0; font-size: clamp(2rem, 5vw, 3.4rem); text-transform: uppercase; letter-spacing: -0.03em; line-height: 1.1;">
-                        <span class="toggle-icon" id="rekordeIcon"
-                            style="font-size:16px; color:var(--green-neon); vertical-align: middle; margin-right: 10px;">▶</span>
-                        Die Rekord-<em style="font-style: normal; color: var(--green-soft);">Halter</em>
-                    </h2>
-                    <p style="margin-top: 12px; color: var(--muted); font-size: 17px; line-height: 1.6;">Die
-                        erfolgreichsten Spieler über alle bisherigen Ausgaben der NFS Trophy.</p>
-                </div>
+            <div class="sec-head">
+                <div class="eyebrow mono">Hall of Fame · seit 2018</div>
+                <h2>Ewige<br><em>Bestenliste</em></h2>
+                <p>Die erfolgreichsten Spielerinnen und Spieler aller bisherigen NFS Trophys – gewertet nach
+                    Turniersiegen, dann nach Podestplätzen.</p>
             </div>
-            <div id="rekordeContent" style="display:none; margin-top:24px;">
-                <div id="rekordeGrid"
-                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px;">
-                    <div class="loading" style="grid-column: 1/-1;">Berechne Bestenliste...</div>
-                </div>
+            <div id="rekordeGrid">
+                <div class="loading">Bestenliste wird berechnet …</div>
             </div>
         </div>
     </section>
