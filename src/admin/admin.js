@@ -130,6 +130,11 @@ function showLogin() {
 
 async function showApp() {
     supabase.auth.getSession().then(({ data }) => { state.userEmail = data?.session?.user?.email || ''; }).catch(() => {});
+    // Wer ist angemeldet? Name aus der Admin-Liste (supabase/after-tournament.sql), sonst bleibt „Admin“
+    supabase.rpc('admin_name').then(({ data }) => {
+        const el = document.getElementById('adminName');
+        if (el && typeof data === 'string' && data.trim()) { el.textContent = data.trim(); el.classList.add('who'); }
+    }).catch(() => {});
     // Nur Konten aus der Admin-Liste (supabase/admins.sql) dürfen rein.
     // Gibt es die Prüf-Funktion noch nicht, gilt wie bisher: eingeloggt = Admin.
     const { data: isAdmin, error } = await supabase.rpc('is_admin');

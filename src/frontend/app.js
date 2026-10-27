@@ -785,6 +785,30 @@ function renderCurrentFiles(t) {
 // ==========================================
 // ARCHIV
 // ==========================================
+/** Turnierbericht im Fenster (reiner Text, Leerzeile = neuer Absatz) */
+function openReport(t, opener) {
+    const dlg = document.getElementById("reportDialog");
+    if (!dlg || !t) return;
+    document.getElementById("reportTitle").textContent = t.name || "";
+    document.getElementById("reportDate").textContent = t.date_text || "";
+    document.getElementById("reportBody").innerHTML = String(t.report || "").trim()
+        .split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("");
+    if (!dlg.dataset.ready) {
+        dlg.dataset.ready = "1";
+        document.getElementById("reportClose").addEventListener("click", () => dlg.close());
+        // Klick neben das Fenster schließt
+        dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+        dlg.addEventListener("close", () => {
+            document.body.style.overflow = "";
+            dlg._opener?.focus?.();
+        });
+    }
+    dlg._opener = opener;
+    if (!dlg.open) dlg.showModal();
+    document.body.style.overflow = "hidden";
+    dlg.querySelector(".rd-body").scrollTop = 0;
+}
+
 async function renderArchive(tournaments, ergebnisse) {
     const ergFor = (tid) => ergebnisse.filter(e => e.tournament_id === tid);
     const container = document.getElementById("archiveList");
@@ -875,6 +899,8 @@ async function renderArchive(tournaments, ergebnisse) {
 
     container.innerHTML = tournaments.map((t, idx) => {
         const chips = [];
+        // Turnierbericht: eigener Knopf, Text öffnet sich im Fenster (sonst wird das Archiv zu lang)
+        if (String(t.report || "").trim()) chips.push(`<button type="button" class="chip chip-report" data-report="${esc(String(t.id))}">Turnierbericht lesen</button>`);
         if (t.ausschreibung_path) chips.push(`<a class="chip" href="${publicPdfUrl(t.ausschreibung_path)}" target="_blank">Ausschreibung</a>`);
         const archivOettvUrl = safeUrl(t.oettv_url);
         if (archivOettvUrl) chips.push(`<a class="chip" href="${esc(archivOettvUrl)}" target="_blank" rel="noreferrer">Ergebnisse ÖTTV</a>`);
@@ -939,14 +965,7 @@ async function renderArchive(tournaments, ergebnisse) {
             }
         }
 
-        // Turnierbericht (reiner Text, Leerzeile = neuer Absatz)
-        const report = String(t.report || "").trim();
-        const reportHtml = report ? `
-                    <div class="archive-report">
-                        <h3>Turnierbericht</h3>
-                        ${report.split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("")}
-                    </div>` : "";
-        const hasBody = hofHtml !== "" || hasGallery || reportHtml !== "";
+        const hasBody = hofHtml !== "" || hasGallery;
 
         if (chips.length === 0 && !hasBody) {
             chips.push(`<span class="chip off">Keine Materialien</span>`);
@@ -973,7 +992,6 @@ async function renderArchive(tournaments, ergebnisse) {
                     </div>
                 </div>
                 <div class="archive-content" style="display: ${displayStyle}; margin-top: ${isOpen && hasBody ? "20px" : "0"};">
-                    ${reportHtml}
                     ${hofHtml}
                     ${galleryHtml}
                 </div>
@@ -1007,12 +1025,20 @@ async function renderArchive(tournaments, ergebnisse) {
         }, header.nextElementSibling.style.display !== 'none');
     });
 
-    // Link aus der Danke-Mail (#turnier-<id>): Turnier aufklappen und hinscrollen
+    // Turnierbericht-Knöpfe
+    const byId = new Map(tournaments.map(t => [String(t.id), t]));
+    container.querySelectorAll("[data-report]").forEach(btn => {
+        btn.addEventListener("click", () => openReport(byId.get(btn.dataset.report), btn));
+    });
+
+    // Link aus der Danke-Mail (#turnier-<id>): Turnier aufklappen, hinscrollen, Bericht zeigen
     const target = location.hash.startsWith("#turnier-") ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
     if (target?.classList.contains("archive-item")) {
         const header = target.querySelector(".archive-header");
         if (header.nextElementSibling.style.display === "none") header.click();
         target.scrollIntoView({ block: "start" });
+        const reportBtn = target.querySelector("[data-report]");
+        if (reportBtn) openReport(byId.get(reportBtn.dataset.report), reportBtn);
     }
 
     // Gallery Click Events

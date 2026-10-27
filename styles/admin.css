@@ -245,6 +245,13 @@ svg.icon {
     color: var(--muted);
 }
 
+/* Name des angemeldeten Admins statt „Admin“ */
+.sidebar .brand .t2.who {
+    font-size: 12.5px;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
 .tournament-card {
     background: var(--surface-2);
     border: 1px solid var(--border);

@@ -38,6 +38,9 @@
 //       auf der Website, Links zu den Ergebnissen; merkt sich Versendete (thanks_sent_at)
 //     - dry: zaehlt nur die Empfaenger
 //
+//  Team in Kopie: alle Adressen aus der Tabelle admins ausser ADMIN_EMAIL (z.B. Eric)
+//  stehen bei jeder Einzelmail in CC; nach Massenversand (5–7) bekommen sie eine Kopie.
+//
 //  Secrets: RESEND_API_KEY, optional ADMIN_EMAIL, SITE_URL.
 //  SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
 // ============================================================
@@ -66,14 +69,33 @@ const json = (body: unknown, status = 200) =>
 
 const cancelUrl = (token: string) => `${SITE_URL}/abmelden?t=${encodeURIComponent(token)}`;
 
-async function sendMail(to: string, subject: string, html: string) {
+// ---------- Team in Kopie ----------
+// Alle Admins aus der Tabelle admins ausser ADMIN_EMAIL (also z.B. Eric) bekommen jede Mail in CC.
+let teamCache: { at: number; list: string[] } | null = null;
+async function teamCc(): Promise<string[]> {
+  if (teamCache && Date.now() - teamCache.at < 5 * 60 * 1000) return teamCache.list;
+  let list: string[] = [];
+  try {
+    list = ((await db("admins?select=email")) || [])
+      .map((a: any) => String(a.email || "").trim().toLowerCase())
+      .filter((e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e !== ADMIN_EMAIL.toLowerCase());
+  } catch (err) {
+    console.error("Admins nicht ladbar – Mail ohne CC:", err);
+  }
+  teamCache = { at: Date.now(), list };
+  return list;
+}
+
+/** cc: true = Team in Kopie, false = ohne (z.B. Testmails), Liste = genau diese Adressen */
+async function sendMail(to: string, subject: string, html: string, cc: boolean | string[] = true) {
+  const ccList = (cc === true ? await teamCc() : cc || []).filter((e) => e !== to.trim().toLowerCase());
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${RESEND_API_KEY}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from: FROM, to, subject, html }),
+    body: JSON.stringify({ from: FROM, to, subject, html, ...(ccList.length ? { cc: ccList } : {}) }),
   });
   const body = await res.text();
   if (!res.ok) {
@@ -141,6 +163,15 @@ async function adminEmail(req: Request): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Massenmails: statt CC an jede einzelne Mail bekommt das Team eine Kopie (schont Postfach und Tageslimit) */
+async function copyToTeam(subject: string, html: string, n: number) {
+  const team = await teamCc();
+  if (!team.length || n < 1) return;
+  const note = `<p style="font-family:Arial,sans-serif;background:#e8f5ec;padding:10px 14px;font-size:13px;margin:0 0 18px;">
+    <strong>Kopie fürs Team</strong> – diese Mail ging gerade an ${n} ${n === 1 ? "Adresse" : "Adressen"}. So sah sie aus:</p>`;
+  await sendMail(team[0], `[Kopie] ${subject}`, note + html, team.slice(1));
 }
 
 /** Mehrere Mails in einem Aufruf (max. 100). Liefert false, wenn Resend ablehnt (z.B. Tageslimit). */
@@ -429,7 +460,7 @@ async function handleReminder(opts: { text?: string; include_waitlist?: boolean;
 
   if (opts.test) {
     if (!todo.length) return json({ ok: false, reason: "nobody" });
-    const ok = await sendMail(admin, `[Test] ${subject}`, build(todo[0][1]));
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(todo[0][1]), false);
     return json({ ok, test: true, to: admin, recipients: groups.size });
   }
 
@@ -451,6 +482,7 @@ async function handleReminder(opts: { text?: string; include_waitlist?: boolean;
     });
     sent += chunk.length;
   }
+  if (sent) await copyToTeam(subject, build(todo[0][1]), sent);
   return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
 }
 
@@ -512,7 +544,7 @@ async function handleInvitation(opts: { subject?: string; text?: string; closing
     const note = `<p style="background:#fff4d6;padding:10px 14px;font-size:13px;margin:0 0 18px;">
       <strong>Testmail</strong> – so sieht die Einladung ${own ? "für dich" : `z.B. für ${esc(who)}`} aus.
       Der Knopf füllt das Formular mit ${own ? "deinen Daten" : "diesen Daten"}.</p>`;
-    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note));
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note), false);
     return json({ ok, test: true, to: admin, recipients: groups.size, sample: own ? null : who });
   }
 
@@ -537,6 +569,7 @@ async function handleInvitation(opts: { subject?: string; text?: string; closing
     });
     sent += chunk.length;
   }
+  if (sent) await copyToTeam(subject, build(todo[0][1]), sent);
   return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
 }
 
@@ -609,7 +642,7 @@ async function handleThanks(
     const who = sample.map((r) => `${r.vorname} ${r.nachname}`).join(", ");
     const note = `<p style="background:#fff4d6;padding:10px 14px;font-size:13px;margin:0 0 18px;">
       <strong>Testmail</strong> – so sieht die Danke-Mail z.B. für ${esc(who)} aus.</p>`;
-    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note));
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note), false);
     return json({ ok, test: true, to: admin, recipients: groups.size, sample: who });
   }
 
@@ -634,6 +667,7 @@ async function handleThanks(
     });
     sent += chunk.length;
   }
+  if (sent) await copyToTeam(subject, build(todo[0][1]), sent);
   return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
 }
 

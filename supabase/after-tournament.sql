@@ -8,6 +8,7 @@
 --  3) Danke-Mail: merkt sich, wer sie schon bekommen hat
 --  4) Admin-Adressen (Christian, Eric) werden nie automatisch bei Spielern eingetragen,
 --     auch wenn ein Admin jemanden mit der eigenen Adresse nennt
+--  5) Name des angemeldeten Admins für die Anzeige im Admin
 -- ============================================================
 
 -- 1) Turnierbericht
@@ -65,6 +66,26 @@ $$;
 drop trigger if exists nfs_keep_admin_email_off on public.players;
 create trigger nfs_keep_admin_email_off before update on public.players
     for each row execute function public.nfs_keep_admin_email_off();
+
+-- 5) Name des angemeldeten Admins (steht im Admin oben statt „Admin“)
+update public.admins set name = 'Christian Ritter' where lower(email) = 'christianritter1310@gmail.com';
+update public.admins set name = 'Eric Tang' where name = 'Eric';
+
+create or replace function public.admin_name()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+    select name from public.admins
+     where lower(email) = lower(coalesce(auth.jwt() ->> 'email', ''));
+$$;
+revoke all on function public.admin_name() from public, anon;
+grant execute on function public.admin_name() to authenticated;
+
+-- Kontrolle: Wer ist Admin? (Erics echte Adresse muss hier stehen – sie bekommt alle Mails in CC)
+select email, name from public.admins order by name;
 
 -- Kontrolle: Adressen, die bei mehreren Spielern stehen (im Admin unter Spieler → „Gemeinsame Adressen“ bereinigen)
 select lower(trim(email)) as adresse, count(*) as spieler,
