@@ -87,7 +87,7 @@ export function fillSetup(t) {
     $('setupShowSponsors').checked = !!info.showSponsors;
     $('sponsorsContainer').innerHTML = '';
     if (info.sponsors?.length) {
-        info.sponsors.forEach(sp => renderSponsorRow(sp.logoPath || '', sp.link, sp.logoUrl || (sp.logoPath ? publicSponsorUrl(sp.logoPath) : '')));
+        info.sponsors.forEach(sp => renderSponsorRow(sp.logoPath || '', sp.link, sp.logoUrl || (sp.logoPath ? publicSponsorUrl(sp.logoPath) : ''), sp.name || ''));
     } else {
         renderSponsorRow();
     }
@@ -226,7 +226,7 @@ export function renderScheduleRow(time = '', text = '') {
     updateDirtyUi();
 }
 
-export function renderSponsorRow(logoPath = '', link = '', logoUrl = '') {
+export function renderSponsorRow(logoPath = '', link = '', logoUrl = '', name = '') {
     const container = $('sponsorsContainer');
     if (!container) return;
     const div = document.createElement('div');
@@ -237,6 +237,10 @@ export function renderSponsorRow(logoPath = '', link = '', logoUrl = '') {
             <input type="file" class="input spon-file" accept="image/*">
             <input type="hidden" class="spon-logo-path" value="${esc(logoPath)}">
             <img class="sponsor-preview" src="${esc(logoUrl)}" alt="" ${logoUrl ? '' : 'hidden'}>
+        </div>
+        <div class="grow field">
+            <label>Name</label>
+            <input type="text" class="input spon-name" placeholder="z.B. Bäckerei Muster" value="${esc(name)}">
         </div>
         <div class="grow field">
             <label>Website</label>
@@ -362,6 +366,7 @@ export async function saveSetup() {
             const sponsorsData = [];
             for (const row of document.querySelectorAll('.sponsor-row')) {
                 const link = row.querySelector('.spon-link').value.trim();
+                const name = row.querySelector('.spon-name').value.trim();
                 const fileInput = row.querySelector('.spon-file');
                 let logoPath = row.querySelector('.spon-logo-path').value.trim();
 
@@ -379,7 +384,7 @@ export async function saveSetup() {
                     }
                 }
 
-                if (logoPath) sponsorsData.push({ logoPath, link });
+                if (logoPath) sponsorsData.push({ logoPath, link, ...(name ? { name } : {}) });
             }
 
             const deadline = $('setupDeadline').value;

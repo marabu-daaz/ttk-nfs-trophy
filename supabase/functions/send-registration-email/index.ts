@@ -25,11 +25,12 @@
 //       damit man nach dem Tageslimit von Resend einfach fortsetzen kann
 //     - test: nur eine Beispielmail an den angemeldeten Admin
 //
-//  6) { action: "send_invitation", subject, text, resend?, test? }  (nur Admins)
+//  6) { action: "send_invitation", subject, text, closing?, resend?, test? }  (nur Admins)
 //     - Einladung zum aktuellen Turnier an alle Spieler (players) mit E-Mail,
 //       ausser no_invites; Knopf zum vorausgefuellten Nennformular,
 //       Link zur Ausschreibung, Abbestell-Link
 //     - merkt sich Eingeladene (invited_tournament), Fortsetzen nach Tageslimit
+//     - test: Beispielmail an den Admin, mit seinen eigenen Spielerdaten, falls vorhanden
 //
 //  Secrets: RESEND_API_KEY, optional ADMIN_EMAIL, SITE_URL.
 //  SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
@@ -455,7 +456,7 @@ const unsubUrl = (token: string) => `${SITE_URL}/abbestellen?t=${encodeURICompon
 const button = (href: string, label: string) =>
   `<a href="${esc(href)}" style="display:inline-block;background:#1a4d2e;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:6px;margin:4px 0;">${esc(label)}</a>`;
 
-async function handleInvitation(opts: { subject?: string; text?: string; resend?: boolean; test?: boolean }, admin: string) {
+async function handleInvitation(opts: { subject?: string; text?: string; closing?: string; resend?: boolean; test?: boolean }, admin: string) {
   const [t] = await db("tournaments?select=id,name,date_text,ausschreibung_path&order=date_iso.desc&limit=1") || [];
   if (!t) return json({ ok: false, reason: "no_tournament" });
   const players = await db("players?select=id,vorname,nachname,email,invite_token,no_invites,invited_tournament&order=id") || [];
@@ -473,30 +474,40 @@ async function handleInvitation(opts: { subject?: string; text?: string; resend?
 
   const subject = String(opts.subject || "").trim().slice(0, 200) || `Einladung: ${t.name}${t.date_text ? ` – ${t.date_text}` : ""}`;
   const text = String(opts.text || "").trim().slice(0, 5000);
+  const closing = String(opts.closing || "").trim().slice(0, 500);
+  const para = (s: string) => esc(s).replace(/\n/g, "<br>");
   const ausschreibung = t.ausschreibung_path
     ? `${SUPABASE_URL}/storage/v1/object/public/pdfs/${encodeURIComponent(t.ausschreibung_path)}`
     : null;
 
-  const build = (ps: any[]) => {
+  const build = (ps: any[], testNote = "") => {
     const one = ps.length === 1;
     const buttons = one
       ? `<p style="margin:22px 0;">${button(nennUrl(ps[0].invite_token), "Jetzt nennen")}</p>`
       : `<p style="margin:18px 0 6px;">Jetzt nennen:</p><p style="margin:0 0 18px;">${ps.map((p) => button(nennUrl(p.invite_token), `${p.vorname} ${p.nachname}`)).join("<br>")}</p>`;
     const unsub = ps.map((p) => `<a href="${esc(unsubUrl(p.invite_token))}" style="color:#6b7f70;">${one ? "Keine Einladungen mehr erhalten" : `Keine Einladungen mehr für ${esc(p.vorname)}`}</a>`).join(" · ");
-    return wrap(`
+    return wrap(`${testNote}
       <h2 style="color:#1a4d2e;margin:0 0 16px;">${esc(t.name)}${t.date_text ? ` <span style="font-weight:normal;">· ${esc(t.date_text)}</span>` : ""}</h2>
       <p>Hallo ${esc(one ? ps[0].vorname : "zusammen")},</p>
-      ${text ? `<p>${esc(text).replace(/\n/g, "<br>")}</p>` : ""}
+      ${text ? text.split(/\n\s*\n/).map((x) => `<p>${para(x.trim())}</p>`).join("") : ""}
       ${buttons}
       <p style="font-size:13px;color:#3d5445;">Deine Daten sind im Formular schon eingetragen – bitte nur noch aktuelle RC-Punkte und Bewerbe ergänzen.</p>
       ${ausschreibung ? `<p><a href="${esc(ausschreibung)}" style="color:#1a4d2e;font-weight:bold;">Ausschreibung ansehen (PDF)</a></p>` : ""}
+      ${closing ? `<p style="margin-top:20px;">${para(closing)}</p>` : ""}
       <p style="margin-top:22px;font-size:12px;color:#6b7f70;">Du bekommst diese Mail, weil du schon bei der NFS Trophy dabei warst.<br>${unsub}</p>`);
   };
 
   if (opts.test) {
-    if (!todo.length) return json({ ok: false, reason: "nobody" });
-    const ok = await sendMail(admin, `[Test] ${subject}`, build(todo[0][1]));
-    return json({ ok, test: true, to: admin, recipients: groups.size });
+    // Mit den eigenen Spielerdaten des Admins, sonst ein Beispielspieler
+    const own = groups.get(admin.trim().toLowerCase());
+    const sample = own || todo[0]?.[1];
+    if (!sample) return json({ ok: false, reason: "nobody" });
+    const who = sample.map((p) => `${p.vorname} ${p.nachname}`).join(", ");
+    const note = `<p style="background:#fff4d6;padding:10px 14px;font-size:13px;margin:0 0 18px;">
+      <strong>Testmail</strong> – so sieht die Einladung ${own ? "für dich" : `z.B. für ${esc(who)}`} aus.
+      Der Knopf füllt das Formular mit ${own ? "deinen Daten" : "diesen Daten"}.</p>`;
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note));
+    return json({ ok, test: true, to: admin, recipients: groups.size, sample: own ? null : who });
   }
 
   let sent = 0;

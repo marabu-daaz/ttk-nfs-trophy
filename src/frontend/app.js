@@ -263,10 +263,11 @@ function renderTurnierInfo(t) {
             // logoPath (Storage-Pfad) → public URL; Alt: logoUrl (externe URL)
             const src = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
             if (!src) return '';
-            const img = `<img src="${esc(src)}" alt="Sponsor" loading="lazy">`;
+            const name = String(s.name || '').trim();
+            const img = `<img src="${esc(src)}" alt="${esc(name || 'Sponsor')}" loading="lazy">`;
             const link = safeUrl(s.link);
             return link
-                ? `<a class="sponsor-link" href="${esc(link)}" target="_blank" rel="noreferrer">${img}</a>`
+                ? `<a class="sponsor-link" href="${esc(link)}" target="_blank" rel="noreferrer"${name ? ` title="${esc(name)}"` : ''}>${img}</a>`
                 : `<div class="sponsor-link">${img}</div>`;
         }).join("");
     }

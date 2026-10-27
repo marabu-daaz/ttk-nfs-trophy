@@ -29,23 +29,49 @@ function counts(resend) {
     };
 }
 
-/** Vorschlag für den Text – aus den Turnierdaten */
+const DAYS = { mo: 'Montag', di: 'Dienstag', mi: 'Mittwoch', do: 'Donnerstag', fr: 'Freitag', sa: 'Samstag', so: 'Sonntag' };
+const joinAnd = list => list.length > 1 ? `${list.slice(0, -1).join(', ')} und ${list.at(-1)}` : (list[0] || '');
+const CLOSING_KEY = 'nfs-invite-closing';
+const DEFAULT_CLOSING = 'Wir freuen uns auf deine Teilnahme!\nLiebe Grüße\nChristian & Eric';
+
+/** Vorschlag für den Text – nach der bisherigen Einladung, befüllt aus den Turnierdaten */
 function defaultText() {
     const t = state.tournament;
     const reg = registrationStatus(t);
-    const bewerbe = state.bewerbe
-        .filter(b => b.name && !/^tba\b/i.test(b.name))
-        .map(b => `• ${b.name}${b.time ? ` (Start ${b.time})` : ''}`)
-        .join('\n');
+    const bewerbe = state.bewerbe.filter(b => b.name && !/^tba\b/i.test(b.name));
+
+    // Bewerbe nach Tag gruppieren („Sa 09:00“ → Samstag)
+    const byDay = new Map();
+    bewerbe.forEach(b => {
+        const day = DAYS[String(b.time || '').trim().slice(0, 2).toLowerCase()] || '';
+        if (!byDay.has(day)) byDay.set(day, []);
+        byDay.get(day).push(b.name);
+    });
+    const program = [...byDay.entries()].map(([day, names], i) => {
+        const what = `${names.length === 1 ? 'der Bewerb' : 'die Bewerbe'} ${joinAnd(names)}`;
+        if (!day) return `Auf dem Programm stehen ${what}.`;
+        return i === 0 ? `Am ${day} ${names.length === 1 ? 'steht' : 'stehen'} ${what} am Programm.` : `Am ${day} ${what}.`;
+    }).join('\n');
+
+    const caps = [...new Set(bewerbe.map(b => b.capacity || 20))];
+    const capText = caps.length === 1
+        ? `Die Bewerbe sind wieder auf jeweils ${caps[0]} Spieler beschränkt, berücksichtigt wird das Einlangen der Nennung.`
+        : 'Die Plätze sind wieder beschränkt, berücksichtigt wird das Einlangen der Nennung.';
     const deadline = reg.deadline
-        ? `\nAnmeldeschluss: ${reg.deadline.toLocaleString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} Uhr`
+        ? `Nennschluss ist am ${reg.deadline.toLocaleString('de-AT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} Uhr.`
         : '';
+    const name = /^\d+\./.test(t.name || '') ? `unsere mittlerweile ${t.name}` : `die ${t.name}`;
+
     return [
-        `wir laden dich herzlich zur ${t.name}${t.date_text ? ` am ${t.date_text}` : ''} beim TTK Naturfreunde Stadlau ein!`,
-        bewerbe ? `Die Bewerbe:\n${bewerbe}` : '',
-        `Nenngeld: ${state.fees.normal} € pro Bewerb, für NFS-Mitglieder ${state.fees.nfs} €.${deadline}`,
-        'Die Plätze sind begrenzt – schnell nennen lohnt sich. Wir freuen uns auf dich!',
+        `wir veranstalten${t.date_text ? ` am ${t.date_text}` : ''} ${name} als RC-Turnier in unserer Halle in Stadlau!`,
+        program,
+        [capText, 'In den Bewerben 1–5 wird es wieder ein oberes und unteres Playoff geben.', deadline].filter(Boolean).join('\n'),
+        'Mit dem Knopf unten kommst du direkt zur Nennung. Der Nennstand ist auf nfs-trophy.com laufend einsehbar, alle weiteren Details findest du in der Ausschreibung.',
     ].filter(Boolean).join('\n\n');
+}
+
+function savedClosing() {
+    try { return localStorage.getItem(CLOSING_KEY) || DEFAULT_CLOSING; } catch { return DEFAULT_CLOSING; }
 }
 
 export async function openInvitationDialog() {
@@ -75,10 +101,14 @@ export async function openInvitationDialog() {
                 </div>
                 <div class="field full" style="margin-top:12px;">
                     <label for="invText">Text</label>
-                    <textarea id="invText" class="input" rows="11">${esc(defaultText())}</textarea>
+                    <textarea id="invText" class="input" rows="14">${esc(defaultText())}</textarea>
                     <div class="help">Die Mail beginnt mit „Hallo &lt;Vorname&gt;,“. Darunter kommen automatisch der Knopf
-                        „Jetzt nennen“ (Formular mit Name, E-Mail, Telefon und Verein vorausgefüllt), der Link zur Ausschreibung
-                        und ein Link zum Abbestellen.</div>
+                        „Jetzt nennen“ (Formular mit Name, E-Mail, Telefon und Verein vorausgefüllt) und der Link zur Ausschreibung,
+                        dann der Gruß und ganz unten ein Link zum Abbestellen. Leerzeile = neuer Absatz.</div>
+                </div>
+                <div class="field full" style="margin-top:12px;">
+                    <label for="invClosing">Gruß (unter dem Knopf)</label>
+                    <textarea id="invClosing" class="input" rows="3">${esc(savedClosing())}</textarea>
                 </div>
                 <label class="switch" style="margin-top:12px;"><input type="checkbox" id="invResend"><span class="track"></span>Auch an bereits Eingeladene erneut senden</label>
                 <p class="help" style="margin-top:12px;">Gratis-Tarif von Resend: 100 Mails pro Tag. Wird das Limit erreicht, morgen einfach
@@ -92,7 +122,9 @@ export async function openInvitationDialog() {
             </div>`;
 
         const $ = id => dlg.querySelector('#' + id);
-        const opts = () => ({ subject: $('invSubject').value.trim(), text: $('invText').value.trim(), resend: $('invResend').checked });
+        const opts = () => ({ subject: $('invSubject').value.trim(), text: $('invText').value.trim(), closing: $('invClosing').value.trim(), resend: $('invResend').checked });
+        // Gruß für das nächste Mal merken
+        $('invClosing').addEventListener('change', () => { try { localStorage.setItem(CLOSING_KEY, $('invClosing').value.trim()); } catch { /* egal */ } });
         const refresh = () => {
             const c = counts(opts().resend);
             $('invStats').innerHTML = `
@@ -108,7 +140,7 @@ export async function openInvitationDialog() {
 
         $('invTest').addEventListener('click', e => withBusy(e.currentTarget, async () => {
             const res = await invoke({ ...opts(), test: true });
-            if (res?.ok) showToast(`Testmail an ${res.to} gesendet`);
+            if (res?.ok) showToast(res.sample ? `Testmail an ${res.to} gesendet (Beispiel: ${res.sample} – du selbst bist mit dieser Adresse nicht in der Spielerliste)` : `Testmail an ${res.to} gesendet – mit deinen eigenen Daten`);
         }, 'Sende…'));
 
         $('invSend').addEventListener('click', async e => {

@@ -101,13 +101,58 @@ export function debounce(fn, ms = 200) {
     };
 }
 
-/** Öffnet das Mailprogramm. Mehrere Empfänger landen in BCC (Datenschutz). */
-export function openMail({ to = [], bcc = [], subject = '', body = '' }) {
-    const params = [];
-    if (bcc.length) params.push('bcc=' + encodeURIComponent(bcc.join(',')));
-    if (subject) params.push('subject=' + encodeURIComponent(subject));
-    if (body) params.push('body=' + encodeURIComponent(body));
-    window.location.href = `mailto:${to.map(encodeURIComponent).join(',')}${params.length ? '?' + params.join('&') : ''}`;
+/**
+ * Mail schreiben: Dialog mit „In Gmail schreiben“, „Mailprogramm öffnen“ und „Adressen kopieren“.
+ * Ein reiner mailto:-Link tut nichts, wenn am Rechner kein Mailprogramm eingerichtet ist,
+ * und bricht bei vielen Adressen an der Längengrenze. Mehrere Empfänger landen in BCC (Datenschutz).
+ */
+export function openMail({ to = [], bcc = [], subject = '', body = '', note = '' }) {
+    const mailtoParams = [
+        bcc.length ? 'bcc=' + encodeURIComponent(bcc.join(',')) : '',
+        subject ? 'subject=' + encodeURIComponent(subject) : '',
+        body ? 'body=' + encodeURIComponent(body) : '',
+    ].filter(Boolean);
+    const mailto = `mailto:${to.map(encodeURIComponent).join(',')}${mailtoParams.length ? '?' + mailtoParams.join('&') : ''}`;
+    const gmailParams = { view: 'cm', fs: '1', to: to.join(','), bcc: bcc.join(','), su: subject, body };
+    const gmail = 'https://mail.google.com/mail/?' + Object.entries(gmailParams)
+        .filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+    // Grenzen: mailto ~2000 Zeichen (Windows), Gmail ~8000
+    const tooLongMailto = mailto.length > 2000;
+    const tooLongGmail = gmail.length > 7500;
+    const all = [...to, ...bcc];
+    const addresses = all.join(', ');
+
+    return new Promise(resolve => {
+        const { dlg, finish } = buildDialog('', resolve, null);
+        dlg.innerHTML = `
+            <div class="modal-head"><h2>${all.length === 1 ? `Mail an ${esc(all[0])}` : `Mail an ${all.length} Adressen`}</h2></div>
+            <div class="modal-body">
+                ${note ? `<p class="help" style="margin-bottom:12px;">${esc(note)}</p>` : ''}
+                ${bcc.length ? '<p class="help">Die Adressen stehen im BCC – die Empfänger sehen einander nicht.</p>' : ''}
+                ${tooLongGmail ? `<div class="banner warn" style="margin-top:10px;">Zu viele Adressen für einen direkten Link.
+                    Bitte „Adressen kopieren“ und im neuen Mail ins Feld <b>BCC</b> einfügen.</div>` : ''}
+                <textarea class="input" rows="${Math.min(6, Math.max(2, Math.ceil(addresses.length / 70)))}" readonly style="margin-top:12px;font-size:12px;">${esc(addresses)}</textarea>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn" data-cancel>Schließen</button>
+                <span class="spacer"></span>
+                <button type="button" class="btn" data-copy>${icon('copy')}Adressen kopieren</button>
+                ${tooLongMailto ? '' : `<a class="btn" href="${esc(mailto)}" data-go>Mailprogramm</a>`}
+                <a class="btn primary" href="${esc(tooLongGmail ? 'https://mail.google.com/mail/?view=cm&fs=1' + (subject ? '&su=' + encodeURIComponent(subject) : '') : gmail)}" target="_blank" rel="noopener" data-go>In Gmail schreiben</a>
+            </div>`;
+        dlg.querySelector('[data-cancel]').addEventListener('click', () => finish(null));
+        dlg.querySelector('[data-copy]').addEventListener('click', async e => {
+            try {
+                await navigator.clipboard.writeText(addresses);
+            } catch {
+                dlg.querySelector('textarea').select();
+                document.execCommand('copy');
+            }
+            e.currentTarget.textContent = 'Kopiert ✓';
+        });
+        dlg.querySelectorAll('[data-go]').forEach(a => a.addEventListener('click', () => setTimeout(() => finish(true), 50)));
+        dlg.showModal();
+    });
 }
 
 // ---------- Dialoge ----------

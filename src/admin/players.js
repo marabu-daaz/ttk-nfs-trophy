@@ -622,13 +622,12 @@ async function exportExcel() {
     }
 }
 
-async function mailFiltered() {
+function mailFiltered() {
     const emails = [...new Set(currentList().map(p => (p.email || '').trim()).filter(Boolean))];
     if (!emails.length) return showToast('Keine E-Mail-Adressen in der aktuellen Ansicht.', true);
-    const ok = await confirmDialog({
-        title: `Mail an ${emails.length} Spieler?`,
-        message: 'Die Adressen kommen ins BCC. Hinweis: Werbung bzw. Einladungen an frühere Teilnehmer nur mit deren Einverständnis verschicken.',
-        confirmText: 'Mailprogramm öffnen',
+    openMail({
+        bcc: emails,
+        subject: 'NFS Trophy',
+        note: 'Für die Einladung zum neuen Turnier besser „Einladung versenden“ nutzen – mit Nenn-Knopf und Abbestell-Link.',
     });
-    if (ok) openMail({ bcc: emails, subject: 'NFS Trophy' });
 }
