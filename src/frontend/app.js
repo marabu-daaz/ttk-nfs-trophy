@@ -985,7 +985,7 @@ async function renderArchive(tournaments, ergebnisse) {
 
             if (bCards !== "") {
                 hofHtml = `
-                    <div class="hof-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap:20px; margin-top:20px; margin-bottom:10px;">
+                    <div class="hof-grid" style="display:grid; grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr)); gap:20px; margin-top:20px; margin-bottom:10px;">
                         ${bCards}
                     </div>
                 `;
