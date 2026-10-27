@@ -142,11 +142,13 @@ function enrichAll(players, entries) {
 
     data.players = players.map(p => {
         const list = (byPlayer.get(p.id) || []).sort((a, b) => tournamentTime(b.tournament) - tournamentTime(a.tournament));
+        // Nicht erschienen (nach „Turnier abschließen“): bleibt im Verlauf, zählt aber nicht
+        const attended = list.filter(e => !e.no_show);
         const key = nameKey(p.vorname, p.nachname);
         // Erfolge nur aus Turnieren, bei denen die Person auch dabei war
-        const played = new Set(list.map(e => String(e.tournament.id)));
+        const played = new Set(attended.map(e => String(e.tournament.id)));
         const titles = (hof.get(hofKey(p.vorname, p.nachname)) || []).filter(h => played.has(String(h.tournament.id)));
-        const last = list[0]?.tournament || null;
+        const last = attended[0]?.tournament || null;
         return {
             ...p,
             key,
@@ -155,8 +157,8 @@ function enrichAll(players, entries) {
             fullName: `${p.vorname} ${p.nachname}`.trim(),
             entries: list,
             played,
-            count: list.length,
-            first: list[list.length - 1]?.tournament || null,
+            count: attended.length,
+            first: attended[attended.length - 1]?.tournament || null,
             last,
             lastTime: tournamentTime(last),
             titles,
@@ -286,10 +288,13 @@ function renderBody() {
     const stamm = data.players.filter(p => p.count >= STAMM_MIN).length;
     const timeline = timelineTournaments();
     const latest = timeline[timeline.length - 1];
-    const newcomers = latest ? data.players.filter(p => p.count === 1 && String(p.entries[0].tournament.id) === String(latest.id)).length : 0;
+    const newcomers = latest ? data.players.filter(p => p.count === 1 && String(p.last?.id) === String(latest.id)).length : 0;
 
     const dupBtn = document.querySelector('#plFilter button[data-v="dups"]');
     dupBtn.innerHTML = `Doppelte prüfen${dups.length ? ` <span class="count">${dups.length}</span>` : ''}`;
+    const shared = sharedAddresses();
+    const sharedBtn = document.querySelector('#plFilter button[data-v="shared"]');
+    if (sharedBtn) sharedBtn.innerHTML = `Gemeinsame Adressen${shared.length ? ` <span class="count">${shared.length}</span>` : ''}`;
 
     const tiles = `
         <div class="grid tiles" style="margin-bottom:16px;">
@@ -301,6 +306,10 @@ function renderBody() {
 
     if (filters.mode === 'dups') {
         root.innerHTML = tiles + dupsHtml(dups);
+        return;
+    }
+    if (filters.mode === 'shared') {
+        root.innerHTML = tiles + sharedHtml(shared);
         return;
     }
 
@@ -339,7 +348,7 @@ function shortName(t) {
 }
 
 function attendDots(p, timeline) {
-    const ids = new Set(p.entries.map(e => String(e.tournament.id)));
+    const ids = p.played;
     return `<div class="attend" aria-label="${p.count} Teilnahmen">${timeline.map(t =>
         `<span class="${ids.has(String(t.id)) ? 'on' : ''}" title="${esc(shortName(t))}"></span>`).join('')}</div>`;
 }
@@ -409,9 +418,81 @@ function dupsHtml(dups) {
         </div>`;
 }
 
+// ==========================================
+// GEMEINSAME ADRESSEN
+// (z.B. Spieler, die per WhatsApp über Christian oder Eric genannt wurden)
+// ==========================================
+function sharedAddresses() {
+    const groups = new Map();
+    data.players.filter(p => (p.email || '').includes('@')).forEach(p => {
+        const key = p.email.trim().toLowerCase();
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(p);
+    });
+    const mine = (state.userEmail || '').toLowerCase();
+    return [...groups.entries()]
+        .filter(([, ps]) => new Set(ps.map(p => p.key)).size > 1)
+        .map(([email, players]) => ({ email, players, mine: email === mine }))
+        .sort((a, b) => b.mine - a.mine || b.players.length - a.players.length);
+}
+
+function sharedHtml(groups) {
+    if (!groups.length) {
+        return `<div class="card empty">${icon('checkCircle')}<div>Keine Adresse steht bei mehreren Spielern.</div></div>`;
+    }
+    return `
+        <p class="muted small" style="margin-bottom:12px;">Diese Adressen stehen bei mehreren Spielern. Bei Familien ist das richtig
+            (eine Einladung mit einem Knopf je Kind). Bei Spielern, die über dich oder Eric genannt wurden, die Adresse entfernen –
+            sonst landen deren Einladungen und Erinnerungen bei euch. Nennt die Person später selbst über das Formular, kommt ihre
+            eigene Adresse automatisch dazu. Admin-Adressen werden ab jetzt nicht mehr automatisch übernommen.</p>
+        <div class="dup-list">${groups.map(g => `
+            <div class="card shared-card" data-email="${esc(g.email)}">
+                <div class="row" style="align-items:center;margin-bottom:10px;">
+                    <strong class="grow">${esc(g.email)}</strong>
+                    ${g.mine ? '<span class="chip wl">deine Adresse</span>' : ''}
+                    <span class="muted small">${g.players.length} Spieler</span>
+                </div>
+                <div class="shared-players">${g.players.map(p => `
+                    <label class="shared-row"><input type="checkbox" value="${p.id}" ${g.mine ? 'checked' : ''}>
+                        <span class="grow">${esc(p.fullName)}</span><span class="muted small">${p.count} ${p.count === 1 ? 'Turnier' : 'Turniere'}${p.verein ? ` · ${esc(p.verein)}` : ''}</span></label>`).join('')}
+                </div>
+                <div class="dup-actions">
+                    <span class="muted small">Markierte verlieren diese Adresse (z.B. alle außer dir selbst).</span>
+                    <span class="spacer"></span>
+                    <button class="btn sm" data-clear-mail>Adresse bei Markierten entfernen</button>
+                </div>
+            </div>`).join('')}
+        </div>`;
+}
+
+async function clearSharedEmail(card, btn) {
+    const ids = [...card.querySelectorAll('input[type=checkbox]:checked')].map(c => Number(c.value));
+    if (!ids.length) return showToast('Bitte zuerst Spieler markieren.', true);
+    const names = ids.map(id => data.byId.get(id)?.fullName).filter(Boolean);
+    const ok = await confirmDialog({
+        title: `Adresse bei ${ids.length} ${ids.length === 1 ? 'Spieler' : 'Spielern'} entfernen?`,
+        message: `${card.dataset.email} wird entfernt bei: ${names.join(', ')}. Die Spieler bleiben mit allen Teilnahmen erhalten.`,
+        confirmText: 'Entfernen',
+    });
+    if (!ok) return;
+    await withBusy(btn, async () => {
+        try {
+            throwIfError(await supabase.from('players').update({ email: null }).in('id', ids));
+            showToast(`Adresse bei ${ids.length} ${ids.length === 1 ? 'Spieler' : 'Spielern'} entfernt`);
+            await ensurePlayers(true);
+            renderBody();
+        } catch (err) {
+            showToast('Entfernen fehlgeschlagen: ' + (err.message || err), true);
+        }
+    }, '…');
+}
+
 async function onRootClick(e) {
     const goMode = e.target.closest('[data-go-mode]');
     if (goMode) return setMode(goMode.dataset.goMode);
+
+    const clear = e.target.closest('[data-clear-mail]');
+    if (clear) return clearSharedEmail(clear.closest('.shared-card'), clear);
 
     const btn = e.target.closest('[data-act]');
     const card = e.target.closest('.dup-card');
@@ -515,6 +596,7 @@ function openPlayerModal(p) {
                     <div class="chips">
                         ${e.bewerbe.map(b => `<span class="chip">${esc(b)}</span>`).join('')}
                         ${e.warteliste.map(b => `<span class="chip wl" title="nur Warteliste">${icon('hourglass')}${esc(b)}</span>`).join('')}
+                        ${e.no_show ? '<span class="chip off" title="Beim Turnier nicht erschienen – zählt nicht in der Statistik">nicht erschienen</span>' : ''}
                         ${titles.map(h => `<span class="chip medal ${h.pos === 1 ? 'gold' : h.pos === 2 ? 'silver' : h.pos === 3 ? 'bronze' : ''}">${icon('trophy')}${esc(POS_LABEL[h.pos])} · ${esc(h.bewerb)}</span>`).join('')}
                     </div>
                     <div class="muted small">${esc(e.verein || '')}${e.rc ? ` · RC ${e.rc}` : ''}${e.source === 'import' ? ' · aus alter Nennliste' : ''}</div>

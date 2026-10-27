@@ -32,6 +32,12 @@
 //     - merkt sich Eingeladene (invited_tournament), Fortsetzen nach Tageslimit
 //     - test: Beispielmail an den Admin, mit seinen eigenen Spielerdaten, falls vorhanden
 //
+//  7) { action: "send_thanks", tournament_id, subject, text, closing?, resend?, test?, dry? }  (nur Admins)
+//     - Danke-Mail an alle Eingecheckten des Turniers, ausser nicht erschienen,
+//       abbestellt (players.no_invites) und Admin-Adressen; Knopf zum Archiv-Eintrag
+//       auf der Website, Links zu den Ergebnissen; merkt sich Versendete (thanks_sent_at)
+//     - dry: zaehlt nur die Empfaenger
+//
 //  Secrets: RESEND_API_KEY, optional ADMIN_EMAIL, SITE_URL.
 //  SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
 // ============================================================
@@ -535,6 +541,103 @@ async function handleInvitation(opts: { subject?: string; text?: string; closing
 }
 
 // ============================================================
+// 7) Danke-Mail nach dem Turnier (Admin)
+// ============================================================
+async function handleThanks(
+  opts: { tournament_id?: string; subject?: string; text?: string; closing?: string; resend?: boolean; test?: boolean; dry?: boolean },
+  admin: string,
+) {
+  const tid = String(opts.tournament_id || "");
+  if (!tid) return json({ ok: false, reason: "bad_request" }, 400);
+  const [t] = await db(`tournaments?id=eq.${encodeURIComponent(tid)}&select=id,name,date_text,oettv_url`) || [];
+  if (!t) return json({ ok: false, reason: "no_tournament" });
+
+  const [regs, entries, admins, ergs] = await Promise.all([
+    db(`registrations?tournament_id=eq.${encodeURIComponent(tid)}&checked_in=is.true&select=id,vorname,nachname,email,thanks_sent_at&order=created_at.asc`),
+    db(`player_entries?tournament_id=eq.${encodeURIComponent(tid)}&registration_id=not.is.null&select=registration_id,no_show,players(no_invites,invite_token)`),
+    db("admins?select=email"),
+    db(`ergebnisse?tournament_id=eq.${encodeURIComponent(tid)}&select=label,path&order=created_at.asc`),
+  ]);
+  const byReg = new Map((entries || []).map((e: any) => [String(e.registration_id), e]));
+  const adminMails = new Set((admins || []).map((a: any) => String(a.email || "").trim().toLowerCase()));
+
+  // Wer bekommt sie? Eingecheckt, nicht als „nicht erschienen“ markiert, nicht abbestellt, keine Admin-Adresse
+  const groups = new Map<string, any[]>();
+  let skipped = 0;
+  for (const r of regs || []) {
+    const key = String(r.email || "").trim().toLowerCase();
+    const e: any = byReg.get(String(r.id));
+    if (!key.includes("@") || adminMails.has(key) || e?.no_show || e?.players?.no_invites) {
+      skipped++;
+      continue;
+    }
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push({ ...r, invite_token: e?.players?.invite_token || null });
+  }
+  let todo = [...groups.entries()];
+  if (!opts.resend && !opts.test) todo = todo.filter(([, rs]) => rs.some((r) => !r.thanks_sent_at));
+  if (opts.dry) return json({ ok: true, total: groups.size, open: todo.length, skipped });
+
+  const subject = String(opts.subject || "").trim().slice(0, 200) || `Danke für deine Teilnahme an der ${t.name}!`;
+  const text = String(opts.text || "").trim().slice(0, 5000);
+  const closing = String(opts.closing || "").trim().slice(0, 500);
+  const para = (s: string) => esc(s).replace(/\n/g, "<br>");
+  const pageUrl = `${SITE_URL}/#turnier-${encodeURIComponent(String(t.id))}`;
+  const links = [
+    ...(ergs || []).map((e: any) => ({ label: e.label || "Ergebnisse (PDF)", href: `${SUPABASE_URL}/storage/v1/object/public/pdfs/${encodeURIComponent(e.path)}` })),
+    ...(t.oettv_url && /^https?:\/\//.test(t.oettv_url) ? [{ label: "Ergebnisse im ÖTTV-System", href: t.oettv_url }] : []),
+  ];
+
+  const build = (rs: any[], testNote = "") => {
+    const one = rs.length === 1;
+    const unsub = rs.filter((r) => r.invite_token)
+      .map((r) => `<a href="${esc(unsubUrl(r.invite_token))}" style="color:#6b7f70;">${one ? "Keine Mails mehr von der NFS Trophy erhalten" : `Keine Mails mehr für ${esc(r.vorname)}`}</a>`)
+      .join(" · ");
+    return wrap(`${testNote}
+      <h2 style="color:#1a4d2e;margin:0 0 16px;">Danke! ${esc(t.name)}</h2>
+      <p>Hallo ${esc(one ? rs[0].vorname : "zusammen")},</p>
+      ${text ? text.split(/\n\s*\n/).map((x) => `<p>${para(x.trim())}</p>`).join("") : ""}
+      <p style="margin:22px 0;">${button(pageUrl, "Bericht, Ergebnisse & Fotos")}</p>
+      ${links.length ? `<p>${links.map((l) => `<a href="${esc(l.href)}" style="color:#1a4d2e;font-weight:bold;">${esc(l.label)}</a>`).join("<br>")}</p>` : ""}
+      ${closing ? `<p style="margin-top:20px;">${para(closing)}</p>` : ""}
+      ${unsub ? `<p style="margin-top:22px;font-size:12px;color:#6b7f70;">Du bekommst diese Mail, weil du bei der ${esc(t.name)} dabei warst.<br>${unsub}</p>` : ""}`);
+  };
+
+  if (opts.test) {
+    const sample = todo[0]?.[1];
+    if (!sample) return json({ ok: false, reason: "nobody" });
+    const who = sample.map((r) => `${r.vorname} ${r.nachname}`).join(", ");
+    const note = `<p style="background:#fff4d6;padding:10px 14px;font-size:13px;margin:0 0 18px;">
+      <strong>Testmail</strong> – so sieht die Danke-Mail z.B. für ${esc(who)} aus.</p>`;
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(sample, note));
+    return json({ ok, test: true, to: admin, recipients: groups.size, sample: who });
+  }
+
+  let sent = 0;
+  let stopped: string | null = null;
+  for (let i = 0; i < todo.length; i += BATCH) {
+    if (i) await new Promise((r) => setTimeout(r, 700)); // Resend: max. 2 Anfragen pro Sekunde
+    const chunk = todo.slice(i, i + BATCH);
+    const res = await sendBatch(chunk.map(([email, rs]) => {
+      const token = rs.find((r) => r.invite_token)?.invite_token;
+      return { to: email, subject, html: build(rs), ...(token ? { headers: { "List-Unsubscribe": `<${unsubUrl(token)}>` } } : {}) };
+    }));
+    if (!res.ok) {
+      stopped = res.status === 429 ? "limit" : "error";
+      break;
+    }
+    const ids = chunk.flatMap(([, rs]) => rs.map((r) => r.id));
+    await db(`registrations?id=in.(${ids.map(encodeURIComponent).join(",")})`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ thanks_sent_at: new Date().toISOString() }),
+    });
+    sent += chunk.length;
+  }
+  return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
+}
+
+// ============================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
@@ -544,11 +647,12 @@ Deno.serve(async (req) => {
     if (payload?.action === "resend_link") return await handleResendLink(payload.email);
 
     // Admin-Aktionen: nur mit Login eines Admins aus der Admin-Liste
-    if (["notify_promoted", "send_reminder", "send_invitation"].includes(payload?.action)) {
+    if (["notify_promoted", "send_reminder", "send_invitation", "send_thanks"].includes(payload?.action)) {
       const admin = await adminEmail(req);
       if (!admin) return json({ ok: false, reason: "forbidden" }, 403);
       if (payload.action === "notify_promoted") return await handleNotifyPromoted(payload.registration_id, payload.bewerb);
       if (payload.action === "send_invitation") return await handleInvitation(payload, admin);
+      if (payload.action === "send_thanks") return await handleThanks(payload, admin);
       return await handleReminder(payload, admin);
     }
 

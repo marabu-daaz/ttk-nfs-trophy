@@ -44,6 +44,7 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
   - players.sql           # Spielerdatenbank (Personen, Teilnahmen, Zusammenführen)
   - reminder.sql          # Erinnerungsmail: wer schon erinnert wurde
   - invitations.sql       # Einladungen: Abbestellen, vorausgefülltes Formular
+  - after-tournament.sql  # Nach dem Turnier: Bericht, Nicht-Erschienene, Danke-Mail, Admin-Adressen
 - tools/
   - import_players.py     # Alte Excel-Nennlisten → SQL-Import (Ausgabe nie ins Repo!)
 - public/

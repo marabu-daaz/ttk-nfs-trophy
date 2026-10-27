@@ -900,6 +900,30 @@ aside.side .side-manage a:hover span {
     border-top: 1px solid var(--line);
 }
 
+/* Turnierbericht im aufgeklappten Turnier */
+.archive-report {
+    max-width: 72ch;
+    margin-bottom: 24px;
+    font-size: 16px;
+    line-height: 1.65;
+    color: var(--text-main);
+}
+
+.archive-report h3 {
+    margin-bottom: 12px;
+    color: var(--accent);
+    font-family: 'Archivo', sans-serif;
+    font-size: 18px;
+}
+
+.archive-report p+p {
+    margin-top: 12px;
+}
+
+.archive-item {
+    scroll-margin-top: 72px;
+}
+
 /* ----- KONTAKT ----- */
 .contact-grid {
     display: grid;

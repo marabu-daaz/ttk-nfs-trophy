@@ -45,7 +45,9 @@ async function init() {
             regsFailed = true;
             return [];
         });
-        const archive = tournaments.filter(t => t.id !== activeTournament.id);
+        // Das aktuelle Turnier kommt ins Archiv, sobald es vorbei ist (Bericht oder Ergebnisse hinterlegt)
+        const finished = t => !!(String(t.report || "").trim() || ergebnisse.some(e => e.tournament_id === t.id));
+        const archive = tournaments.filter(t => t.id !== activeTournament.id || finished(t));
 
         // Bewerbe parsen
         activeTournament.parsedBewerbe = parseBewerbe(activeTournament);
@@ -937,18 +939,27 @@ async function renderArchive(tournaments, ergebnisse) {
             }
         }
 
-        if (chips.length === 0 && !hasGallery && hofHtml === "") {
+        // Turnierbericht (reiner Text, Leerzeile = neuer Absatz)
+        const report = String(t.report || "").trim();
+        const reportHtml = report ? `
+                    <div class="archive-report">
+                        <h3>Turnierbericht</h3>
+                        ${report.split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("")}
+                    </div>` : "";
+        const hasBody = hofHtml !== "" || hasGallery || reportHtml !== "";
+
+        if (chips.length === 0 && !hasBody) {
             chips.push(`<span class="chip off">Keine Materialien</span>`);
         }
 
         const isOpen = idx === 0;
         const displayStyle = isOpen ? "block" : "none";
         const toggleIcon = isOpen ? "▼" : "▶";
-        const borderStyle = isOpen && (hofHtml !== "" || hasGallery) ? "1px solid var(--border)" : "none";
-        const paddingStyle = isOpen && (hofHtml !== "" || hasGallery) ? "20px" : "0";
+        const borderStyle = isOpen && hasBody ? "1px solid var(--border)" : "none";
+        const paddingStyle = isOpen && hasBody ? "20px" : "0";
 
         return `
-            <div class="arow archive-item" style="display:block; padding: 24px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px;">
+            <div class="arow archive-item" id="turnier-${esc(String(t.id))}" style="display:block; padding: 24px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 24px;">
                 <div class="archive-header" style="cursor:pointer; display:flex; justify-content:space-between; gap:18px; align-items:flex-start; flex-wrap:wrap; border-bottom: ${borderStyle}; padding-bottom: ${paddingStyle}; transition: all 0.2s;">
                     <div style="flex:1; min-width:250px;">
                         <div class="name" style="font-size:22px; font-family:'Archivo'; font-weight:600; display:flex; align-items:center; gap:12px;">
@@ -961,7 +972,8 @@ async function renderArchive(tournaments, ergebnisse) {
                         ${chips.join("")}
                     </div>
                 </div>
-                <div class="archive-content" style="display: ${displayStyle}; margin-top: ${isOpen && (hofHtml !== "" || hasGallery) ? "20px" : "0"};">
+                <div class="archive-content" style="display: ${displayStyle}; margin-top: ${isOpen && hasBody ? "20px" : "0"};">
+                    ${reportHtml}
                     ${hofHtml}
                     ${galleryHtml}
                 </div>
@@ -994,6 +1006,14 @@ async function renderArchive(tournaments, ergebnisse) {
             return content.style.display !== 'none';
         }, header.nextElementSibling.style.display !== 'none');
     });
+
+    // Link aus der Danke-Mail (#turnier-<id>): Turnier aufklappen und hinscrollen
+    const target = location.hash.startsWith("#turnier-") ? document.getElementById(decodeURIComponent(location.hash.slice(1))) : null;
+    if (target?.classList.contains("archive-item")) {
+        const header = target.querySelector(".archive-header");
+        if (header.nextElementSibling.style.display === "none") header.click();
+        target.scrollIntoView({ block: "start" });
+    }
 
     // Gallery Click Events
     container.querySelectorAll("[data-gallery]").forEach(el => {

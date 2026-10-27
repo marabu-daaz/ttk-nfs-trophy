@@ -493,6 +493,38 @@
                         </div>
                     </div>
 
+                    <div class="card after-card" style="margin-top:16px;">
+                        <div class="card-head">
+                            <h2><i data-icon="checkCircle"></i>Nach dem Turnier</h2>
+                            <span class="hint">Für das oben gewählte Turnier</span>
+                        </div>
+                        <div id="afterBanner"></div>
+                        <ol class="after-steps">
+                            <li>
+                                <div class="grow">
+                                    <strong>Nicht Erschienene aus der Statistik nehmen</strong>
+                                    <div class="small muted" id="noShowInfo"></div>
+                                </div>
+                                <button class="btn" id="noShowBtn"><i data-icon="userMinus"></i>Prüfen</button>
+                            </li>
+                            <li>
+                                <div class="grow">
+                                    <strong>Turnierbericht</strong>
+                                    <div class="small muted">Erscheint auf der Website im Archiv beim Turnier. Leerzeile = neuer Absatz.</div>
+                                    <textarea id="reportText" class="input" rows="7" style="margin-top:8px;" placeholder="Bericht hier hineinschreiben oder einfügen…"></textarea>
+                                    <button class="btn" id="saveReportBtn" style="margin-top:8px;">Bericht speichern</button>
+                                </div>
+                            </li>
+                            <li>
+                                <div class="grow">
+                                    <strong>Danke-Mail an alle Teilnehmer</strong>
+                                    <div class="small muted" id="thanksInfo"></div>
+                                </div>
+                                <button class="btn primary" id="thanksBtn"><i data-icon="mail"></i>Danke-Mail…</button>
+                            </li>
+                        </ol>
+                    </div>
+
                     <div class="grid cols-2" style="margin-top:16px;">
                         <div class="card">
                             <div class="card-head">
@@ -574,6 +606,7 @@
                             <button data-v="stamm">Stammspieler</button>
                             <button data-v="titles">Mit Podest</button>
                             <button data-v="dups">Doppelte prüfen</button>
+                            <button data-v="shared">Gemeinsame Adressen</button>
                         </div>
                         <select id="plSort" class="input" aria-label="Sortierung">
                             <option value="name">Name A–Z</option>

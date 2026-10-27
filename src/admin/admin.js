@@ -129,6 +129,7 @@ function showLogin() {
 }
 
 async function showApp() {
+    supabase.auth.getSession().then(({ data }) => { state.userEmail = data?.session?.user?.email || ''; }).catch(() => {});
     // Nur Konten aus der Admin-Liste (supabase/admins.sql) dürfen rein.
     // Gibt es die Prüf-Funktion noch nicht, gilt wie bisher: eingeloggt = Admin.
     const { data: isAdmin, error } = await supabase.rpc('is_admin');

@@ -13,6 +13,7 @@ export const state = {
     wlPositions: {},        // { [regId]: { [bewerb]: position } }
     fees: { normal: DEFAULT_FEE_NORMAL, nfs: DEFAULT_FEE_NFS },
     checkinSupported: true, // Spalte registrations.checked_in vorhanden?
+    userEmail: '',          // angemeldeter Admin
 };
 
 // ---------- Änderungs-Benachrichtigung ----------

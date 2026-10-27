@@ -4,6 +4,7 @@
 import { supabase, publicFotoUrl, publicPdfUrl } from '../shared/supabase.js';
 import { esc, showToast, parseBewerbe, safeFileName, throwIfError } from '../shared/utils.js';
 import { icon, confirmDialog, withBusy, makeDropzone } from './ui.js';
+import { initAfterTournament, renderAfterTournament } from './after.js';
 
 let allTournaments = [];
 let activeTournamentId = null;
@@ -41,6 +42,7 @@ export async function loadArchivData() {
         const t = findTournament(tId);
         document.getElementById('archivOettvUrl').value = t?.oettv_url || '';
         renderHallOfFame(t);
+        renderAfterTournament(t);
 
         const { data: ergs } = throwIfError(await supabase.from('ergebnisse').select('*').eq('tournament_id', tId));
         document.getElementById('ergList').innerHTML = ergs?.length
@@ -184,6 +186,7 @@ export async function uploadErgebnisPdf() {
 }
 
 export function initArchiveEvents() {
+    initAfterTournament();
     makeDropzone(document.getElementById('ergFile'), { text: 'Ergebnis-PDF hierher ziehen' });
     document.getElementById('archivSelect').addEventListener('change', loadArchivData);
     document.getElementById('saveArchivOettvBtn').addEventListener('click', saveArchivOettv);
