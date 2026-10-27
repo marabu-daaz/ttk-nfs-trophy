@@ -13,7 +13,8 @@ Vorname, rechts die RC-Punkte, danach die Bewerbs-Spalten (z.B. „1250“, „o
 „D2300“), die über die Bewerbsnamen des Turniers zugeordnet werden.
 
 Nennlisten enthalten auch Personen, die nicht gespielt haben (Warteliste, Absage).
-Liegt im Excel-Ordner eine Datei import-korrekturen.txt, werden diese ausgelassen
+Liegt im Excel-Ordner (bzw. im Unterordner „Spielerdatenbank“) eine Datei
+import-korrekturen.txt, werden diese ausgelassen
 bzw. Schreibweisen korrigiert. Format je Zeile:
     Turnier | Nachname | Vorname | nicht gespielt
     Turnier | Nachname | Vorname | -> Nachname, Vorname
@@ -182,7 +183,10 @@ def main():
         sys.exit("Die Ausgabe enthält Personendaten und darf nicht im Repository liegen.")
 
     tournaments = load_tournaments()
-    corrections = load_corrections(base / "import-korrekturen.txt")
+    # Korrekturliste: im Unterordner „Spielerdatenbank“ (aufgeräumt) oder direkt im Excel-Ordner
+    corr_file = next((f for f in (base / "Spielerdatenbank" / "import-korrekturen.txt", base / "import-korrekturen.txt") if f.exists()),
+                     base / "Spielerdatenbank" / "import-korrekturen.txt")
+    corrections = load_corrections(corr_file)
     used = set()
     lines = [
         "-- Import alter Nennlisten in die Spielerdatenbank (erzeugt von tools/import_players.py)",

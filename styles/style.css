@@ -131,7 +131,7 @@ nav ul a:hover {
     cursor: pointer;
 }
 
-@media(max-width:820px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     nav ul {
         display: none;
         position: absolute;
@@ -305,7 +305,7 @@ h1.title em {
     grid-template-columns: repeat(4, 1fr);
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .facts-grid {
         grid-template-columns: 1fr 1fr;
     }
@@ -390,7 +390,7 @@ section.block {
     }
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .bewerbe {
         grid-template-columns: 1fr;
     }
@@ -482,7 +482,7 @@ form {
     gap: 22px;
 }
 
-@media(max-width:560px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .frow {
         grid-template-columns: 1fr;
     }
@@ -523,7 +523,7 @@ form {
     margin-top: 6px;
 }
 
-@media(max-width:560px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .bewerb-checks {
         grid-template-columns: 1fr;
     }
@@ -705,7 +705,7 @@ aside.side .side-manage a:hover span {
     }
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .stand-grid {
         grid-template-columns: 1fr;
     }
@@ -832,7 +832,7 @@ aside.side .side-manage a:hover span {
     gap: 18px;
 }
 
-@media(max-width:760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .current-files {
         grid-template-columns: 1fr;
     }
@@ -980,7 +980,7 @@ aside.side .side-manage a:hover span {
     margin-top: 14px;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .rd-head {
         padding: 18px 18px 14px;
     }
@@ -1109,7 +1109,7 @@ button:focus-visible {
     max-width: 900px;
 }
 
-@media(max-width:680px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .impressum {
         grid-template-columns: 1fr;
         gap: 26px;
@@ -1163,7 +1163,7 @@ footer {
     line-height: 1.8;
 }
 
-@media(max-width:600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .foot .meta {
         text-align: left;
     }
@@ -1560,7 +1560,7 @@ footer {
 /* =========================================
    HANDY (bis 760px)
 ========================================= */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
 
     /* Menü: große Tippflächen, klar getrennte Einträge */
     .menu-btn {
@@ -1767,7 +1767,7 @@ footer {
 }
 
 /* Schwebender Knopf nur am Handy */
-@media (min-width: 761px) {
+@media (min-width: 761px) and (pointer: fine), (min-width: 1101px) {
     .mobile-cta {
         display: none !important;
     }
@@ -2262,7 +2262,7 @@ footer .meta div {
 }
 
 /* ---------- Handy ---------- */
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .hero-photo-wrap + .countdown-box {
         margin: -32px 12px 0;
         padding: 16px;
@@ -2560,7 +2560,7 @@ footer .meta div {
     text-align: center;
 }
 
-@media (max-width: 760px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .hof-stats {
         grid-template-columns: 1fr;
         gap: 10px;
@@ -2592,7 +2592,7 @@ footer .meta div {
 }
 
 /* ---------- Handy: Partner nebeneinander, Fußbereich zentriert ---------- */
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     #partnerGrid {
         gap: 24px 28px !important;
     }
@@ -2618,7 +2618,7 @@ footer .meta div {
 }
 
 /* ---------- Handy: Lesbarkeit und Tippflächen ---------- */
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .fact {
         min-width: 0;
         overflow-wrap: anywhere;
@@ -2810,7 +2810,7 @@ footer .meta a:hover {
 /* =========================================
    ECHTE HANDY-VERSION (bis 600 px): kompakt, weniger Leerraum
 ========================================= */
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
 
     /* Abschnitte und Überschriften */
     section.block {
@@ -3093,7 +3093,7 @@ footer .meta a:hover {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     .bewerb .n {
         font-size: 12px;
     }
@@ -3108,7 +3108,7 @@ footer .meta a:hover {
     }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
     /* Podest: Rahmen oben einheitlich, Farbe nur links */
     .hof-podium .hof-podium-item {
         border-top: 1px solid var(--hair);
@@ -3142,5 +3142,240 @@ footer .meta a:hover {
     #impressum h2,
     #datenschutz h2 {
         font-size: 22px !important;
+    }
+}
+
+/* =========================================
+   HANDY: alles untereinander, größer und ohne Zoomen lesbar
+   (gilt für schmale Bildschirme und alle Touch-Geräte bis 1100 px)
+========================================= */
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+
+    /* Inhalt nicht endlos breit auf großen Handys/Klapphandys */
+    .wrap {
+        max-width: 640px;
+    }
+
+    /* Grundschrift etwas größer */
+    body {
+        font-size: 17px;
+    }
+
+    /* Alle Raster einspaltig */
+    .hero-grid,
+    .facts-grid,
+    .bewerbe,
+    .form-wrap,
+    .frow,
+    .bewerb-checks,
+    .stand-grid,
+    .current-files,
+    .contact-grid,
+    .impressum,
+    .hof-stats,
+    .hof-podium {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    .hof-grid {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+
+    /* Fakten: eine Karte pro Zeile, Bezeichnung links, Inhalt rechts daneben */
+    .facts-grid {
+        gap: 8px !important;
+    }
+
+    .fact {
+        display: grid;
+        grid-template-columns: 112px 1fr;
+        gap: 12px;
+        align-items: baseline;
+        padding: 14px 16px !important;
+    }
+
+    .fact .k {
+        font-size: 12px;
+    }
+
+    .fact .v,
+    .fact .v strong {
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    /* Bewerbe */
+    .bewerb h3 {
+        font-size: 18px;
+    }
+
+    .bewerb .t {
+        font-size: 14px;
+    }
+
+    /* Formular: gut lesbar und groß zum Tippen */
+    .field label,
+    .form-section .field>label {
+        font-size: 13px;
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+        font-size: 17px;
+        min-height: 48px;
+    }
+
+    .bewerb-checks label {
+        font-size: 16px;
+        min-height: 48px;
+    }
+
+    .check>span {
+        font-size: 14px;
+        line-height: 1.55;
+    }
+
+    aside.side .li,
+    aside.side .small,
+    aside.side .side-manage p {
+        font-size: 15px;
+    }
+
+    /* Nennstand: eine Karte pro Zeile, größere Schrift */
+    .stand-card h3 {
+        font-size: 18px;
+    }
+
+    .stand-card .sub {
+        font-size: 14px;
+    }
+
+    .stand-card .count {
+        font-size: 30px;
+    }
+
+    .stand-card li {
+        font-size: 15px;
+    }
+
+    .stand-card li .verein {
+        font-size: 13px;
+    }
+
+    /* Ergebnisse / Livestreams */
+    .file-card h3 {
+        font-size: 18px;
+    }
+
+    .file-card .btn {
+        font-size: 15px;
+        padding: 12px 20px;
+    }
+
+    /* Archiv: Siegerlisten gut lesbar, Fotos in zwei großen Spalten */
+    .hof-card li {
+        font-size: 15px;
+    }
+
+    .gallery {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    .gallery img {
+        aspect-ratio: 4 / 3;
+        height: auto;
+        object-fit: cover;
+    }
+
+    /* Bestenliste */
+    .hof-podium-name,
+    .hof-podium-item.r1 .hof-podium-name {
+        font-size: 18px;
+    }
+
+    .hof-podium-meta {
+        font-size: 14px;
+    }
+
+    .hof-row {
+        padding: 14px 12px;
+    }
+
+    .hof-name,
+    .hof-num {
+        font-size: 15px;
+    }
+
+    .hof-detail {
+        font-size: 15px;
+    }
+
+    /* Partner: untereinander, gleich große Kacheln */
+    #partnerGrid {
+        flex-direction: column;
+        align-items: center;
+        gap: 12px !important;
+    }
+
+    .partner-logo {
+        width: min(100%, 340px);
+        height: 120px;
+        padding: 14px 22px;
+    }
+
+    /* Kontakt */
+    .cblock .v,
+    .cblock .v a {
+        font-size: 17px;
+    }
+
+    .venue .addr {
+        font-size: 16px;
+    }
+
+    /* Rechtliches: lesbare Fließtexte */
+    .imp-block p {
+        font-size: 15px;
+        line-height: 1.6;
+    }
+}
+
+/* Handy: auch Nebeninformationen mind. 14 px */
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+    .note,
+    .stand-meta,
+    .hof-note,
+    .archive-header .date,
+    .hof-detail .place,
+    .hof-card div[style*="font-size:13px"] {
+        font-size: 14px !important;
+    }
+
+    .archive .chip,
+    #nennstand .btn,
+    .chip {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 760px), (pointer: coarse) and (max-width: 1100px) {
+    /* Logo-Fotos am Handy vollständig zeigen (breite Kachel würde sonst beschneiden) */
+    .partner-logo {
+        height: 140px;
+    }
+
+    /* Logo-Fotos haben viel eigenen Rand: vergrößert zeigen, ohne den Schriftzug zu beschneiden */
+    .partner-logo img.opaque {
+        object-fit: contain;
+        transform: scale(1.55);
+    }
+
+    /* Unterstreichung direkt am Text statt unter der vergrößerten Tippfläche */
+    aside.side .side-manage a {
+        border-bottom: none !important;
+        text-decoration: underline;
+        text-underline-offset: 4px;
     }
 }

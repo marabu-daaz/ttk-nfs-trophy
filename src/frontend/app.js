@@ -21,6 +21,9 @@ async function loadRegs(tournamentId) {
     return data || [];
 }
 
+/** Handy-Ansicht: schmal oder Touch-Gerät bis 1100 px (gleiche Bedingung wie in style.css) */
+const PHONE_QUERY = "(max-width: 760px), (pointer: coarse) and (max-width: 1100px)";
+
 async function init() {
     try {
         const [tournamentsResult, ergebnisseResult] = await Promise.all([
@@ -738,7 +741,7 @@ function renderNennstand(t, regs) {
             : "";
 
         // Am Handy eingeklappt (sonst wird die Seite sehr lang), am Desktop offen
-        const listOpen = !window.matchMedia("(max-width: 760px)").matches;
+        const listOpen = !window.matchMedia(PHONE_QUERY).matches;
         const summary = `Teilnehmer anzeigen <span>${active.length}${waiting.length ? ` + ${waiting.length} Warteliste` : ""}</span>`;
         const body = active.length || waiting.length
             ? `<details class="stand-list" ${listOpen ? "open" : ""}>
@@ -999,7 +1002,7 @@ async function renderArchive(tournaments, ergebnisse) {
         }
 
         // Am Handy alle eingeklappt (sonst sehr lange Seite), am Desktop das neueste offen
-        const isOpen = idx === 0 && !window.matchMedia('(max-width: 600px)').matches;
+        const isOpen = idx === 0 && !window.matchMedia(PHONE_QUERY).matches;
         const displayStyle = isOpen ? "block" : "none";
         const toggleIcon = isOpen ? "▼" : "▶";
         const borderStyle = isOpen && hasBody ? "1px solid var(--border)" : "none";
