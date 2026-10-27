@@ -41,6 +41,9 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
   - hardening.sql         # RLS-Prüfung, Duplikat-Schutz, serverseitige Warteliste
   - admin-features.sql    # Spalte checked_in für den Check-in
   - live-realtime.sql     # Echtzeit für den Live-Ticker (Projekt B)
+  - players.sql           # Spielerdatenbank (Personen, Teilnahmen, Zusammenführen)
+- tools/
+  - import_players.py     # Alte Excel-Nennlisten → SQL-Import (Ausgabe nie ins Repo!)
 - public/
   - index.html            # Öffentliche Seite
   - admin.html            # Admin-Dashboard
@@ -64,6 +67,7 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
     - finance.js        # Kasse & Kassenbuch
     - setup.js          # Turnier-Setup
     - archive.js        # Archiv & Medien
+    - players.js        # Spielerdatenbank, Doppelte, Vorschläge beim Anlegen
   - live/
     - live.js           # Live-Ticker (Echtzeit, Ansichten)
     - ranking.js        # Reihung der Tabelle (unverändert übernommen)
@@ -156,6 +160,11 @@ Wichtig: Die Ordnerstruktur muss erhalten bleiben (src/, styles/, icons/, config
 - Vorlage für RLS-Policies
 
 `supabase/admin-features.sql` (Projekt A): Spalte `checked_in` für den Check-in.
+
+`supabase/players.sql` (Projekt A): Spielerdatenbank. Jede Website-Nennung wird per Trigger einer
+Person zugeordnet (gleicher Name → gleiche Person). Alte Excel-Listen einmalig mit
+`python tools/import_players.py "<Excel-Ordner>"` in eine SQL-Datei umwandeln und im SQL-Editor
+ausführen. Die Datei enthält Personendaten und wird deshalb außerhalb des Repos abgelegt.
 
 `supabase/live-realtime.sql` (Projekt B): gibt `matches`/`players` für Supabase Realtime frei,
 damit Ergebnisse sofort im Live-Ticker erscheinen. Ohne Freigabe lädt der Ticker alle 20 s nach.

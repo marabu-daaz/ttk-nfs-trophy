@@ -10,6 +10,7 @@ import {
 } from './state.js';
 import { icon, euro, relTime, confirmDialog, withBusy } from './ui.js';
 import { historyFor } from './audit.js';
+import { ensurePlayers, searchPlayers, invalidatePlayers } from './players.js';
 
 const filters = { search: '', bewerb: 'all', status: 'all', sort: 'time_desc' };
 let filtered = [];
@@ -228,6 +229,12 @@ function initRegModal() {
             else showToast(`Link an ${editing.email} geschickt`);
         }, 'Sende…');
     });
+    // Bekannte Spieler vorschlagen (nur beim Anlegen)
+    ['rfVorname', 'rfNachname'].forEach(id => document.getElementById(id).addEventListener('input', renderSuggestions));
+    document.getElementById('rfSuggest').addEventListener('click', e => {
+        const b = e.target.closest('[data-pid]');
+        if (b) applySuggestion(suggestions.find(p => String(p.id) === b.dataset.pid));
+    });
     document.getElementById('rfVerein').addEventListener('change', () => {
         // Tarif automatisch vorschlagen, solange er nicht manuell gesetzt wurde
         if (!editing) document.getElementById('rfTag').value = autoTag({ verein: document.getElementById('rfVerein').value });
@@ -241,6 +248,35 @@ function initRegModal() {
         }
         updateFeePreview();
     });
+}
+
+let suggestions = [];
+
+function renderSuggestions() {
+    const box = document.getElementById('rfSuggest');
+    const v = id => document.getElementById(id).value;
+    suggestions = editing ? [] : searchPlayers(v('rfVorname'), v('rfNachname'));
+    box.hidden = suggestions.length === 0;
+    box.innerHTML = suggestions.length ? `<div class="suggest-label">Bekannt aus früheren Turnieren – zum Übernehmen antippen:</div>` +
+        suggestions.map(p => `
+            <button type="button" class="suggest-item" data-pid="${p.id}">
+                <span class="name">${esc(p.nachname)} ${esc(p.vorname)}</span>
+                <span class="meta">${esc(p.verein || '–')} · RC ${p.rc ?? '–'} · ${p.count} ${p.count === 1 ? 'Turnier' : 'Turniere'}${p.email ? ' · ' + esc(p.email) : ''}</span>
+            </button>`).join('') : '';
+}
+
+function applySuggestion(p) {
+    if (!p) return;
+    const $ = id => document.getElementById(id);
+    $('rfVorname').value = p.vorname;
+    $('rfNachname').value = p.nachname;
+    $('rfEmail').value = p.email || '';
+    $('rfTelefon').value = p.telefon || '';
+    $('rfVerein').value = p.verein || '';
+    $('rfRc').value = p.rc ?? '';
+    $('rfTag').value = autoTag({ verein: p.verein });
+    $('rfSuggest').hidden = true;
+    updateFeePreview();
 }
 
 /**
@@ -295,6 +331,8 @@ export function openRegModal(reg = null, preset = {}) {
 
     updateFeePreview();
     loadHistory(reg);
+    $('rfSuggest').hidden = true;
+    if (!reg) ensurePlayers(); // Vorschläge im Hintergrund laden
     document.getElementById('regModal').showModal();
     $('rfVorname').focus();
 }
@@ -388,6 +426,7 @@ async function onRegSubmit(e) {
                 showToast(`${payload.vorname} ${payload.nachname} wurde genannt`);
             }
             document.getElementById('regModal').close();
+            invalidatePlayers();
             await reloadRegistrations();
         } catch (err) {
             console.error(err);

@@ -95,6 +95,7 @@
                 <a href="#/checkin" data-view="checkin"><i data-icon="checkCircle"></i>Check-in</a>
                 <a href="#/kasse" data-view="kasse"><i data-icon="wallet"></i>Kasse</a>
                 <div class="nav-label">Verwaltung</div>
+                <a href="#/spieler" data-view="spieler"><i data-icon="star"></i>Spieler</a>
                 <a href="#/setup" data-view="setup"><i data-icon="sliders"></i>Turnier-Setup</a>
                 <a href="#/archiv" data-view="archiv"><i data-icon="archive"></i>Archiv &amp; Medien</a>
                 <a href="#/protokoll" data-view="protokoll"><i data-icon="clock"></i>Protokoll</a>
@@ -549,6 +550,40 @@
                     </div>
                 </section>
 
+                <!-- ========== SPIELER ========== -->
+                <section class="view hidden" id="view-spieler">
+                    <div class="page-head">
+                        <div>
+                            <h1>Spieler</h1>
+                            <div class="sub">Alle Spieler aus allen Turnieren – mit Teilnahmen und Erfolgen</div>
+                        </div>
+                        <div class="actions">
+                            <button class="btn" id="plMail"><i data-icon="mail"></i>Mail (BCC)</button>
+                            <button class="btn" id="plExport"><i data-icon="sheet"></i>Excel</button>
+                        </div>
+                    </div>
+                    <div class="toolbar">
+                        <div class="search input-icon">
+                            <i data-icon="search"></i>
+                            <input type="search" id="plSearch" class="input" placeholder="Name, Verein oder E-Mail suchen…">
+                        </div>
+                        <div class="segmented" id="plFilter" role="group" aria-label="Spieler-Filter">
+                            <button data-v="all" class="on">Alle</button>
+                            <button data-v="stamm">Stammspieler</button>
+                            <button data-v="titles">Mit Podest</button>
+                            <button data-v="dups">Doppelte prüfen</button>
+                        </div>
+                        <select id="plSort" class="input" aria-label="Sortierung">
+                            <option value="name">Name A–Z</option>
+                            <option value="count">Meiste Teilnahmen</option>
+                            <option value="last">Zuletzt dabei</option>
+                            <option value="titles">Meiste Siege</option>
+                            <option value="rc">RC-Punkte absteigend</option>
+                        </select>
+                    </div>
+                    <div id="plRoot"></div>
+                </section>
+
                 <!-- ========== PROTOKOLL ========== -->
                 <section class="view hidden" id="view-protokoll">
                     <div class="page-head">
@@ -591,6 +626,7 @@
                 <div class="form-grid">
                     <div class="field"><label for="rfVorname">Vorname *</label><input id="rfVorname" class="input" required></div>
                     <div class="field"><label for="rfNachname">Nachname *</label><input id="rfNachname" class="input" required></div>
+                    <div class="full suggest" id="rfSuggest" hidden></div>
                     <div class="field"><label for="rfEmail">E-Mail</label><input id="rfEmail" type="email" class="input"></div>
                     <div class="field"><label for="rfTelefon">Telefon</label><input id="rfTelefon" type="tel" class="input"></div>
                     <div class="field"><label for="rfVerein">Verein</label><input id="rfVerein" class="input" list="vereinList"></div>
@@ -637,6 +673,37 @@
                 <span class="spacer"></span>
                 <button type="button" class="btn" data-close>Abbrechen</button>
                 <button type="submit" class="btn primary" id="rfSave">Speichern</button>
+            </div>
+        </form>
+    </dialog>
+
+    <!-- ================= SPIELER-DIALOG ================= -->
+    <dialog id="playerModal" class="modal">
+        <form id="playerForm" method="dialog" novalidate>
+            <div class="modal-head">
+                <h2 id="pfTitle">Spieler</h2>
+                <button type="button" class="icon-btn" data-close aria-label="Schließen"><i data-icon="x"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="pl-summary" id="pfSummary"></div>
+                <div class="form-grid">
+                    <div class="field"><label for="pfVorname">Vorname *</label><input id="pfVorname" class="input" required></div>
+                    <div class="field"><label for="pfNachname">Nachname *</label><input id="pfNachname" class="input" required></div>
+                    <div class="field"><label for="pfEmail">E-Mail</label><input id="pfEmail" type="email" class="input"></div>
+                    <div class="field"><label for="pfTelefon">Telefon</label><input id="pfTelefon" type="tel" class="input"></div>
+                    <div class="field"><label for="pfVerein">Verein</label><input id="pfVerein" class="input"></div>
+                    <div class="field"><label for="pfRc">RC-Punkte</label><input id="pfRc" class="input" inputmode="numeric"></div>
+                    <div class="field full"><label for="pfNotiz">Notiz</label><textarea id="pfNotiz" class="input" rows="2" placeholder="nur intern sichtbar"></textarea></div>
+                </div>
+                <div class="section-title">Teilnahmen</div>
+                <div id="pfHistory"></div>
+            </div>
+            <div class="modal-foot">
+                <button type="button" class="btn danger" id="pfDelete"><i data-icon="trash"></i>Löschen</button>
+                <button type="button" class="btn" id="pfMail"><i data-icon="mail"></i>Mail</button>
+                <span class="spacer"></span>
+                <button type="button" class="btn" data-close>Abbrechen</button>
+                <button type="submit" class="btn primary" id="pfSave">Speichern</button>
             </div>
         </form>
     </dialog>

@@ -10,6 +10,7 @@ import * as registrations from './registrations.js';
 import * as bewerbe from './bewerbe.js';
 import * as checkin from './checkin.js';
 import * as audit from './audit.js';
+import * as players from './players.js';
 import { loadBookkeeping, setFinanceTournamentId, setFinanceChangeHandler, initFinanceView, renderFinance } from './finance.js';
 import { fillSetup, initSetupEvents, setSetupTournamentId, setSetupTournaments, setSetupSavedHandler, setSetupOpenState } from './setup.js';
 import { setArchiveTournamentId, setArchiveTournaments, populateArchivDropdown, initArchiveEvents, initFotoUpload } from './archive.js';
@@ -25,6 +26,7 @@ const VIEWS = {
     bewerbe: { title: 'Bewerbe', render: bewerbe.render },
     checkin: { title: 'Check-in', render: checkin.render },
     kasse: { title: 'Kasse', render: renderKasse },
+    spieler: { title: 'Spieler', render: players.render },
     setup: { title: 'Turnier-Setup', render: null },
     archiv: { title: 'Archiv & Medien', render: null },
     protokoll: { title: 'Protokoll', render: audit.render },
@@ -149,6 +151,7 @@ function initOnce() {
     bewerbe.initBewerbeView();
     checkin.initCheckinView();
     audit.initAuditView();
+    players.initPlayersView();
     initFinanceView();
     initSetupEvents();
     initArchiveEvents();
@@ -170,7 +173,7 @@ function initOnce() {
         if (!el) return;
         const action = el.dataset.action;
         if (action === 'new-reg') registrations.openRegModal();
-        if (action === 'refresh') { await loadEverything(); showToast('Aktualisiert'); }
+        if (action === 'refresh') { players.invalidatePlayers(); await loadEverything(); showToast('Aktualisiert'); }
         if (action === 'toggle-open') toggleOpen();
         if (action === 'mail-all') mailAll();
     });
