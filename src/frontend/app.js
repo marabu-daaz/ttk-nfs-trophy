@@ -372,9 +372,9 @@ function renderForm(t) {
     if (leadEl) {
         const fmt = d => d.toLocaleString("de-AT", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
         leadEl.textContent = open
-            ? (reg.deadline ? `Anmeldeschluss: ${fmt(reg.deadline)} Uhr. ` : "") + "Die Nennung kann auch per E-Mail oder Telefon erfolgen."
+            ? (reg.deadline ? `Anmeldeschluss: ${fmt(reg.deadline)} Uhr. ` : "") + "Nennungen sind nur über dieses Formular möglich."
             : reg.expired && t.is_open
-                ? `Der Anmeldeschluss (${fmt(reg.deadline)} Uhr) ist vorbei. Nachnennungen bitte per E-Mail oder Telefon.`
+                ? `Der Anmeldeschluss (${fmt(reg.deadline)} Uhr) ist vorbei – es sind keine Nennungen mehr möglich.`
                 : "Für dieses Turnier ist die Anmeldung aktuell geschlossen.";
         leadEl.classList.toggle("closed", !open);
     }
