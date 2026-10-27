@@ -819,13 +819,16 @@ function openReport(t, opener) {
         .split(/\n\s*\n/).map(p => `<p>${esc(p.trim()).replace(/\n/g, "<br>")}</p>`).join("");
     if (!dlg.dataset.ready) {
         dlg.dataset.ready = "1";
-        document.getElementById("reportClose").addEventListener("click", () => dlg.close());
-        // Klick neben das Fenster schließt
-        dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
-        dlg.addEventListener("close", () => {
+        // Aufräumen sofort beim Schließen – das close-Ereignis kommt asynchron (bleibt für die Escape-Taste)
+        const restore = () => {
             document.body.style.overflow = "";
             dlg._opener?.focus?.();
-        });
+        };
+        const close = () => { dlg.close(); restore(); };
+        document.getElementById("reportClose").addEventListener("click", close);
+        // Klick neben das Fenster schließt
+        dlg.addEventListener("click", e => { if (e.target === dlg) close(); });
+        dlg.addEventListener("close", restore);
     }
     dlg._opener = opener;
     if (!dlg.open) dlg.showModal();

@@ -47,7 +47,7 @@
 <body>
     <header class="top">
         <div class="wrap top-inner">
-            <a href="/" class="brand" aria-label="Zur Startseite">
+            <a href="/" class="brand" title="Zur Startseite">
                 <img src="/icons/logo.svg" alt="" width="36" height="36">
                 <div>
                     <div class="t1" id="tournamentName">NFS Trophy</div>
@@ -68,14 +68,14 @@
         </div>
 
         <nav class="tabs" aria-label="Ansicht">
-            <div class="wrap tabs-inner" id="tabs">
-                <button data-tab="live">Live</button>
-                <button data-tab="table">Tabelle</button>
-                <button data-tab="player">Spieler</button>
-                <button data-tab="queue">Warteschlange</button>
-                <button data-tab="pots">Töpfe</button>
-                <button data-tab="stats">Statistik</button>
-                <button data-tab="system">System</button>
+            <div class="wrap tabs-inner" id="tabs" role="tablist">
+                <button role="tab" data-tab="live">Live</button>
+                <button role="tab" data-tab="table">Tabelle</button>
+                <button role="tab" data-tab="player">Spieler</button>
+                <button role="tab" data-tab="queue">Warteschlange</button>
+                <button role="tab" data-tab="pots">Töpfe</button>
+                <button role="tab" data-tab="stats">Statistik</button>
+                <button role="tab" data-tab="system">System</button>
             </div>
         </nav>
     </header>

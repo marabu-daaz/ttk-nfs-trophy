@@ -36,7 +36,7 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
 
 - config.js                 # Supabase Credentials (Anon-Keys, öffentlich – Schutz über RLS)
 - netlify.toml              # Redirect / → public/index.html, Header
-- icons/                    # Favicons, PWA-Icons, logo.png
+- icons/                    # Logo (logo.svg, logo-mark.svg), Favicons, PWA-Icons
 - supabase/
   - hardening.sql         # RLS-Prüfung, Duplikat-Schutz, serverseitige Warteliste
   - admin-features.sql    # Spalte checked_in für den Check-in
