@@ -71,7 +71,7 @@ function showLb() {
 function closeLb() {
     lb.classList.remove("open");
     document.body.style.overflow = "";
-    lbImg.src = "";
+    lbImg.removeAttribute("src");
     if (lbCaption) {
         lbCaption.textContent = '';
         lbCaption.style.display = 'none';

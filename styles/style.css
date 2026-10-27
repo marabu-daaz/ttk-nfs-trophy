@@ -438,7 +438,7 @@ section.block {
 .note {
     margin-top: 28px;
     font-size: 13px;
-    color: rgba(255, 255, 255, .45);
+    color: rgba(255, 255, 255, .62);
     line-height: 1.7;
 }
 
@@ -647,7 +647,7 @@ aside.side .li b {
 
 aside.side .small {
     font-size: 13px;
-    color: rgba(13, 40, 24, .6);
+    color: rgba(13, 40, 24, .72);
     margin-top: 24px;
     line-height: 1.6;
 }
@@ -668,7 +668,7 @@ aside.side .side-manage h4 {
 aside.side .side-manage p {
     font-size: 13px;
     line-height: 1.6;
-    color: rgba(13, 40, 24, .6);
+    color: rgba(13, 40, 24, .72);
     margin-bottom: 12px;
 }
 
@@ -725,7 +725,7 @@ aside.side .side-manage a:hover span {
     border-bottom: 1px solid var(--line);
 }
 
-.stand-card h4 {
+.stand-card h3 {
     font-family: 'Archivo', sans-serif;
     font-weight: 400;
     font-size: 18px;

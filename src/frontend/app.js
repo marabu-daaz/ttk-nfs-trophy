@@ -726,7 +726,7 @@ function renderNennstand(t, regs) {
 
         return `
             <div class="stand-card">
-                <h4>Bewerb ${i + 1}</h4>
+                <h3>Bewerb ${i + 1}</h3>
                 <div class="sub">${esc(b.name)}</div>
                 <div class="count">${active.length}<small>von ${cap}</small></div>
                 <div class="progress-bar">
@@ -918,7 +918,7 @@ async function renderArchive(tournaments, ergebnisse) {
 
                 return `
                     <div class="hof-card" style="background:rgba(255,255,255,0.03); padding:20px; border-radius:8px; border:1px solid var(--border);">
-                        <h4 style="margin-bottom:16px; color:var(--accent); font-family:'Archivo'; font-size:18px; letter-spacing:0.5px;">${esc(b.name)}</h4>
+                        <h3 style="margin-bottom:16px; color:var(--accent); font-family:'Archivo'; font-size:18px; letter-spacing:0.5px;">${esc(b.name)}</h3>
                         <ul style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; font-size:15px;">
                             ${list}
                         </ul>
