@@ -34,6 +34,12 @@ html {
     scroll-behavior: smooth;
 }
 
+/* Sprungziele nicht unter der fixierten Navigation verstecken */
+section[id],
+header[id] {
+    scroll-margin-top: 72px;
+}
+
 body {
     background: var(--green-deep);
     color: #fff;
@@ -1464,4 +1470,231 @@ footer {
     color: #0d2818;
     font-size: 15px;
     line-height: 1.5;
+}
+
+/* =========================================
+   NENNSTAND: Teilnehmerliste auf-/zuklappbar (am Handy zu)
+========================================= */
+.stand-list > summary {
+    display: none;
+}
+
+/* =========================================
+   HANDY (bis 760px)
+========================================= */
+@media (max-width: 760px) {
+
+    /* Menü: große Tippflächen, klar getrennte Einträge */
+    .menu-btn {
+        width: 44px;
+        height: 44px;
+        margin-right: -10px;
+        font-size: 28px;
+        line-height: 1;
+    }
+
+    nav .inner {
+        padding-top: 12px;
+        padding-bottom: 12px;
+    }
+
+    nav .logo,
+    nav .logo img {
+        height: 40px;
+    }
+
+    nav ul {
+        gap: 0;
+        padding: 6px 20px 14px;
+        box-shadow: 0 18px 30px rgba(0, 0, 0, .35);
+    }
+
+    nav ul li {
+        border-bottom: 1px solid var(--line);
+    }
+
+    nav ul li:last-child {
+        border-bottom: 0;
+    }
+
+    nav ul a {
+        display: block;
+        padding: 14px 2px;
+        font-size: 17px;
+    }
+
+    /* Start: Knöpfe volle Breite, Countdown kompakter */
+    .hero .actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .hero .actions .btn {
+        text-align: center;
+    }
+
+    .cd-lbl {
+        font-size: 11px;
+    }
+
+    /* Kleine Überschriften-Zeilen gut lesbar */
+    .eyebrow,
+    .k.mono,
+    .cap.mono {
+        font-size: 12px;
+    }
+
+    /* Formular: lesbare Beschriftungen, große Häkchen */
+    .field > label {
+        font-size: 12px;
+    }
+
+    .check input[type="checkbox"],
+    .bewerb-checks input[type=checkbox] {
+        width: 22px;
+        height: 22px;
+    }
+
+    .bewerb-checks label {
+        min-height: 48px;
+        align-items: center;
+    }
+
+    .submit {
+        width: 100%;
+    }
+
+    /* größere Tippfläche, ohne den Unterstrich zu verschieben */
+    aside.side .side-manage a {
+        position: relative;
+    }
+
+    aside.side .side-manage a::before {
+        content: "";
+        position: absolute;
+        inset: -12px -6px;
+    }
+
+    /* Bewerbe-Karten kompakter */
+    .bewerb {
+        padding: 22px 20px;
+    }
+
+    /* Nennstand: Karten kompakt, Liste aufklappbar */
+    .stand-card {
+        padding: 20px 18px;
+    }
+
+    .stand-card .count {
+        margin: 8px 0;
+    }
+
+    .progress-bar {
+        margin: 8px 0 12px;
+    }
+
+    .stand-list > summary {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        min-height: 44px;
+        cursor: pointer;
+        list-style: none;
+        font-size: 14px;
+        color: var(--green-neon);
+        border-top: 1px solid var(--line);
+    }
+
+    .stand-list > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    .stand-list > summary span {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 13px;
+    }
+
+    .stand-list > summary::after {
+        content: "▾";
+        color: var(--green-neon);
+    }
+
+    .stand-list[open] > summary::after {
+        content: "▴";
+    }
+
+    .stand-list[open] > summary {
+        margin-bottom: 6px;
+    }
+
+    .stand-card li {
+        font-size: 14px;
+        padding: 9px 0;
+    }
+
+    .bewerb .p.mono,
+    .stand-card .wait-hd {
+        font-size: 12px;
+    }
+
+    /* Archiv: Ergebnis-/Ausschreibungs-Chips gut antippbar */
+    .archive .chip {
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+    }
+
+    /* Bestenliste & Footer: größere Tippflächen */
+    .rek-toggle {
+        min-height: 44px;
+        align-items: center !important;
+    }
+
+    footer a {
+        display: inline-block;
+        padding: 8px 0;
+    }
+
+    .manage-back {
+        display: inline-block;
+        padding: 12px 0;
+    }
+
+    /* Schwebender Nenn-Knopf */
+    .mobile-cta {
+        position: fixed;
+        left: 16px;
+        right: 16px;
+        bottom: calc(14px + env(safe-area-inset-bottom));
+        z-index: 60;
+        display: block;
+        padding: 16px;
+        text-align: center;
+        font-family: 'Archivo', sans-serif;
+        font-weight: 700;
+        font-size: 16px;
+        letter-spacing: .02em;
+        text-decoration: none;
+        color: var(--green-deep);
+        background: var(--green-neon);
+        border-radius: 10px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+    }
+
+    .mobile-cta[hidden] {
+        display: none;
+    }
+
+    /* Platz, damit der schwebende Knopf nichts verdeckt */
+    footer {
+        padding-bottom: 90px;
+    }
+}
+
+/* Schwebender Knopf nur am Handy */
+@media (min-width: 761px) {
+    .mobile-cta {
+        display: none !important;
+    }
 }

@@ -372,7 +372,7 @@ function renderForm(t) {
 
             let badge = "";
             if (activeCount >= cap) {
-                badge = `<span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(212, 160, 23, 0.2); color:#966f08; font-weight:600; text-transform:uppercase; margin-left:8px; vertical-align:middle; display:inline-block;">WL Pos. ${waitingCount + 1}</span>`;
+                badge = `<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:rgba(212, 160, 23, 0.2); color:#966f08; font-weight:600; text-transform:uppercase; margin-left:8px; vertical-align:middle; display:inline-block;">WL Pos. ${waitingCount + 1}</span>`;
             }
 
             return `
@@ -383,6 +383,8 @@ function renderForm(t) {
             `;
         }).join("");
     }
+
+    setupMobileCta(open);
 
     const form = document.getElementById("regForm");
     const btn = document.getElementById("submitBtn");
@@ -510,6 +512,25 @@ function renderForm(t) {
             btn.textContent = "Nennung absenden";
         }
     };
+}
+
+/**
+ * Handy: schwebender „Jetzt nennen“-Knopf – nur bei offener Anmeldung und nur,
+ * solange weder der Startbereich noch das Formular zu sehen ist.
+ */
+function setupMobileCta(open) {
+    const cta = document.getElementById("mobileCta");
+    if (!cta || !open) return;
+    const watched = [document.getElementById("top"), document.getElementById("anmelden")].filter(Boolean);
+    const inView = el => {
+        const r = el.getBoundingClientRect();
+        return r.bottom > 0 && r.top < window.innerHeight;
+    };
+    // Zwei Positionsabfragen pro Scroll-Ereignis – billig genug, um direkt zu rechnen
+    const update = () => { cta.hidden = watched.some(inView); };
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    update();
 }
 
 /**
@@ -689,9 +710,15 @@ function renderNennstand(t, regs) {
             ).join("") + `</ol>`
             : "";
 
-        const body = active.length
-            ? `<ol>${liActive}</ol>${liWait}`
-            : `<div class="stand-empty">Noch keine Nennungen</div>${liWait}`;
+        // Am Handy eingeklappt (sonst wird die Seite sehr lang), am Desktop offen
+        const listOpen = !window.matchMedia("(max-width: 760px)").matches;
+        const summary = `Teilnehmer anzeigen <span>${active.length}${waiting.length ? ` + ${waiting.length} Warteliste` : ""}</span>`;
+        const body = active.length || waiting.length
+            ? `<details class="stand-list" ${listOpen ? "open" : ""}>
+                   <summary>${summary}</summary>
+                   ${active.length ? `<ol>${liActive}</ol>` : `<div class="stand-empty">Noch keine Startplätze vergeben</div>`}${liWait}
+               </details>`
+            : `<div class="stand-empty">Noch keine Nennungen</div>`;
 
         const cap = b.capacity ? parseInt(b.capacity, 10) : 20;
         const isFull = active.length >= cap;
@@ -1258,11 +1285,17 @@ menuBtn?.addEventListener("click", () => {
     menuBtn.setAttribute("aria-expanded", String(open));
 });
 
-document.querySelectorAll("#navList a").forEach(a => {
-    a.addEventListener("click", () => {
-        document.getElementById("navList").classList.remove("open");
-        menuBtn?.setAttribute("aria-expanded", "false");
-    });
+const closeMenu = () => {
+    document.getElementById("navList").classList.remove("open");
+    menuBtn?.setAttribute("aria-expanded", "false");
+};
+document.querySelectorAll("#navList a").forEach(a => a.addEventListener("click", closeMenu));
+// Tippen neben das Menü oder Escape schließt es
+document.addEventListener("click", e => {
+    if (!e.target.closest("nav")) closeMenu();
+});
+document.addEventListener("keydown", e => {
+    if (e.key === "Escape") closeMenu();
 });
 
 // Jahr im Footer
