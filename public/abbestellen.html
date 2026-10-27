@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="de">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <title>Einladungen abbestellen · NFS Trophy</title>
+    <meta name="theme-color" content="#0a1f14" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/fonts.css" />
+    <link rel="stylesheet" href="/styles/style.css" />
+    <script type="module" src="/src/frontend/abbestellen.js"></script>
+</head>
+
+<body class="manage-page">
+    <nav>
+        <div class="inner">
+            <a href="/" class="logo" aria-label="NFS Trophy"><img src="/icons/logo.png" alt="NFS Trophy" /></a>
+            <a href="/" class="manage-back">← Zur Turnierseite</a>
+        </div>
+    </nav>
+
+    <main class="wrap manage-wrap">
+        <div class="sec-head">
+            <div class="eyebrow mono">Einladungen</div>
+            <h2>Einladungen <em>abbestellen</em></h2>
+        </div>
+
+        <!-- Bestätigen (erst nach Klick – Mailprogramme öffnen Links manchmal automatisch) -->
+        <section id="stateAsk" class="manage-card">
+            <p class="manage-lead">Du möchtest keine Einladungen zu künftigen NFS Trophys mehr per E-Mail bekommen?</p>
+            <p class="manage-muted">Bestehende Nennungen und Bestätigungsmails sind davon nicht betroffen.</p>
+            <div class="manage-buttons">
+                <button class="btn primary" id="unsubBtn">Ja, abbestellen</button>
+                <a class="btn" href="/">Doch nicht</a>
+            </div>
+        </section>
+
+        <section id="stateDone" class="manage-card" hidden>
+            <div class="manage-icon">✓</div>
+            <p class="manage-lead" id="doneText">Erledigt – du bekommst keine Einladungen mehr.</p>
+            <p class="manage-muted">Falls du es dir anders überlegst, schreib uns einfach:
+                <a href="mailto:christianritter1310@gmail.com">christianritter1310@gmail.com</a></p>
+            <a class="btn" href="/">Zur Turnierseite</a>
+        </section>
+
+        <section id="stateInvalid" class="manage-card" hidden>
+            <p class="manage-lead">Dieser Link ist leider ungültig.</p>
+            <p class="manage-muted">Bitte nutze den Link aus der letzten Einladung oder schreib uns:
+                <a href="mailto:christianritter1310@gmail.com">christianritter1310@gmail.com</a></p>
+        </section>
+    </main>
+
+    <div id="toastContainer" class="toast-container"></div>
+</body>
+
+</html>

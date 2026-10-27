@@ -1,5 +1,5 @@
 // ============================================================
-//  NFS Trophy  Edge Function  send-registration-email  (v2)
+//  NFS Trophy  Edge Function  send-registration-email  (v3)
 //
 //  1) Database-Webhook (registrations INSERT):
 //     - Bestaetigung an den Spieler (jetzt mit Abmeldelink)
@@ -24,6 +24,12 @@
 //     - eine Mail pro Adresse; merkt sich Versendete (reminder_sent_at),
 //       damit man nach dem Tageslimit von Resend einfach fortsetzen kann
 //     - test: nur eine Beispielmail an den angemeldeten Admin
+//
+//  6) { action: "send_invitation", subject, text, resend?, test? }  (nur Admins)
+//     - Einladung zum aktuellen Turnier an alle Spieler (players) mit E-Mail,
+//       ausser no_invites; Knopf zum vorausgefuellten Nennformular,
+//       Link zur Ausschreibung, Abbestell-Link
+//     - merkt sich Eingeladene (invited_tournament), Fortsetzen nach Tageslimit
 //
 //  Secrets: RESEND_API_KEY, optional ADMIN_EMAIL, SITE_URL.
 //  SUPABASE_URL und SUPABASE_SERVICE_ROLE_KEY stellt Supabase automatisch bereit.
@@ -131,7 +137,7 @@ async function adminEmail(req: Request): Promise<string | null> {
 }
 
 /** Mehrere Mails in einem Aufruf (max. 100). Liefert false, wenn Resend ablehnt (z.B. Tageslimit). */
-async function sendBatch(mails: { to: string; subject: string; html: string }[]) {
+async function sendBatch(mails: { to: string; subject: string; html: string; headers?: Record<string, string> }[]) {
   const res = await fetch("https://api.resend.com/emails/batch", {
     method: "POST",
     headers: { "Authorization": `Bearer ${RESEND_API_KEY}`, "Content-Type": "application/json" },
@@ -442,6 +448,82 @@ async function handleReminder(opts: { text?: string; include_waitlist?: boolean;
 }
 
 // ============================================================
+// 6) Einladung zum neuen Turnier (Admin)
+// ============================================================
+const nennUrl = (token: string) => `${SITE_URL}/?p=${encodeURIComponent(token)}#anmelden`;
+const unsubUrl = (token: string) => `${SITE_URL}/abbestellen?t=${encodeURIComponent(token)}`;
+const button = (href: string, label: string) =>
+  `<a href="${esc(href)}" style="display:inline-block;background:#1a4d2e;color:#ffffff;text-decoration:none;font-weight:bold;padding:12px 22px;border-radius:6px;margin:4px 0;">${esc(label)}</a>`;
+
+async function handleInvitation(opts: { subject?: string; text?: string; resend?: boolean; test?: boolean }, admin: string) {
+  const [t] = await db("tournaments?select=id,name,date_text,ausschreibung_path&order=date_iso.desc&limit=1") || [];
+  if (!t) return json({ ok: false, reason: "no_tournament" });
+  const players = await db("players?select=id,vorname,nachname,email,invite_token,no_invites,invited_tournament&order=id") || [];
+
+  // Eine Mail pro Adresse – mit eigenem Knopf je Person (z.B. Geschwister)
+  const groups = new Map<string, any[]>();
+  for (const p of players) {
+    if (p.no_invites || !String(p.email || "").includes("@")) continue;
+    const key = String(p.email).trim().toLowerCase();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(p);
+  }
+  let todo = [...groups.entries()];
+  if (!opts.resend && !opts.test) todo = todo.filter(([, ps]) => ps.some((p) => p.invited_tournament !== String(t.id)));
+
+  const subject = String(opts.subject || "").trim().slice(0, 200) || `Einladung: ${t.name}${t.date_text ? ` – ${t.date_text}` : ""}`;
+  const text = String(opts.text || "").trim().slice(0, 5000);
+  const ausschreibung = t.ausschreibung_path
+    ? `${SUPABASE_URL}/storage/v1/object/public/pdfs/${encodeURIComponent(t.ausschreibung_path)}`
+    : null;
+
+  const build = (ps: any[]) => {
+    const one = ps.length === 1;
+    const buttons = one
+      ? `<p style="margin:22px 0;">${button(nennUrl(ps[0].invite_token), "Jetzt nennen")}</p>`
+      : `<p style="margin:18px 0 6px;">Jetzt nennen:</p><p style="margin:0 0 18px;">${ps.map((p) => button(nennUrl(p.invite_token), `${p.vorname} ${p.nachname}`)).join("<br>")}</p>`;
+    const unsub = ps.map((p) => `<a href="${esc(unsubUrl(p.invite_token))}" style="color:#6b7f70;">${one ? "Keine Einladungen mehr erhalten" : `Keine Einladungen mehr für ${esc(p.vorname)}`}</a>`).join(" · ");
+    return wrap(`
+      <h2 style="color:#1a4d2e;margin:0 0 16px;">${esc(t.name)}${t.date_text ? ` <span style="font-weight:normal;">· ${esc(t.date_text)}</span>` : ""}</h2>
+      <p>Hallo ${esc(one ? ps[0].vorname : "zusammen")},</p>
+      ${text ? `<p>${esc(text).replace(/\n/g, "<br>")}</p>` : ""}
+      ${buttons}
+      <p style="font-size:13px;color:#3d5445;">Deine Daten sind im Formular schon eingetragen – bitte nur noch aktuelle RC-Punkte und Bewerbe ergänzen.</p>
+      ${ausschreibung ? `<p><a href="${esc(ausschreibung)}" style="color:#1a4d2e;font-weight:bold;">Ausschreibung ansehen (PDF)</a></p>` : ""}
+      <p style="margin-top:22px;font-size:12px;color:#6b7f70;">Du bekommst diese Mail, weil du schon bei der NFS Trophy dabei warst.<br>${unsub}</p>`);
+  };
+
+  if (opts.test) {
+    if (!todo.length) return json({ ok: false, reason: "nobody" });
+    const ok = await sendMail(admin, `[Test] ${subject}`, build(todo[0][1]));
+    return json({ ok, test: true, to: admin, recipients: groups.size });
+  }
+
+  let sent = 0;
+  let stopped: string | null = null;
+  for (let i = 0; i < todo.length; i += BATCH) {
+    if (i) await new Promise((r) => setTimeout(r, 700)); // Resend: max. 2 Anfragen pro Sekunde
+    const chunk = todo.slice(i, i + BATCH);
+    const res = await sendBatch(chunk.map(([email, ps]) => ({
+      to: email, subject, html: build(ps),
+      headers: { "List-Unsubscribe": `<${unsubUrl(ps[0].invite_token)}>` },
+    })));
+    if (!res.ok) {
+      stopped = res.status === 429 ? "limit" : "error";
+      break;
+    }
+    const ids = chunk.flatMap(([, ps]) => ps.map((p) => p.id));
+    await db(`players?id=in.(${ids.join(",")})`, {
+      method: "PATCH",
+      headers: { Prefer: "return=minimal" },
+      body: JSON.stringify({ invited_tournament: String(t.id), invited_at: new Date().toISOString() }),
+    });
+    sent += chunk.length;
+  }
+  return json({ ok: !stopped, sent, remaining: todo.length - sent, total: groups.size, stopped });
+}
+
+// ============================================================
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   try {
@@ -451,10 +533,11 @@ Deno.serve(async (req) => {
     if (payload?.action === "resend_link") return await handleResendLink(payload.email);
 
     // Admin-Aktionen: nur mit Login eines Admins aus der Admin-Liste
-    if (payload?.action === "notify_promoted" || payload?.action === "send_reminder") {
+    if (["notify_promoted", "send_reminder", "send_invitation"].includes(payload?.action)) {
       const admin = await adminEmail(req);
       if (!admin) return json({ ok: false, reason: "forbidden" }, 403);
       if (payload.action === "notify_promoted") return await handleNotifyPromoted(payload.registration_id, payload.bewerb);
+      if (payload.action === "send_invitation") return await handleInvitation(payload, admin);
       return await handleReminder(payload, admin);
     }
 

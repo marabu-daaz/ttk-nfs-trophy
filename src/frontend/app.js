@@ -54,6 +54,7 @@ async function init() {
         renderTurnierInfo(activeTournament);
         renderBewerbe(activeTournament);
         renderForm(activeTournament);
+        prefillFromInvitation();
         if (regsFailed) showNennstandError();
         else renderNennstand(activeTournament, cachedRegs);
         renderCurrentFiles(activeTournament);
@@ -509,6 +510,39 @@ function renderForm(t) {
             btn.textContent = "Nennung absenden";
         }
     };
+}
+
+/**
+ * Link aus der Einladungsmail (?p=<Schlüssel>): Name, E-Mail, Telefon und Verein eintragen.
+ * RC-Punkte bewusst nicht – die müssen aktuell sein.
+ */
+async function prefillFromInvitation() {
+    const params = new URLSearchParams(location.search);
+    const token = params.get("p");
+    if (!token) return;
+    // Schlüssel aus der Adresszeile entfernen (z.B. falls jemand den Link weiterschickt)
+    params.delete("p");
+    history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params : "") + location.hash);
+    if (!/^[0-9a-f-]{36}$/i.test(token)) return;
+    try {
+        const { data, error } = await supabase.rpc("player_prefill", { p_token: token });
+        if (error || !data) return;
+        const fields = { vorname: data.vorname, nachname: data.nachname, email: data.email, telefon: data.telefon, verein: data.verein };
+        Object.entries(fields).forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el && value && !el.value) el.value = value;
+        });
+        const lead = document.getElementById("anmeldeLead");
+        if (lead && data.vorname) {
+            const hint = document.createElement("p");
+            hint.className = "prefill-hint";
+            hint.textContent = `Hallo ${data.vorname}, deine Daten sind schon eingetragen – bitte noch deine aktuellen RC-Punkte und die Bewerbe ergänzen.`;
+            lead.after(hint);
+        }
+        document.getElementById("anmelden")?.scrollIntoView({ behavior: "smooth" });
+    } catch (err) {
+        console.error("Vorausfüllen fehlgeschlagen:", err);
+    }
 }
 
 function showSuccessMessage(t, selected, waitlistBewerbe, form) {

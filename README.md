@@ -42,11 +42,15 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
   - admin-features.sql    # Spalte checked_in für den Check-in
   - live-realtime.sql     # Echtzeit für den Live-Ticker (Projekt B)
   - players.sql           # Spielerdatenbank (Personen, Teilnahmen, Zusammenführen)
+  - reminder.sql          # Erinnerungsmail: wer schon erinnert wurde
+  - invitations.sql       # Einladungen: Abbestellen, vorausgefülltes Formular
 - tools/
   - import_players.py     # Alte Excel-Nennlisten → SQL-Import (Ausgabe nie ins Repo!)
 - public/
   - index.html            # Öffentliche Seite
   - admin.html            # Admin-Dashboard
+  - abmelden.html         # Nennung verwalten / abmelden (Link aus der Mail)
+  - abbestellen.html      # Einladungen abbestellen (Link aus der Einladung)
   - live.html             # Live-Ticker (Daten aus Projekt B)
 - src/
   - shared/               # Gemeinsame Funktionen
@@ -68,6 +72,9 @@ Die alte index.html (mit allem drin) wurde aufgeteilt:
     - setup.js          # Turnier-Setup
     - archive.js        # Archiv & Medien
     - players.js        # Spielerdatenbank, Doppelte, Vorschläge beim Anlegen
+    - reminder.js       # Erinnerungsmail an alle Genannten
+    - invitation.js     # Einladung zum neuen Turnier an alle Spieler
+    - backup.js         # Datensicherung als JSON-Datei
   - live/
     - live.js           # Live-Ticker (Echtzeit, Ansichten)
     - ranking.js        # Reihung der Tabelle (unverändert übernommen)

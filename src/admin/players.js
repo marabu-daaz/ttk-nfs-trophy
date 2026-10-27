@@ -6,6 +6,7 @@ import { supabase } from '../shared/supabase.js';
 import { esc, showToast, throwIfError } from '../shared/utils.js';
 import { state } from './state.js';
 import { icon, confirmDialog, withBusy, openMail } from './ui.js';
+import { openInvitationDialog } from './invitation.js';
 
 const STAMM_MIN = 3;          // ab so vielen Turnieren gilt man als Stammspieler
 const PAGE = 1000;            // Supabase liefert höchstens 1000 Zeilen pro Abfrage
@@ -112,6 +113,11 @@ export function ensurePlayers(force = false) {
         }
     })();
     return loading;
+}
+
+/** Alle (angereicherten) Spieler – z.B. für die Einladung */
+export function getPlayers() {
+    return data.players;
 }
 
 /** Nach dem Speichern einer Nennung neu laden lassen */
@@ -226,6 +232,7 @@ export function initPlayersView() {
     });
     $('plExport').addEventListener('click', exportExcel);
     $('plMail').addEventListener('click', mailFiltered);
+    $('plInvite').addEventListener('click', () => openInvitationDialog());
     $('plRoot').addEventListener('click', onRootClick);
     initPlayerModal();
 }
@@ -354,6 +361,7 @@ function rowHtml(p, timeline) {
             <td data-label="Spieler" class="person">
                 <div class="name">${esc(p.nachname)} ${esc(p.vorname)}
                     ${p.count >= STAMM_MIN ? `<span class="chip active" title="${p.count} Turniere">${icon('star')}Stamm</span>` : ''}
+                    ${p.no_invites ? `<span class="chip" title="Bekommt keine Einladungen">${icon('mail')}keine Einladung</span>` : ''}
                 </div>
                 <div class="sub">${esc(p.email || '')}${p.telefon ? ' · ' + esc(p.telefon) : ''}</div>
             </td>
@@ -480,6 +488,12 @@ function openPlayerModal(p) {
     $('pfRc').value = p.rc ?? '';
     $('pfNotiz').value = p.notiz || '';
     $('pfMail').disabled = !p.email;
+    // Einladungen (Spalten aus supabase/invitations.sql)
+    $('pfInvitesWrap').hidden = !('no_invites' in p);
+    $('pfInvites').checked = !p.no_invites;
+    $('pfInvitesInfo').textContent = p.no_invites && p.no_invites_at
+        ? `Abbestellt bzw. ausgenommen am ${new Date(p.no_invites_at).toLocaleDateString('de-AT')}`
+        : (p.invited_at ? `Zuletzt eingeladen am ${new Date(p.invited_at).toLocaleDateString('de-AT')}` : '');
 
     const since = p.first ? new Date(p.first.date_iso).getFullYear() : null;
     $('pfSummary').innerHTML = `
@@ -523,6 +537,13 @@ async function savePlayer(e) {
         verein: v('pfVerein') || null, rc: Number.isFinite(rc) ? rc : null,
         notiz: v('pfNotiz') || null,
     };
+    if ('no_invites' in current) {
+        const noInvites = !document.getElementById('pfInvites').checked;
+        if (noInvites !== !!current.no_invites) {
+            patch.no_invites = noInvites;
+            patch.no_invites_at = noInvites ? new Date().toISOString() : null;
+        }
+    }
     await withBusy(document.getElementById('pfSave'), async () => {
         try {
             throwIfError(await supabase.from('players').update(patch).eq('id', current.id));

@@ -561,6 +561,7 @@
                         <div class="actions">
                             <button class="btn" id="plMail"><i data-icon="mail"></i>Mail (BCC)</button>
                             <button class="btn" id="plExport"><i data-icon="sheet"></i>Excel</button>
+                            <button class="btn primary" id="plInvite"><i data-icon="mail"></i>Einladung versenden</button>
                         </div>
                     </div>
                     <div class="toolbar">
@@ -695,6 +696,10 @@
                     <div class="field"><label for="pfVerein">Verein</label><input id="pfVerein" class="input"></div>
                     <div class="field"><label for="pfRc">RC-Punkte</label><input id="pfRc" class="input" inputmode="numeric"></div>
                     <div class="field full"><label for="pfNotiz">Notiz</label><textarea id="pfNotiz" class="input" rows="2" placeholder="nur intern sichtbar"></textarea></div>
+                    <div class="full" id="pfInvitesWrap">
+                        <label class="switch"><input type="checkbox" id="pfInvites"><span class="track"></span>Bekommt Einladungen zu neuen Turnieren</label>
+                        <div class="help" id="pfInvitesInfo"></div>
+                    </div>
                 </div>
                 <div class="section-title">Teilnahmen</div>
                 <div id="pfHistory"></div>

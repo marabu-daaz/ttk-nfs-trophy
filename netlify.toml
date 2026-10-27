@@ -12,6 +12,12 @@
   to = "/public/abmelden.html"
   status = 200
 
+# Abbestell-Link aus der Einladungsmail (Query ?t=... bleibt erhalten)
+[[redirects]]
+  from = "/abbestellen"
+  to = "/public/abbestellen.html"
+  status = 200
+
 # Sicherheits-Header für alle Seiten
 [[headers]]
   for = "/*"

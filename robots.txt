@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /public/admin.html
 Disallow: /abmelden
+Disallow: /abbestellen
 
 Sitemap: https://nfs-trophy.com/sitemap.xml
