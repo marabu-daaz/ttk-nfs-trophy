@@ -240,7 +240,7 @@ export function renderSponsorRow(logoPath = '', link = '', logoUrl = '', name = 
         </div>
         <div class="grow field">
             <label>Name</label>
-            <input type="text" class="input spon-name" placeholder="z.B. Bäckerei Muster" value="${esc(name)}">
+            <input type="text" class="input spon-name" placeholder="Sponsorname" value="${esc(name)}">
         </div>
         <div class="grow field">
             <label>Website</label>

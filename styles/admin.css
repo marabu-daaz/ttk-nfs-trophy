@@ -1664,8 +1664,14 @@ table.table {
 }
 
 .sponsor-preview {
-    max-height: 36px;
-    max-width: 120px;
+    /* nicht auf Spaltenbreite strecken – Seitenverhältnis behalten */
+    display: block;
+    align-self: flex-start;
+    width: auto;
+    height: auto;
+    max-height: 64px;
+    max-width: 200px;
+    object-fit: contain;
     margin-top: 6px;
     border-radius: 4px;
     background: #fff;
