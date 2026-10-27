@@ -155,6 +155,67 @@ export function openMail({ to = [], bcc = [], subject = '', body = '', note = ''
     });
 }
 
+// ---------- Datei-Ablage ----------
+/**
+ * Macht aus einem Datei-Feld eine Ablagefläche: Dateien hineinziehen oder klicken zum Auswählen.
+ * Das Feld bleibt die Quelle (input.files). Wer es leert, löst danach 'change' aus, dann stimmt die Anzeige.
+ */
+export function makeDropzone(input, { text = 'Datei hierher ziehen', compact = false } = {}) {
+    if (!input || input.closest('.dropzone')) return;
+    const zone = document.createElement('div');
+    zone.className = 'dropzone' + (compact ? ' compact' : '');
+    zone.tabIndex = 0;
+    zone.setAttribute('role', 'button');
+    zone.innerHTML = `${icon('upload')}<div class="dz-text"><strong></strong><div class="small muted">oder klicken, um auszuwählen</div></div>`;
+    input.before(zone);
+    zone.appendChild(input);
+    input.hidden = true;
+    const label = zone.querySelector('strong');
+
+    const show = (msg = '') => {
+        const names = [...input.files].map(f => f.name);
+        label.textContent = msg || (names.length ? names.join(', ') : text);
+        zone.classList.toggle('has-file', names.length > 0);
+        zone.classList.toggle('bad', !!msg);
+    };
+    // accept="application/pdf" / "image/*" / ".pdf"
+    const tokens = (input.accept || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    const accepts = f => !tokens.length || tokens.some(t =>
+        t.startsWith('.') ? f.name.toLowerCase().endsWith(t)
+            : t.endsWith('/*') ? f.type.startsWith(t.slice(0, -1))
+                : f.type === t);
+
+    zone.addEventListener('click', e => { if (e.target !== input) input.click(); });
+    zone.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.click(); } });
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+    zone.addEventListener('dragleave', e => { if (!zone.contains(e.relatedTarget)) zone.classList.remove('drag'); });
+    zone.addEventListener('drop', e => {
+        e.preventDefault();
+        e.stopPropagation();
+        zone.classList.remove('drag');
+        let files = [...e.dataTransfer.files];
+        if (!files.length) return;
+        const ok = files.filter(accepts);
+        if (!ok.length) return show(input.accept.includes('pdf') ? 'Bitte eine PDF-Datei verwenden' : 'Bitte eine Bilddatei verwenden');
+        files = input.multiple ? ok : ok.slice(0, 1);
+        const dt = new DataTransfer();
+        files.forEach(f => dt.items.add(f));
+        input.files = dt.files;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    input.addEventListener('change', () => show());
+    show();
+}
+
+// Datei daneben fallen gelassen → Browser soll sie nicht öffnen (Admin würde verlassen)
+['dragover', 'drop'].forEach(type => document.addEventListener(type, e => {
+    if (e.dataTransfer?.types?.includes('Files') && !e.target.closest?.('.dropzone')) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+    }
+}));
+
 // ---------- Dialoge ----------
 /**
  * Baut einen Dialog, der genau einmal ein Ergebnis liefert.

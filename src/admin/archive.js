@@ -3,7 +3,7 @@
 
 import { supabase, publicFotoUrl, publicPdfUrl } from '../shared/supabase.js';
 import { esc, showToast, parseBewerbe, safeFileName, throwIfError } from '../shared/utils.js';
-import { icon, confirmDialog, withBusy } from './ui.js';
+import { icon, confirmDialog, withBusy, makeDropzone } from './ui.js';
 
 let allTournaments = [];
 let activeTournamentId = null;
@@ -173,6 +173,7 @@ export async function uploadErgebnisPdf() {
             }));
             document.getElementById('ergLabel').value = 'Ergebnisse PDF';
             fileInput.value = '';
+            fileInput.dispatchEvent(new Event('change'));
             await loadArchivData();
             showToast('PDF hochgeladen');
         } catch (err) {
@@ -183,6 +184,7 @@ export async function uploadErgebnisPdf() {
 }
 
 export function initArchiveEvents() {
+    makeDropzone(document.getElementById('ergFile'), { text: 'Ergebnis-PDF hierher ziehen' });
     document.getElementById('archivSelect').addEventListener('change', loadArchivData);
     document.getElementById('saveArchivOettvBtn').addEventListener('click', saveArchivOettv);
     document.getElementById('saveHallOfFameBtn').addEventListener('click', saveHallOfFame);

@@ -4,7 +4,7 @@
 import { supabase, publicSponsorUrl, publicPdfUrl } from '../shared/supabase.js';
 import { esc, showToast, safeFileName, parseTurnierInfo, parseBewerbe, formatForDateTimeLocal, throwIfError } from '../shared/utils.js';
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, DEFAULT_BEWERBE } from '../shared/constants.js';
-import { icon, confirmDialog, promptDialog, formDialog, withBusy } from './ui.js';
+import { icon, confirmDialog, promptDialog, formDialog, withBusy, makeDropzone } from './ui.js';
 import { countInBewerb, renameBewerbInRegistrations } from './state.js';
 
 let setupBewerbeList = [];   // [{ ...bewerb, _orig: ursprünglicher Name | null }]
@@ -248,6 +248,7 @@ export function renderSponsorRow(logoPath = '', link = '', logoUrl = '', name = 
         </div>
         <button type="button" class="icon-btn danger" title="Entfernen" style="margin-top:22px;">${icon('x')}</button>`;
     div.querySelector('button').addEventListener('click', () => { div.remove(); updateDirtyUi(); });
+    makeDropzone(div.querySelector('.spon-file'), { text: logoPath ? 'Neues Logo hierher ziehen' : 'Logo hierher ziehen', compact: true });
     // Vorschau des neu gewählten Logos
     div.querySelector('.spon-file').addEventListener('change', e => {
         const file = e.target.files[0];
@@ -450,7 +451,7 @@ export async function saveSetup() {
             let moved = 0;
             for (const b of renames) moved += await renameBewerbInRegistrations(b._orig, b.name);
 
-            if (pdfInput) pdfInput.value = '';
+            if (pdfInput) { pdfInput.value = ''; pdfInput.dispatchEvent(new Event('change')); }
             showToast(moved ? `Gespeichert – ${moved} Nennungen auf neue Bewerbsnamen umgestellt` : 'Turnier-Einstellungen gespeichert');
             if (noTime.length) showToast(`Hinweis: Startzeit von „${noTime[0].name}“ enthält keine Uhrzeit (z.B. „Sa 09:00“) – der Kalender-Eintrag auf der Website braucht sie.`, true);
             baseline = '';
@@ -551,6 +552,7 @@ export function initSetupEvents() {
     const on = (id, fn) => $(id)?.addEventListener('click', e => { e.preventDefault(); fn(); });
     on('addScheduleBtn', () => renderScheduleRow());
     on('addSponsorBtn', () => renderSponsorRow());
+    makeDropzone($('setupPdf'), { text: 'Ausschreibung (PDF) hierher ziehen' });
     on('addBewerbBtn', () => {
         setupBewerbeList = getBewerbeFromDOM();
         setupBewerbeList.push({ name: 'Neuer Bewerb', time: 'Sa 09:00', min_rc: 0, prize: '', capacity: 20, duration: 3, _orig: null });
