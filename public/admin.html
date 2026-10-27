@@ -359,6 +359,18 @@
                     <!-- ---------- WEBSITE ---------- -->
                     <div class="setup-panel" data-panel="website" hidden>
                         <div class="card setup-group">
+                            <div class="group-head">
+                                <h3>Titelfoto</h3>
+                                <button type="button" class="btn sm ghost" id="heroPhotoRemove" hidden>Foto entfernen</button>
+                            </div>
+                            <p class="group-sub">Großes Bild oben auf der Startseite, z.B. von der Siegerehrung des letzten Turniers.
+                                Querformat wirkt am besten. Wird beim Hochladen automatisch verkleinert (schnelle Ladezeit). Ohne Foto steht dort nur der Countdown.</p>
+                            <input type="file" id="setupHeroPhoto" accept="image/*">
+                            <input type="hidden" id="setupHeroPhotoPath">
+                            <img class="hero-photo-preview" id="heroPhotoPreview" alt="" hidden>
+                        </div>
+
+                        <div class="card setup-group">
                             <h3>Abschnitt „Bewerbe“</h3>
                             <p class="group-sub">Einfache Formatierung erlaubt: &lt;strong&gt;, &lt;em&gt;, &lt;br&gt;</p>
                             <div class="form-grid">

@@ -1,7 +1,7 @@
 // src/admin/setup.js
 // Turnier-Setup: Felder befüllen, Bewerbe/Zeitplan/Sponsoren bearbeiten, speichern, Saisonwechsel
 
-import { supabase, publicSponsorUrl, publicPdfUrl } from '../shared/supabase.js';
+import { supabase, publicSponsorUrl, publicPdfUrl, publicFotoUrl } from '../shared/supabase.js';
 import { esc, showToast, safeFileName, parseTurnierInfo, parseBewerbe, formatForDateTimeLocal, throwIfError } from '../shared/utils.js';
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, DEFAULT_BEWERBE } from '../shared/constants.js';
 import { icon, confirmDialog, promptDialog, formDialog, withBusy, makeDropzone } from './ui.js';
@@ -83,6 +83,8 @@ export function fillSetup(t) {
     $('setupShowSchedule').checked = !!info.showSchedule;
     $('scheduleContainer').innerHTML = '';
     (info.schedule?.length ? info.schedule : [{}]).forEach(item => renderScheduleRow(item.time, item.text));
+
+    showHeroPhoto(info.heroPhoto || '');
 
     $('setupShowSponsors').checked = !!info.showSponsors;
     $('sponsorsContainer').innerHTML = '';
@@ -226,6 +228,50 @@ export function renderScheduleRow(time = '', text = '') {
     updateDirtyUi();
 }
 
+// ==========================================
+// TITELFOTO
+// ==========================================
+function showHeroPhoto(path) {
+    $('setupHeroPhotoPath').value = path;
+    $('setupHeroPhoto').value = '';
+    $('setupHeroPhoto').dispatchEvent(new Event('change'));
+    const img = $('heroPhotoPreview');
+    img.hidden = !path;
+    if (path) img.src = publicFotoUrl(path);
+    else img.removeAttribute('src');
+    $('heroPhotoRemove').hidden = !path;
+}
+
+/** Bild im Browser auf max. maxPx verkleinern (spart Ladezeit auf der Website) */
+async function shrinkImage(file, maxPx, quality) {
+    const url = URL.createObjectURL(file);
+    try {
+        const img = new Image();
+        img.src = url;
+        await img.decode();
+        const f = Math.min(1, maxPx / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.naturalWidth * f);
+        canvas.height = Math.round(img.naturalHeight * f);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', quality));
+        if (!blob) throw new Error('toBlob lieferte nichts');
+        return blob;
+    } finally {
+        URL.revokeObjectURL(url);
+    }
+}
+
+function initHeroPhoto() {
+    makeDropzone($('setupHeroPhoto'), { text: 'Titelfoto hierher ziehen' });
+    $('setupHeroPhoto').addEventListener('change', () => {
+        const file = $('setupHeroPhoto').files[0];
+        const img = $('heroPhotoPreview');
+        if (file) { img.src = URL.createObjectURL(file); img.hidden = false; $('heroPhotoRemove').hidden = false; }
+    });
+    $('heroPhotoRemove').addEventListener('click', () => { showHeroPhoto(''); updateDirtyUi(); });
+}
+
 export function renderSponsorRow(logoPath = '', link = '', logoUrl = '', name = '') {
     const container = $('sponsorsContainer');
     if (!container) return;
@@ -364,6 +410,27 @@ export async function saveSetup() {
                 if (time || text) scheduleData.push({ time, text });
             });
 
+            // Titelfoto: neu gewählt → verkleinert hochladen
+            let heroPhoto = $('setupHeroPhotoPath').value.trim();
+            const heroFile = $('setupHeroPhoto').files[0];
+            if (heroFile) {
+                // Verkleinern klappt nicht? Dann das Original hochladen statt hängenzubleiben
+                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Zeitüberschreitung')), 15000));
+                const blob = await Promise.race([shrinkImage(heroFile, 1200, 0.82), timeout])
+                    .catch(err => { console.warn('Verkleinern nicht möglich:', err); return null; });
+                const base = safeFileName(heroFile.name.replace(/\.[^.]+$/, ''));
+                const ext = blob ? 'jpg' : (heroFile.name.split('.').pop() || 'jpg').toLowerCase();
+                const { data: up, error: upErr } = await supabase.storage
+                    .from('fotos')
+                    .upload(`titelfoto/${Date.now()}_${base}.${ext}`, blob || heroFile, { contentType: blob ? 'image/jpeg' : heroFile.type });
+                if (upErr) {
+                    console.error('Titelfoto-Upload fehlgeschlagen:', upErr);
+                    showToast('Titelfoto konnte nicht hochgeladen werden: ' + upErr.message, true);
+                } else {
+                    heroPhoto = up.path;
+                }
+            }
+
             const sponsorsData = [];
             for (const row of document.querySelectorAll('.sponsor-row')) {
                 const link = row.querySelector('.spon-link').value.trim();
@@ -394,6 +461,7 @@ export async function saveSetup() {
                 bewerbeText: val('setupBewerbeText'),
                 showSchedule: $('setupShowSchedule').checked,
                 schedule: scheduleData,
+                heroPhoto,
                 showSponsors: $('setupShowSponsors').checked,
                 sponsors: sponsorsData,
                 registrationDeadline: deadline ? new Date(deadline).toISOString() : '',
@@ -553,6 +621,7 @@ export function initSetupEvents() {
     on('addScheduleBtn', () => renderScheduleRow());
     on('addSponsorBtn', () => renderSponsorRow());
     makeDropzone($('setupPdf'), { text: 'Ausschreibung (PDF) hierher ziehen' });
+    initHeroPhoto();
     on('addBewerbBtn', () => {
         setupBewerbeList = getBewerbeFromDOM();
         setupBewerbeList.push({ name: 'Neuer Bewerb', time: 'Sa 09:00', min_rc: 0, prize: '', capacity: 20, duration: 3, _orig: null });

@@ -1809,3 +1809,541 @@ footer {
         display: none !important;
     }
 }
+
+/* =========================================
+   DESIGN 2026: hell & ruhig
+   Grün-grauer Grundton, weiße Karten, Dunkelgrün nur für Nennstand und Fußbereich.
+   Liegt bewusst am Ende: überschreibt die ursprünglich dunkle Gestaltung oben.
+   (!important nur dort, wo Inline-Styles aus app.js/index.html überschrieben werden.)
+========================================= */
+:root {
+    --ink: #10231a;
+    --ink-2: #44574c;
+    --ink-3: #66786d;
+    --paper: #e9efea;
+    --soft: #dce5de;
+    --card: #ffffff;
+    --brand: #186b39;
+    --brand-dark: #125a2f;
+    --brand-tint: #dff0e5;
+    --hair: #cfdad2;
+    --hair-strong: #b9c7bd;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(16, 35, 26, .06), 0 8px 24px rgba(16, 35, 26, .07);
+
+    /* bestehende Namen umbiegen */
+    --green-deep: #0f2a1b;
+    --green-soft: var(--brand);
+    --green-neon: var(--brand);
+    --off-white: var(--paper);
+    --line: var(--hair);
+    --line-strong: var(--hair-strong);
+    --muted: var(--ink-2);
+    --accent: var(--brand);
+    --border: var(--hair);
+    --text-main: var(--ink);
+    --text-muted: var(--ink-2);
+    --bg-body: var(--soft);
+}
+
+body {
+    background: var(--paper);
+    color: var(--ink);
+    font-weight: 400;
+}
+
+/* ---------- Navigation ---------- */
+nav {
+    background: rgba(233, 239, 234, .9);
+    backdrop-filter: saturate(1.4) blur(12px);
+    border-bottom: 1px solid var(--hair);
+}
+
+nav ul a {
+    color: var(--ink);
+    font-weight: 500;
+}
+
+nav ul a:hover {
+    color: var(--brand);
+}
+
+.menu-btn {
+    color: var(--ink);
+    border-color: var(--hair-strong);
+}
+
+/* ---------- Kopfbereich ---------- */
+header.hero {
+    border-bottom: none;
+    background:
+        radial-gradient(900px 460px at 85% 0%, rgba(47, 156, 88, .18), transparent 60%),
+        linear-gradient(180deg, #dbe7de 0%, var(--paper) 100%);
+}
+
+.hero-grid {
+    padding-block: clamp(48px, 7vw, 96px) clamp(40px, 6vw, 80px);
+}
+
+.eyebrow {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+h1.title {
+    color: var(--ink);
+}
+
+h1.title em,
+.sec-head h2 em {
+    color: var(--brand);
+}
+
+.tagline {
+    color: var(--ink-2);
+}
+
+.btn {
+    color: var(--ink);
+    border: 1px solid var(--hair-strong);
+    border-radius: 999px;
+    background: var(--card);
+    font-weight: 600;
+}
+
+.btn:hover {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: #fff;
+}
+
+.btn.primary {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+    box-shadow: 0 6px 18px rgba(29, 122, 66, .28);
+}
+
+.btn.primary:hover {
+    background: var(--brand-dark);
+    border-color: var(--brand-dark);
+    color: #fff;
+}
+
+/* Titelfoto (im Admin pro Turnier) mit Countdown-Karte darunter */
+.hero-photo-wrap {
+    position: relative;
+    border-radius: 22px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(16, 35, 26, .22);
+    background: var(--soft);
+}
+
+.hero-photo {
+    display: block;
+    width: 100%;
+    aspect-ratio: 5 / 3;
+    object-fit: cover;
+    object-position: center top;
+}
+
+.hero-photo-wrap::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(10, 31, 20, 0) 40%, rgba(10, 31, 20, .55) 100%);
+    pointer-events: none;
+}
+
+.hero-visual .countdown-box {
+    margin: -28px 24px 0;
+}
+
+.countdown-box {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 24px 20px;
+}
+
+.countdown-box .cap {
+    position: static;
+    display: inline-block;
+    margin-bottom: 14px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: var(--brand-tint);
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.cd-item {
+    border-right-color: var(--hair);
+}
+
+.cd-val {
+    color: var(--ink);
+    font-weight: 700;
+}
+
+.cd-lbl {
+    color: var(--ink-3);
+}
+
+/* ---------- Fakten ---------- */
+.facts {
+    border-bottom: none;
+}
+
+.facts-grid {
+    gap: 14px;
+    padding-bottom: 32px;
+}
+
+.fact {
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 20px 22px;
+}
+
+.fact:last-child {
+    border-right: 1px solid var(--hair);
+}
+
+.fact .k {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.fact .v,
+.fact .v strong {
+    color: var(--ink);
+}
+
+/* ---------- Abschnitte ---------- */
+section.block {
+    border-bottom: none !important;
+}
+
+#bewerbe,
+#archiv,
+#kontakt {
+    background: var(--soft);
+}
+
+.form-section {
+    background: var(--paper);
+    color: var(--ink);
+}
+
+.sec-head h2 {
+    color: var(--ink);
+}
+
+.sec-head p,
+.note {
+    color: var(--ink-2);
+}
+
+/* ---------- Bewerbe ---------- */
+.bewerbe {
+    gap: 16px;
+    border: none;
+}
+
+.bewerb {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    transition: transform .2s, box-shadow .2s;
+}
+
+.bewerb:hover {
+    background: var(--card);
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(16, 35, 26, .06), 0 14px 30px rgba(16, 35, 26, .1);
+}
+
+.bewerb .n,
+.bewerb .p {
+    color: var(--brand);
+}
+
+.bewerb h3 {
+    color: var(--ink);
+}
+
+.bewerb .t {
+    color: var(--ink-2);
+}
+
+/* ---------- Formular ---------- */
+.field label,
+.form-section .field>label {
+    color: var(--ink-2);
+}
+
+.field input,
+.field select,
+.field textarea {
+    border: 1px solid var(--hair-strong);
+    border-radius: 12px;
+    background: var(--card);
+    padding: 12px 14px;
+    color: var(--ink);
+}
+
+.field input:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 4px rgba(29, 122, 66, .12);
+    outline: none;
+}
+
+.bewerb-checks label {
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: var(--card);
+}
+
+.submit {
+    background: var(--brand);
+    color: #fff;
+    border-radius: 999px;
+    box-shadow: 0 6px 18px rgba(29, 122, 66, .28);
+}
+
+.submit:hover {
+    background: var(--brand-dark);
+}
+
+aside.side {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+}
+
+/* ---------- Nennstand: dunkel als Blickfang ---------- */
+#nennstand {
+    background: var(--green-deep);
+    color: #fff;
+    --hair: rgba(255, 255, 255, .1);
+    --line: rgba(255, 255, 255, .1);
+    --ink: #fff;
+    --ink-2: rgba(255, 255, 255, .72);
+    --ink-3: rgba(255, 255, 255, .55);
+    --muted: rgba(255, 255, 255, .6);
+    --green-neon: #6fcf8c;
+    --accent: #6fcf8c;
+}
+
+#nennstand .sec-head h2 {
+    color: #fff;
+}
+
+#nennstand .sec-head h2 em,
+#nennstand .eyebrow,
+#nennstand .stand-card .count {
+    color: #6fcf8c;
+}
+
+.stand-grid {
+    gap: 16px;
+    border: none;
+}
+
+.stand-card {
+    background: rgba(255, 255, 255, .05);
+    border: 1px solid rgba(255, 255, 255, .1);
+    border-radius: var(--radius);
+}
+
+.stand-card li {
+    border-color: rgba(255, 255, 255, .08);
+}
+
+.progress-bar {
+    background: rgba(255, 255, 255, .12);
+    border-radius: 99px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    border-radius: 99px;
+}
+
+#nennstand .btn {
+    background: transparent;
+    color: #fff;
+    border-color: rgba(255, 255, 255, .3);
+}
+
+#nennstand .btn:hover {
+    background: #fff;
+    color: var(--green-deep);
+}
+
+/* ---------- Zeitplan ---------- */
+.timeline-item {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-left: 4px solid var(--brand);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+
+.timeline-item>div:last-child {
+    color: var(--ink) !important;
+}
+
+/* ---------- Ergebnisse / Archiv / Rekorde ---------- */
+.file-card {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.file-card h3 {
+    color: var(--ink);
+}
+
+.chip {
+    color: var(--ink);
+    border-color: var(--hair-strong);
+    border-radius: 999px;
+    background: var(--card);
+}
+
+.chip:hover {
+    background: var(--ink);
+    color: #fff;
+}
+
+.chip-report {
+    background: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.archive {
+    border-top: none;
+}
+
+.archive-item {
+    background: var(--card) !important;
+    border: 1px solid var(--hair) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow);
+}
+
+.archive-item .name {
+    color: var(--ink);
+}
+
+.hof-card {
+    background: var(--paper) !important;
+    border-color: var(--hair) !important;
+}
+
+.gallery img {
+    border-radius: 10px;
+}
+
+#rekordeGrid>div {
+    background: var(--card) !important;
+    border-color: var(--hair) !important;
+    border-radius: var(--radius) !important;
+    box-shadow: var(--shadow);
+}
+
+#rekordeGrid li {
+    border-bottom-color: var(--hair) !important;
+}
+
+/* ---------- Kontakt ---------- */
+.cblock .k {
+    color: var(--brand);
+}
+
+.cblock .v,
+.cblock .v a,
+.venue h3 {
+    color: var(--ink);
+}
+
+.venue {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+}
+
+.venue .addr,
+.impressum,
+.imp-block p {
+    color: var(--ink-2);
+}
+
+.map-wrap {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* ---------- Fußbereich bleibt dunkel ---------- */
+footer {
+    background: var(--green-deep);
+    color: rgba(255, 255, 255, .8);
+    border-top: none;
+    --muted: rgba(255, 255, 255, .78);
+    --line: rgba(255, 255, 255, .2);
+    --line-strong: rgba(255, 255, 255, .45);
+}
+
+footer a,
+footer .meta,
+footer .meta div {
+    color: rgba(255, 255, 255, .82);
+}
+
+/* ---------- Handy ---------- */
+@media (max-width: 760px) {
+    .hero-visual .countdown-box {
+        margin: -32px 12px 0;
+        padding: 16px;
+    }
+}
+
+/* ---------- Unterseiten (Nennung verwalten, Abbestellen) ---------- */
+.manage-card {
+    background: var(--card);
+    border-color: var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    color: var(--ink);
+}
+
+.manage-bewerb {
+    border-color: var(--hair-strong);
+    background: var(--paper);
+}
+
+.manage-bewerb input {
+    accent-color: var(--brand);
+}
+
+.manage-bewerb .tag,
+.manage-success,
+.manage-icon {
+    background: var(--brand-tint);
+    color: var(--brand);
+}
+
+.manage-note,
+.manage-bewerb .tag.wl {
+    background: #fbefd8;
+    color: #8a5a00;
+}

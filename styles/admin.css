@@ -3049,3 +3049,19 @@ dialog.modal[open] {
         margin-left: 40px;
     }
 }
+
+/* Titelfoto im Setup */
+.hero-photo-preview {
+    display: block;
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 16 / 10;
+    object-fit: cover;
+    margin-top: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+}
+
+.hero-photo-preview[hidden] {
+    display: none;
+}

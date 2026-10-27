@@ -240,8 +240,22 @@ function toggleSection(sectionId, visible) {
     if (navLink?.parentElement) navLink.parentElement.style.display = visible ? "" : "none";
 }
 
+/** Titelfoto (im Admin pro Turnier): rechts im Kopfbereich, Countdown als Karte darunter */
+function renderHeroPhoto(path) {
+    const box = document.querySelector('.hero-grid .countdown-box');
+    const src = path ? publicFotoUrl(path) : null;
+    if (!box || !src || box.closest('.hero-visual')) return;
+    const wrap = document.createElement('div');
+    wrap.className = 'hero-visual';
+    wrap.innerHTML = `<div class="hero-photo-wrap"><img class="hero-photo" src="${esc(src)}" alt="Siegerehrung bei der NFS Trophy" fetchpriority="high" decoding="async"></div>`;
+    box.before(wrap);
+    wrap.appendChild(box);
+    document.querySelector('header.hero')?.classList.add('has-photo');
+}
+
 function renderTurnierInfo(t) {
     const tInfo = parseTurnierInfo(t);
+    renderHeroPhoto(tInfo.heroPhoto);
 
     // Zeitplan
     const timelineGrid = document.getElementById("timelineGrid");
@@ -375,7 +389,7 @@ function renderForm(t) {
 
             let badge = "";
             if (activeCount >= cap) {
-                badge = `<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:rgba(212, 160, 23, 0.2); color:#966f08; font-weight:600; text-transform:uppercase; margin-left:8px; vertical-align:middle; display:inline-block;">WL Pos. ${waitingCount + 1}</span>`;
+                badge = `<span style="font-size:11px; padding:2px 6px; border-radius:4px; background:rgba(212, 160, 23, 0.2); color:#7a5600; font-weight:600; text-transform:uppercase; margin-left:8px; vertical-align:middle; display:inline-block;">WL Pos. ${waitingCount + 1}</span>`;
             }
 
             return `
