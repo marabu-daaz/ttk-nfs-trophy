@@ -1818,16 +1818,16 @@ footer {
 ========================================= */
 :root {
     --ink: #10231a;
-    --ink-2: #44574c;
-    --ink-3: #66786d;
-    --paper: #e9efea;
-    --soft: #dce5de;
+    --ink-2: #3d4f45;
+    --ink-3: #4f6156;
+    --paper: #dce5de;
+    --soft: #cdd9d0;
     --card: #ffffff;
-    --brand: #186b39;
-    --brand-dark: #125a2f;
+    --brand: #145c31;
+    --brand-dark: #0f4a27;
     --brand-tint: #dff0e5;
-    --hair: #cfdad2;
-    --hair-strong: #b9c7bd;
+    --hair: #c2cfc6;
+    --hair-strong: #a9b9ae;
     --radius: 16px;
     --shadow: 0 1px 2px rgba(16, 35, 26, .06), 0 8px 24px rgba(16, 35, 26, .07);
 
@@ -1854,7 +1854,7 @@ body {
 
 /* ---------- Navigation ---------- */
 nav {
-    background: rgba(233, 239, 234, .9);
+    background: rgba(220, 229, 222, .92);
     backdrop-filter: saturate(1.4) blur(12px);
     border-bottom: 1px solid var(--hair);
 }
@@ -1878,7 +1878,7 @@ header.hero {
     border-bottom: none;
     background:
         radial-gradient(900px 460px at 85% 0%, rgba(47, 156, 88, .18), transparent 60%),
-        linear-gradient(180deg, #dbe7de 0%, var(--paper) 100%);
+        linear-gradient(180deg, #cbdad0 0%, var(--paper) 100%);
 }
 
 .hero-grid {
@@ -1942,9 +1942,9 @@ h1.title em,
 .hero-photo {
     display: block;
     width: 100%;
-    aspect-ratio: 5 / 3;
+    aspect-ratio: 16 / 9;
     object-fit: cover;
-    object-position: center top;
+    object-position: center;
 }
 
 .hero-photo-wrap::after {
