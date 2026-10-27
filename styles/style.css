@@ -1822,7 +1822,7 @@ footer {
     --ink-3: #4f6156;
     --paper: #dce5de;
     --soft: #cdd9d0;
-    --card: #ffffff;
+    --card: #edf2ee;     /* helles Off-White passend zur Palette (kein reines Weiß) */
     --brand: #145c31;
     --brand-dark: #0f4a27;
     --brand-tint: #dff0e5;
