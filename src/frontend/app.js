@@ -14,27 +14,35 @@ let galleries = {};
 // ==========================================
 // INIT
 // ==========================================
+/** Öffentlicher Nennstand – nur das aktuelle Turnier (Supabase liefert max. 1000 Zeilen pro Abfrage) */
+async function loadRegs(tournamentId) {
+    const { data, error } = await supabase.from("public_registrations").select("*").eq("tournament_id", tournamentId);
+    if (error) throw error;
+    return data || [];
+}
+
 async function init() {
     try {
-        const [tournamentsResult, ergebnisseResult, registrationsResult] = await Promise.all([
+        const [tournamentsResult, ergebnisseResult] = await Promise.all([
             supabase.from("tournaments").select("*").order("date_iso", { ascending: false, nullsFirst: false }),
             supabase.from("ergebnisse").select("*").order("created_at", { ascending: true }),
-            supabase.from("public_registrations").select("*")
         ]);
 
         if (tournamentsResult.error) throw tournamentsResult.error;
 
         const tournaments = tournamentsResult.data || [];
         const ergebnisse = ergebnisseResult.data || [];
-        const registrations = registrationsResult.data || [];
 
         if (!tournaments || tournaments.length === 0) {
             document.getElementById("archiveList").innerHTML = '<div class="loading">Noch keine Turniere angelegt</div>';
             return;
         }
 
-        cachedRegs = registrations || [];
         activeTournament = tournaments[0];
+        cachedRegs = await loadRegs(activeTournament.id).catch(err => {
+            console.error('Nennstand konnte nicht geladen werden:', err);
+            return [];
+        });
         const archive = tournaments.filter(t => t.id !== activeTournament.id);
 
         // Bewerbe parsen
@@ -75,6 +83,23 @@ function setupImpressumToggle() {
 }
 
 /**
+ * Macht ein Element zu einem Aufklapp-Schalter: per Klick UND Tastatur (Enter/Leertaste)
+ * bedienbar, mit aria-expanded für Screenreader. onToggle liefert den neuen Zustand (offen?).
+ */
+function makeToggle(el, onToggle, expanded = false) {
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-expanded', String(expanded));
+    const run = () => el.setAttribute('aria-expanded', String(!!onToggle()));
+    el.addEventListener('click', run);
+    el.addEventListener('keydown', e => {
+        if (e.target !== el || (e.key !== 'Enter' && e.key !== ' ')) return;
+        e.preventDefault();
+        run();
+    });
+}
+
+/**
  * Generischer Accordion-Setup für Impressum, Datenschutz und Rekorde
  */
 function setupAccordion(headerId, contentId, iconId, footerLinkId, sectionId) {
@@ -98,9 +123,11 @@ function setupAccordion(headerId, contentId, iconId, footerLinkId, sectionId) {
             header.style.borderBottom = "none";
             header.style.paddingBottom = "0";
         }
+        return isHidden;
     };
 
-    header.addEventListener("click", toggle);
+    header.setAttribute('aria-controls', contentId);
+    makeToggle(header, toggle);
 
     if (footerLink) {
         footerLink.addEventListener("click", (e) => {
@@ -108,7 +135,7 @@ function setupAccordion(headerId, contentId, iconId, footerLinkId, sectionId) {
             const section = document.getElementById(sectionId);
             if (section) section.scrollIntoView({ behavior: 'smooth' });
             if (content.style.display === "none" || !content.style.display) {
-                toggle();
+                header.setAttribute('aria-expanded', String(toggle()));
             }
         });
     }
@@ -119,7 +146,7 @@ function setupAccordion(headerId, contentId, iconId, footerLinkId, sectionId) {
 // ==========================================
 function renderHero(t) {
     const heroDate = document.getElementById("heroDate");
-    if (heroDate) heroDate.textContent = (t.date_text || "Termin folgt") + " Wien";
+    if (heroDate) heroDate.textContent = (t.date_text || "Termin folgt") + " · Wien";
 
     const cleanName = (t.name || "NFS").replace(/\s*[-–—\s]\s*Trophy/i, "").trim();
     const heroTitle = document.getElementById("heroTitle");
@@ -333,8 +360,7 @@ function renderForm(t) {
 
         try {
             // Frischen Nennstand holen, damit die Wartelisten-Berechnung aktuell ist
-            const { data: freshRegs, error: freshErr } = await supabase.from("public_registrations").select("*");
-            if (!freshErr && freshRegs) cachedRegs = freshRegs;
+            try { cachedRegs = await loadRegs(t.id); } catch { /* alter Stand reicht notfalls */ }
 
             const rcWert = rcNum(v("rc"));
             const waitlistBewerbe = [];
@@ -410,8 +436,7 @@ function renderForm(t) {
             showSuccessMessage(t, selected, waitlistBewerbe, form);
 
             // Nennstand aktualisieren
-            const { data: regs } = await supabase.from("public_registrations").select("*");
-            cachedRegs = regs || [];
+            try { cachedRegs = await loadRegs(t.id); } catch { /* Anzeige bleibt beim alten Stand */ }
             renderNennstand(activeTournament, cachedRegs);
 
         } catch (err) {
@@ -814,7 +839,7 @@ async function renderArchive(tournaments, ergebnisse) {
 
     // Accordion Toggle
     container.querySelectorAll('.archive-header').forEach(header => {
-        header.addEventListener('click', () => {
+        makeToggle(header, () => {
             const content = header.nextElementSibling;
             const icon = header.querySelector('.toggle-icon');
             const hasContent = content.innerHTML.trim() !== "";
@@ -834,13 +859,18 @@ async function renderArchive(tournaments, ergebnisse) {
                 header.style.paddingBottom = "0";
                 content.style.marginTop = "0";
             }
-        });
+            return content.style.display !== 'none';
+        }, header.nextElementSibling.style.display !== 'none');
     });
 
     // Gallery Click Events
     container.querySelectorAll("[data-gallery]").forEach(el => {
-        el.addEventListener("click", () => {
-            openLightbox(el.getAttribute("data-gallery"), parseInt(el.getAttribute("data-index"), 10));
+        const open = () => openLightbox(el.getAttribute("data-gallery"), parseInt(el.getAttribute("data-index"), 10));
+        el.setAttribute("tabindex", "0");
+        el.setAttribute("role", "button");
+        el.addEventListener("click", open);
+        el.addEventListener("keydown", e => {
+            if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); }
         });
     });
 }
@@ -991,8 +1021,7 @@ function renderRekorde(tournaments) {
 
             htmlRows.push(`
                 <li style="font-size:15px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.05);">
-                    <div style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;" 
-                         onclick="const n = this.nextElementSibling; n.style.display = n.style.display === 'none' ? 'block' : 'none'; this.querySelector('.toggle-icon').textContent = n.style.display === 'none' ? '▶' : '▼';">
+                    <div class="rek-toggle" style="display:flex; justify-content:space-between; align-items:flex-start; cursor:pointer;">
                         <span style="line-height:1.4; user-select:none;">${medal} <strong style="margin-left:8px;">${namesText}</strong></span>
                         <span style="display:flex; align-items:center; gap:10px; user-select:none;">
                             <span style="color:var(--accent); font-weight:600; font-family:'Archivo'; white-space:nowrap;">${group.score} x</span>
@@ -1028,6 +1057,14 @@ function renderRekorde(tournaments) {
             ${renderGroupedList('trost', 'tbTrost', 'detailsTrost')}
         </div>
     `;
+
+    container.querySelectorAll('.rek-toggle').forEach(row => makeToggle(row, () => {
+        const details = row.nextElementSibling;
+        const open = details.style.display === 'none';
+        details.style.display = open ? 'block' : 'none';
+        row.querySelector('.toggle-icon').textContent = open ? '▼' : '▶';
+        return open;
+    }));
 }
 
 // ==========================================
@@ -1044,11 +1081,13 @@ function startCountdown(iso) {
     const tick = () => {
         const diff = target - Date.now();
         if (isNaN(target) || diff < 0) {
-            cap.textContent = "Termin folgt";
+            // Turniere dauern höchstens zwei Tage → bis dahin „läuft“, danach „beendet“
+            cap.textContent = isNaN(target) ? "Termin folgt" : diff > -2 * 864e5 ? "Das Turnier läuft" : "Turnier beendet";
             ["cdD", "cdH", "cdM", "cdS"].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = "00";
             });
+            if (diff <= -2 * 864e5 || isNaN(target)) clearInterval(cdTimer);
             return;
         }
         document.getElementById("cdD").textContent = pad(Math.floor(diff / 864e5));
@@ -1109,14 +1148,28 @@ document.getElementById("exportBtn")?.addEventListener("click", async () => {
 // ==========================================
 // MENU TOGGLE & INITIALISIERUNG
 // ==========================================
-document.getElementById("menuBtn")?.addEventListener("click", () => {
-    document.getElementById("navList").classList.toggle("open");
+const menuBtn = document.getElementById("menuBtn");
+menuBtn?.addEventListener("click", () => {
+    const open = document.getElementById("navList").classList.toggle("open");
+    menuBtn.setAttribute("aria-expanded", String(open));
 });
 
 document.querySelectorAll("#navList a").forEach(a => {
     a.addEventListener("click", () => {
         document.getElementById("navList").classList.remove("open");
+        menuBtn?.setAttribute("aria-expanded", "false");
     });
+});
+
+// Google-Karte erst auf Wunsch laden
+document.getElementById("mapLoadBtn")?.addEventListener("click", () => {
+    const wrap = document.getElementById("mapWrap");
+    const iframe = document.createElement("iframe");
+    iframe.src = wrap.dataset.src;
+    iframe.title = "Karte: TTK Naturfreunde Stadlau";
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    wrap.replaceChildren(iframe);
 });
 
 // Jahr im Footer

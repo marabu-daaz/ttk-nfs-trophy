@@ -3,6 +3,7 @@
 let galleries = {};
 let lbList = [];
 let lbIndex = 0;
+let lastFocus = null;
 
 const lb = document.getElementById("lightbox");
 const lbImg = document.getElementById("lbImg");
@@ -42,6 +43,9 @@ export function openLightbox(galleryId, index) {
     showLb();
     lb.classList.add("open");
     document.body.style.overflow = "hidden";
+    // Tastaturfokus in die Lightbox, beim Schließen zurück zum Vorschaubild
+    lastFocus = document.activeElement;
+    document.getElementById("lbClose")?.focus();
 }
 
 function showLb() {
@@ -72,6 +76,8 @@ function closeLb() {
         lbCaption.textContent = '';
         lbCaption.style.display = 'none';
     }
+    lastFocus?.focus?.();
+    lastFocus = null;
 }
 
 function nextLb() {

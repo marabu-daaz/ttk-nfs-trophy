@@ -27,11 +27,8 @@
 
     <!-- Theme-Farbe für Handy-Browserleiste -->
     <meta name="theme-color" content="#0a1f14" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-        href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet" />
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="stylesheet" href="/styles/fonts.css" />
     <!-- CSS Imports -->
     <link rel="stylesheet" href="/styles/shared.css" />
     <link rel="stylesheet" href="/styles/style.css" />
@@ -50,7 +47,7 @@
             <a href="#top" class="logo" aria-label="NFS Trophy"><img
                     src="/icons/logo.png"
                     alt="NFS Trophy" /></a>
-            <button class="menu-btn" id="menuBtn">≡</button>
+            <button class="menu-btn" id="menuBtn" aria-label="Menü" aria-controls="navList" aria-expanded="false">≡</button>
             <ul id="navList">
                 <li><a href="#bewerbe">Bewerbe</a></li>
                 <li><a href="#anmelden">Anmelden</a></li>
@@ -180,8 +177,8 @@
                         </div>
                     </div>
                     <div class="field">
-                        <label>Bewerbe * (Mehrfachauswahl möglich)</label>
-                        <div class="bewerb-checks" id="bewerbChecks"></div>
+                        <label id="bewerbChecksLabel">Bewerbe * (Mehrfachauswahl möglich)</label>
+                        <div class="bewerb-checks" id="bewerbChecks" role="group" aria-labelledby="bewerbChecksLabel"></div>
                     </div>
                     <div class="field">
                         <label for="notiz">Anmerkung</label>
@@ -390,11 +387,13 @@
             <div class="venue">
                 <h3>Anfahrt</h3>
                 <p class="addr">TTK Naturfreunde Stadlau<br>Erzherzog-Karl-Straße 108<br>1220 Wien, Österreich</p>
-                <div class="map-wrap">
-                    <iframe
-                        src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2657.7726993655133!2d16.44824751318765!3d48.230251271133916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476d01dd8fc6e50d%3A0x121a67df7cba7c6e!2sTTK%20Naturfreunde%20Stadlau!5e0!3m2!1sde!2sat!4v1788207890148!5m2!1sde!2sat"
-                        width="400" height="300" style="border:0;" allowfullscreen="" loading="lazy"
-                        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                <!-- Google Maps erst nach Klick laden (vorher keine Daten an Google) -->
+                <div class="map-wrap" id="mapWrap"
+                    data-src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2657.7726993655133!2d16.44824751318765!3d48.230251271133916!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x476d01dd8fc6e50d%3A0x121a67df7cba7c6e!2sTTK%20Naturfreunde%20Stadlau!5e0!3m2!1sde!2sat!4v1788207890148!5m2!1sde!2sat">
+                    <div class="map-consent">
+                        <button type="button" class="btn" id="mapLoadBtn">Karte anzeigen</button>
+                        <p>Beim Anzeigen wird die Karte von Google Maps geladen. Dabei werden Daten (z.&nbsp;B. deine IP-Adresse) an Google übermittelt.</p>
+                    </div>
                 </div>
                 <a href="https://maps.app.goo.gl/AcA5HV328tivPEsi6" target="_blank" rel="noreferrer" class="btn"
                     style="width:100%;text-align:center;">📍 Route planen</a>
@@ -462,21 +461,48 @@
                 <div class="imp-block">
                     <div class="k mono">Erhobene Daten</div>
                     <p>Im Zuge einer Turniernennung werden folgende personenbezogene Daten verarbeitet: Vorname,
-                        Nachname,
-                        E-Mail-Adresse, optional Telefonnummer, Verein, RC-Punkte sowie die gewählten Bewerbe. Die Daten
-                        dienen ausschließlich der Organisation und Durchführung des Turniers sowie der Kontaktaufnahme
-                        bei
-                        Rückfragen.</p>
+                        Nachname, E-Mail-Adresse, optional Telefonnummer, Verein, RC-Punkte, die gewählten Bewerbe,
+                        eine optionale Anmerkung sowie der Wunsch nach einer Zahlungsbestätigung. Die Daten dienen
+                        der Organisation und Durchführung des Turniers sowie der Kontaktaufnahme bei Rückfragen.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Öffentlicher Nennstand</div>
+                    <p>Im Nennstand auf dieser Seite werden Vor- und Nachname, Verein und RC-Punkte der genannten
+                        Spieler angezeigt. E-Mail-Adresse und Telefonnummer sind nicht öffentlich sichtbar.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Bestätigungs-E-Mail & Abmeldung</div>
+                    <p>Nach der Nennung erhältst du eine Bestätigung per E-Mail mit einem persönlichen Link, über den du
+                        dich selbst abmelden kannst. Für den Versand nutzen wir den Dienst Resend (Resend, Inc., USA);
+                        dabei werden Name, E-Mail-Adresse und Nennungsdaten an Resend übermittelt. Die Turnierleitung
+                        erhält bei Abmeldungen ebenfalls eine Benachrichtigung.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Teilnehmer-Verzeichnis</div>
+                    <p>Die Turnierleitung führt ein internes Verzeichnis aller Teilnehmer seit 2018 (Name, Verein,
+                        RC-Punkte, Kontaktdaten, Teilnahmen und Platzierungen). Es dient der einfacheren Erfassung
+                        künftiger Nennungen und der Dokumentation der Turniergeschichte und ist nur für die
+                        Turnierleitung zugänglich. Rechtsgrundlage ist unser berechtigtes Interesse
+                        (Art. 6 Abs. 1 lit. f DSGVO). Du kannst dem jederzeit per E-Mail widersprechen; dein Eintrag
+                        wird dann gelöscht.</p>
                 </div>
                 <div class="imp-block">
                     <div class="k mono">Speicherung & Weitergabe</div>
                     <p>Die Daten werden auf Servern der Supabase Inc. (EU-Region) gespeichert. Zur Durchführung des
                         Turniers und zur Ranglistenwertung werden die notwendigen Daten (Name, Verein, RC-Punkte,
                         Geburtsjahr, Ergebnisse) an den Österreichischen Tischtennis-Verband (ÖTTV) bzw. den zuständigen
-                        Landesverband übermittelt und dort gemäß deren Statuten verarbeitet. Eine Weitergabe an sonstige
-                        Dritte erfolgt nicht. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung),
+                        Landesverband übermittelt und dort gemäß deren Statuten verarbeitet. Abgesehen von den hier
+                        genannten technischen Dienstleistern erfolgt keine Weitergabe an Dritte. Rechtsgrundlagen sind Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung),
                         lit. c DSGVO (rechtliche Verpflichtung gegenüber dem Verband) sowie lit. a DSGVO (Einwilligung)
                         für Veröffentlichungen.</p>
+                </div>
+                <div class="imp-block">
+                    <div class="k mono">Hosting & externe Inhalte</div>
+                    <p>Die Website wird bei Netlify (Netlify, Inc., USA) gehostet; beim Aufruf verarbeitet der Server
+                        technisch notwendige Daten wie die IP-Adresse. Schriftarten werden von unserem eigenen Server
+                        geladen, nicht von Google. Die Karte von Google Maps wird erst angezeigt, wenn du auf „Karte
+                        anzeigen“ klickst – erst dann werden Daten an Google übermittelt. Links zu Livestreams und
+                        zum ÖTTV-Ergebnissystem führen auf externe Seiten mit eigenen Datenschutzbestimmungen.</p>
                 </div>
                 <div class="imp-block">
                     <div class="k mono">Fotos & Videos</div>

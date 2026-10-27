@@ -366,6 +366,13 @@ export function openBewerbeEditor() {
             showToast('Mindestens ein Bewerb benötigt.', true);
             return;
         }
+        // Gleiche Namen würden Nennungen und Hall of Fame vermischen
+        const names = newBewerbe.map(b => b.name.toLowerCase());
+        const dup = names.find((n, i) => names.indexOf(n) !== i);
+        if (dup) {
+            showToast(`Der Bewerbsname „${newBewerbe[names.indexOf(dup)].name}“ kommt doppelt vor – z.B. „TBA 1“, „TBA 2“ verwenden.`, true);
+            return;
+        }
 
         // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
         let newHof = t.hall_of_fame;

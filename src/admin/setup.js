@@ -314,7 +314,7 @@ function validateBewerbe(list) {
     const names = list.map(b => b.name.toLowerCase());
     if (list.some(b => !b.name)) return 'Jeder Bewerb braucht einen Namen.';
     const dup = names.find((n, i) => names.indexOf(n) !== i);
-    if (dup) return `Der Bewerbsname „${list[names.indexOf(dup)].name}“ kommt doppelt vor.`;
+    if (dup) return `Der Bewerbsname „${list[names.indexOf(dup)].name}“ kommt doppelt vor – Platzhalter bitte unterscheiden, z.B. „TBA 1“, „TBA 2“.`;
     const bad = list.find(b => b.max_rc > 0 && b.min_rc > b.max_rc);
     if (bad) return `„${bad.name}“: Min. RC ist größer als Max. RC.`;
     // Gelöschte Bewerbe, für die es noch Nennungen gibt?

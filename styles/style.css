@@ -13,6 +13,15 @@
     --line: rgba(255, 255, 255, .1);
     --line-strong: rgba(255, 255, 255, .22);
     --muted: rgba(255, 255, 255, .58);
+
+    /* Namen, die Archiv (Hall of Fame), Bestenliste und shared.css verwenden */
+    --accent: var(--green-neon);
+    --border: var(--line);
+    --text-main: #fff;
+    --text-muted: var(--muted);
+    --bg-body: var(--green-deep);
+    --bg-dark: #050f0a;
+    --bg-hover: var(--green-mid);
 }
 
 * {
@@ -974,6 +983,32 @@ aside.side .side-manage a:hover span {
     filter: invert(.92) hue-rotate(180deg) saturate(.6) brightness(.95);
 }
 
+.map-consent {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    padding: 20px;
+    text-align: center;
+}
+
+.map-consent p {
+    max-width: 340px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--muted);
+}
+
+/* Tastaturfokus sichtbar (Aufklapp-Bereiche, Galerie, Buttons) */
+[role="button"]:focus-visible,
+a:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--green-neon);
+    outline-offset: 3px;
+}
+
 /* ----- IMPRESSUM ----- */
 .impressum {
     display: grid;
@@ -1423,15 +1458,16 @@ footer {
 }
 
 /* Anmelde-Status unter der Überschrift */
-/* Die Anmeldung liegt auf hellem Hintergrund → dunkle Schrift */
-.anmelde-lead {
+/* Die Anmeldung liegt auf hellem Hintergrund → dunkle Schrift
+   (.sec-head davor, sonst gewinnt die hellere Regel .sec-head p) */
+.sec-head .anmelde-lead {
     margin-top: 14px;
     color: rgba(13, 40, 24, .65);
     font-size: 16px;
     max-width: 640px;
 }
 
-.anmelde-lead.closed {
+.sec-head .anmelde-lead.closed {
     color: #8a5a00;
     font-weight: 600;
 }
