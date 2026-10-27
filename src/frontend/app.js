@@ -998,7 +998,8 @@ async function renderArchive(tournaments, ergebnisse) {
             chips.push(`<span class="chip off">Keine Materialien</span>`);
         }
 
-        const isOpen = idx === 0;
+        // Am Handy alle eingeklappt (sonst sehr lange Seite), am Desktop das neueste offen
+        const isOpen = idx === 0 && !window.matchMedia('(max-width: 600px)').matches;
         const displayStyle = isOpen ? "block" : "none";
         const toggleIcon = isOpen ? "▼" : "▶";
         const borderStyle = isOpen && hasBody ? "1px solid var(--border)" : "none";
@@ -1185,7 +1186,18 @@ function renderRekorde(tournaments) {
             </ul>
         </details>`;
 
+    // Siegerpodest: die drei Erstplatzierten der ewigen Bestenliste
+    const podium = sorted.slice(0, 3).map(p => `
+        <div class="hof-podium-item r${p.rank}">
+            <span class="hof-rank r${p.rank}">${p.rank}</span>
+            <div class="hof-podium-name">${esc(p.name)}</div>
+            <div class="hof-podium-meta"><b>${p.wins}</b> Titel · <b>${p.podiums}</b>× Podest</div>
+        </div>`).join('');
+
     container.innerHTML = `
+        <div class="hof-podium">${podium}</div>
+        <details class="hof-all">
+            <summary class="btn hof-toggle"><span class="when-closed">Alle ${sorted.length} Spieler anzeigen</span><span class="when-open">Bestenliste einklappen</span></summary>
         <div class="hof-stats">
             ${tile('Rekordsieger', namesText(topWins.names), `${topWins.max} ${topWins.max === 1 ? 'Turniersieg' : 'Turniersiege'}`)}
             ${tile('Meiste Podestplätze', namesText(topPodiums.names), `${topPodiums.max}× unter den besten drei`)}
@@ -1198,7 +1210,8 @@ function renderRekorde(tournaments) {
             ${sorted.map(row).join('')}
         </div>
         ${sorted.length > VISIBLE ? `<button type="button" class="btn hof-more" id="hofMore">Alle ${sorted.length} Spieler anzeigen</button>` : ''}
-        <p class="hof-note">Titel = Turniersiege · Podest = Plätze 1 bis 3 · Trost = Siege im Trostbewerb. Antippen zeigt die einzelnen Erfolge.</p>`;
+        <p class="hof-note">Titel = Turniersiege · Podest = Plätze 1 bis 3 · Trost = Siege im Trostbewerb. Antippen zeigt die einzelnen Erfolge.</p>
+        </details>`;
 
     document.getElementById('hofMore')?.addEventListener('click', e => {
         container.querySelectorAll('.hof-extra').forEach(el => { el.hidden = false; });

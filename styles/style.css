@@ -2597,15 +2597,6 @@ footer .meta div {
         gap: 24px 28px !important;
     }
 
-    .partner-logo img {
-        height: 62px;
-        max-width: 230px;
-    }
-
-    .partner-logo img.opaque {
-        height: 74px;
-    }
-
     .foot {
         flex-direction: column;
         align-items: center;
@@ -2672,4 +2663,484 @@ footer .meta a {
 
 footer .meta a:hover {
     text-decoration-color: currentColor;
+}
+
+/* =========================================
+   Bestenliste: Siegerpodest + eingeklappte Gesamtliste
+========================================= */
+.hof-podium {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: end;
+}
+
+.hof-podium-item {
+    background: var(--card);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 22px 20px;
+    text-align: center;
+}
+
+/* Desktop: Platz 1 in der Mitte und etwas höher */
+.hof-podium-item.r1 {
+    order: 2;
+    padding-top: 34px;
+    padding-bottom: 30px;
+    border-top: 4px solid #e0b93a;
+}
+
+.hof-podium-item.r2 {
+    order: 1;
+    border-top: 4px solid #c4ccd2;
+}
+
+.hof-podium-item.r3 {
+    order: 3;
+    border-top: 4px solid #94582a;
+}
+
+.hof-podium-item .hof-rank {
+    width: 40px;
+    height: 40px;
+    font-size: 17px;
+}
+
+.hof-podium-name {
+    margin-top: 12px;
+    font-family: 'Archivo', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--ink);
+}
+
+.hof-podium-item.r1 .hof-podium-name {
+    font-size: 23px;
+}
+
+.hof-podium-meta {
+    margin-top: 6px;
+    font-size: 14px;
+    color: var(--ink-2);
+}
+
+.hof-podium-meta b {
+    color: var(--ink);
+}
+
+.hof-all {
+    margin-top: 24px;
+}
+
+.hof-all>summary {
+    list-style: none;
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.hof-all>summary::-webkit-details-marker {
+    display: none;
+}
+
+.hof-all .when-open,
+.hof-all[open] .when-closed {
+    display: none;
+}
+
+.hof-all[open] .when-open {
+    display: inline;
+}
+
+.hof-all[open]>summary {
+    margin-bottom: 24px;
+}
+
+/* =========================================
+   Partner: gleich große Kacheln, damit alle Logos gleich viel Gewicht haben
+========================================= */
+#partnerGrid {
+    gap: 20px !important;
+}
+
+.partner-logo {
+    display: grid;
+    place-items: center;
+    width: 260px;
+    height: 140px;
+    padding: 14px 18px;
+    border-radius: 16px;
+    background: rgba(255, 255, 255, .06);
+    border: 1px solid rgba(255, 255, 255, .14);
+    overflow: hidden;
+    transition: transform .2s, background .2s;
+}
+
+.partner-logo:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, .1);
+}
+
+.partner-logo img,
+.partner-logo img.opaque {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    object-fit: contain;
+    border: none !important;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* Logo-Fotos mit eigenem dunklem Hintergrund füllen die Kachel ganz */
+.partner-logo:has(img.opaque) {
+    padding: 0;
+    background: #000;
+}
+
+.partner-logo img.opaque {
+    object-fit: cover;
+}
+
+/* =========================================
+   ECHTE HANDY-VERSION (bis 600 px): kompakt, weniger Leerraum
+========================================= */
+@media (max-width: 600px) {
+
+    /* Abschnitte und Überschriften */
+    section.block {
+        padding: 44px 0 !important;
+    }
+
+    .sec-head {
+        margin-bottom: 22px !important;
+    }
+
+    .sec-head h2 {
+        font-size: 30px !important;
+        line-height: 1.05;
+    }
+
+    .sec-head p {
+        font-size: 15px;
+        line-height: 1.55;
+        margin-top: 10px;
+    }
+
+    .eyebrow {
+        margin-bottom: 12px;
+    }
+
+    /* Kopfbereich */
+    .hero-grid {
+        padding-block: 28px 24px;
+        gap: 26px;
+    }
+
+    h1.title {
+        font-size: 46px;
+        margin-bottom: 14px;
+    }
+
+    .tagline {
+        font-size: 16px;
+        margin-bottom: 22px;
+    }
+
+    /* Fakten: 2 x 2 kompakt */
+    .facts-grid {
+        gap: 10px !important;
+        padding-bottom: 24px;
+    }
+
+    .fact {
+        padding: 14px 14px !important;
+    }
+
+    .fact .v {
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    /* Bewerbe: eine Liste statt großer Karten */
+    .bewerbe {
+        gap: 0 !important;
+        background: var(--card);
+        border: 1px solid var(--hair) !important;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+    }
+
+    .bewerb {
+        border: none !important;
+        border-radius: 0;
+        box-shadow: none;
+        padding: 14px 18px !important;
+    }
+
+    .bewerb+.bewerb {
+        border-top: 1px solid var(--hair) !important;
+    }
+
+    .bewerb:hover {
+        transform: none;
+        box-shadow: none;
+    }
+
+    .bewerb .n {
+        margin-bottom: 2px;
+        font-size: 11px;
+    }
+
+    .bewerb h3 {
+        font-size: 17px;
+        margin: 0 0 4px;
+    }
+
+    .bewerb .t {
+        font-size: 13px;
+    }
+
+    /* Anmeldung */
+    .form-wrap {
+        gap: 24px;
+    }
+
+    form .field,
+    .frow {
+        gap: 14px;
+    }
+
+    .bewerb-checks {
+        gap: 8px !important;
+    }
+
+    .bewerb-checks label {
+        padding: 10px 12px !important;
+    }
+
+    aside.side {
+        padding: 20px 20px !important;
+    }
+
+    aside.side h3 {
+        font-size: 20px;
+    }
+
+    /* Nennstand: kompakte Zeilen */
+    .stand-grid {
+        gap: 10px !important;
+    }
+
+    .stand-card {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        column-gap: 12px;
+        padding: 14px 16px !important;
+    }
+
+    .stand-card>* {
+        grid-column: 1 / -1;
+    }
+
+    .stand-card h3 {
+        grid-column: 1;
+        margin: 0;
+        font-size: 16px;
+    }
+
+    .stand-card .sub {
+        grid-column: 1;
+        margin: 0;
+        font-size: 12px;
+    }
+
+    .stand-card .count {
+        grid-column: 2;
+        grid-row: 1 / span 2;
+        align-self: center;
+        margin: 0;
+        font-size: 26px;
+    }
+
+    .stand-card .progress-bar {
+        margin: 10px 0 0;
+    }
+
+    .stand-card .stand-empty,
+    .stand-card details {
+        margin-top: 8px;
+        font-size: 13px;
+    }
+
+    /* Ergebnisse / Livestreams: kompakte Kacheln */
+    .current-files {
+        gap: 10px !important;
+    }
+
+    .current-files+.current-files {
+        margin-top: 10px !important;
+    }
+
+    .file-card {
+        padding: 16px 18px !important;
+        gap: 8px !important;
+    }
+
+    .file-card h3 {
+        font-size: 17px;
+    }
+
+    .file-card .btn {
+        padding: 10px 18px;
+        font-size: 13px;
+    }
+
+    /* Archiv */
+    .archive-item {
+        padding: 16px !important;
+        margin-bottom: 12px !important;
+    }
+
+    .archive-item .name {
+        font-size: 18px !important;
+    }
+
+    .hof-card {
+        padding: 14px !important;
+    }
+
+    .hof-grid {
+        gap: 10px !important;
+    }
+
+    /* Bestenliste: Podest untereinander, Platz 1 zuerst */
+    .hof-podium {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .hof-podium-item,
+    .hof-podium-item.r1 {
+        order: 0;
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        column-gap: 14px;
+        text-align: left;
+        padding: 14px 16px;
+        border-top-width: 1px;
+        border-top-color: var(--hair);
+        border-left: 4px solid #e0b93a;
+    }
+
+    .hof-podium-item.r2 {
+        border-left-color: #c4ccd2;
+    }
+
+    .hof-podium-item.r3 {
+        border-left-color: #94582a;
+    }
+
+    .hof-podium-item .hof-rank {
+        grid-row: 1 / span 2;
+    }
+
+    .hof-podium-name,
+    .hof-podium-item.r1 .hof-podium-name {
+        margin: 0;
+        font-size: 17px;
+    }
+
+    .hof-podium-meta {
+        margin-top: 2px;
+        font-size: 13px;
+    }
+
+    .hof-all>summary {
+        width: 100%;
+    }
+
+    /* Partner: zwei gleich große Kacheln nebeneinander */
+    .partner-logo {
+        width: calc(50% - 10px);
+        min-width: 140px;
+        height: 96px;
+        padding: 12px 14px;
+    }
+
+    /* Kontakt */
+    .cblock {
+        margin-bottom: 14px;
+    }
+
+    .cblock .v {
+        font-size: 16px;
+    }
+
+    .venue {
+        padding: 18px !important;
+    }
+
+    .map-wrap {
+        aspect-ratio: 16 / 9;
+    }
+}
+
+@media (max-width: 600px) {
+    .bewerb .n {
+        font-size: 12px;
+    }
+
+    /* Rechtliches: Impressum + Datenschutz eng als Gruppe */
+    #impressum {
+        padding: 32px 0 4px !important;
+    }
+
+    #datenschutz {
+        padding: 4px 0 32px !important;
+    }
+}
+
+@media (max-width: 600px) {
+    /* Podest: Rahmen oben einheitlich, Farbe nur links */
+    .hof-podium .hof-podium-item {
+        border-top: 1px solid var(--hair);
+    }
+
+    /* Leere Bewerbe: die „0 von 20“ sagt schon alles */
+    .stand-card>.stand-empty {
+        display: none;
+    }
+
+    /* Archiv-Einträge kompakter */
+    .archive-header {
+        gap: 10px !important;
+    }
+
+    .archive-header .date {
+        margin-top: 2px !important;
+        font-size: 13px !important;
+    }
+
+    .archive-header .files {
+        margin-left: 27px;
+        gap: 6px !important;
+    }
+
+    .archive .chip {
+        min-height: 40px;
+        padding: 6px 14px;
+    }
+
+    #impressum h2,
+    #datenschutz h2 {
+        font-size: 22px !important;
+    }
 }
