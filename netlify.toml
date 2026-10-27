@@ -75,3 +75,11 @@
   to = "/404"
   status = 404
   force = true
+
+# Partner-Logos (auch SVG): direkt aufgerufen nie als Seite mit Skripten ausführen
+[[headers]]
+  for = "/partner-logo/*"
+  [headers.values]
+    Content-Security-Policy = "default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; sandbox"
+    X-Content-Type-Options = "nosniff"
+    Cache-Control = "public, max-age=86400"

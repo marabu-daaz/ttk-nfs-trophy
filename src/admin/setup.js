@@ -280,7 +280,7 @@ export function renderSponsorRow(logoPath = '', link = '', logoUrl = '', name = 
     div.innerHTML = `
         <div class="grow field">
             <label>Logo</label>
-            <input type="file" class="input spon-file" accept="image/*">
+            <input type="file" class="input spon-file" accept="image/*,.svg">
             <input type="hidden" class="spon-logo-path" value="${esc(logoPath)}">
             <img class="sponsor-preview" src="${esc(logoUrl)}" alt="" ${logoUrl ? '' : 'hidden'}>
         </div>
@@ -441,9 +441,11 @@ export async function saveSetup() {
                 // Wenn neue Datei gewählt → hochladen
                 if (fileInput.files.length > 0) {
                     const file = fileInput.files[0];
+                    // SVG ausdrücklich als SVG kennzeichnen (manche Systeme liefern keinen Typ mit)
+                    const isSvg = /\.svg$/i.test(file.name);
                     const { data: up, error: upErr } = await supabase.storage
                         .from('sponsoren')
-                        .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
+                        .upload(`${Date.now()}_${safeFileName(file.name)}`, file, { contentType: isSvg ? 'image/svg+xml' : (file.type || undefined) });
                     if (upErr) {
                         console.error('Sponsor-Upload fehlgeschlagen:', upErr);
                         showToast('Sponsor-Bild konnte nicht hochgeladen werden: ' + upErr.message, true);

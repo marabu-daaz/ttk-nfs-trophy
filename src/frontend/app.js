@@ -283,7 +283,9 @@ function renderTurnierInfo(t) {
             if (!direct) return '';
             const src = s.logoPath ? `/partner-logo/${encodeURIComponent(s.logoPath)}` : direct;
             const name = String(s.name || '').trim();
-            const img = `<img src="${esc(src)}" data-fallback="${esc(direct)}" alt="${esc(name || 'Partner')}">`;
+            // Fotos ohne Transparenz (JPG) bekommen eine Kachel; SVG/PNG-Logos stehen frei auf dem Band
+            const opaque = /\.jpe?g$/i.test(s.logoPath || s.logoUrl || '');
+            const img = `<img src="${esc(src)}" data-fallback="${esc(direct)}" alt="${esc(name || 'Partner')}"${opaque ? ' class="opaque"' : ''}>`;
             const link = safeUrl(s.link);
             return link
                 ? `<a class="partner-logo" href="${esc(link)}" target="_blank" rel="noreferrer"${name ? ` title="${esc(name)}"` : ''}>${img}</a>`

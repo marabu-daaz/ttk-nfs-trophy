@@ -2336,11 +2336,16 @@ footer .meta div {
 /* ---------- Sponsoren ---------- */
 .partner-logo img {
     display: block;
-    height: 110px;
+    height: 96px;
     width: auto;
-    max-width: min(320px, 80vw);
+    max-width: min(340px, 80vw);
     object-fit: contain;
     opacity: 1;
+}
+
+/* Fotos ohne Transparenz (JPG) als abgerundete Kachel */
+.partner-logo img.opaque {
+    height: 110px;
     border-radius: 12px;
     box-shadow: var(--shadow);
 }
@@ -2412,7 +2417,7 @@ footer .meta div {
     color: #fff;
 }
 
-#partner .partner-logo img {
+#partner .partner-logo img.opaque {
     border: 1px solid rgba(255, 255, 255, .14);
 }
 
