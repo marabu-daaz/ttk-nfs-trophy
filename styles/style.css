@@ -3449,3 +3449,104 @@ footer .meta a:hover {
         color: var(--ink-3);
     }
 }
+
+/* =========================================
+   GROSSE HANDYS / QUERFORMAT / KLAPPHANDYS (600–1100 px, Touch)
+   Platz für zwei Kacheln nebeneinander – aber nicht endlos breit
+========================================= */
+@media (min-width: 600px) and (max-width: 760px), (pointer: coarse) and (min-width: 600px) and (max-width: 1100px) {
+    .wrap,
+    nav .inner {
+        max-width: 880px;
+        padding-left: 28px;
+        padding-right: 28px;
+    }
+
+    /* kurze Kacheln zu zweit */
+    .facts-grid,
+    .stand-grid,
+    .current-files,
+    .frow,
+    .bewerb-checks,
+    .hof-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    }
+
+    .facts-grid {
+        gap: 12px !important;
+    }
+
+    .fact {
+        display: block;
+        padding: 16px 18px !important;
+    }
+
+    .fact .k {
+        margin-bottom: 6px;
+    }
+
+    /* Bewerbe: zwei Spalten innerhalb der einen Liste, Trennlinien über den Rasterabstand */
+    .bewerbe {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 1px !important;
+        background: var(--hair) !important;
+    }
+
+    .bewerb,
+    .bewerb+.bewerb {
+        border: none !important;
+        background: var(--card) !important;
+    }
+
+    /* ungerade Anzahl: letzter Bewerb über die volle Breite, keine Lücke */
+    .bewerb:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+
+    /* Partner nebeneinander */
+    #partnerGrid {
+        flex-direction: row;
+        justify-content: center;
+    }
+
+    .partner-logo {
+        width: calc(50% - 10px);
+        max-width: 340px;
+    }
+
+    /* Fotos in drei Spalten */
+    .gallery {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    /* Podest: drei nebeneinander */
+    .hof-podium {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    }
+
+    .hof-podium .hof-podium-item {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+        row-gap: 8px;
+        border-left-width: 1px;
+        border-left-color: var(--hair);
+        border-top-width: 4px;
+    }
+
+    .hof-podium .hof-podium-item.r1 {
+        border-top-color: #e0b93a;
+    }
+
+    .hof-podium .hof-podium-item.r2 {
+        border-top-color: #c4ccd2;
+    }
+
+    .hof-podium .hof-podium-item.r3 {
+        border-top-color: #94582a;
+    }
+
+    .hof-podium-item .hof-rank {
+        grid-row: auto;
+    }
+}
