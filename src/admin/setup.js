@@ -6,12 +6,26 @@ import { esc, showToast, safeFileName, parseTurnierInfo, parseBewerbe, formatFor
 import { DEFAULT_FEE_NORMAL, DEFAULT_FEE_NFS, DEFAULT_BEWERBE } from '../shared/constants.js';
 import { icon, confirmDialog, promptDialog, formDialog, withBusy, makeDropzone } from './ui.js';
 import { countInBewerb, renameBewerbInRegistrations } from './state.js';
+import { htmlToMarkup, markupToHtml, wrapSelection } from './richtext.js';
+import { initPreview, refreshPreview } from './preview.js';
 
 let setupBewerbeList = [];   // [{ ...bewerb, _orig: ursprünglicher Name | null }]
 let allTournaments = [];
 let activeTournamentId = null;
 let onSaved = () => { };
 let baseline = '';           // Formularzustand nach dem Laden/Speichern (für „ungespeichert“)
+let baseRow = null;          // Turnier, wie es beim Befüllen in der Datenbank stand
+let baseForm = null;         // readForm() direkt nach dem Befüllen – Vergleich „was habe ich geändert?“
+
+/** Website-Texte mit *fett* / _kursiv_ (gespeichert als HTML). block: <strong> als eigene Zeile */
+const FORMAT_FIELDS = {
+    bewerbeHeadline: { id: 'setupBewerbeHeadline' },
+    bewerbeText: { id: 'setupBewerbeText' },
+    fact1Text: { id: 'setupFact1Text', block: true },
+    fact2Text: { id: 'setupFact2Text', block: true },
+    fact3Text: { id: 'setupFact3Text', block: true },
+    fact4Text: { id: 'setupFact4Text', block: true },
+};
 
 export function setSetupTournamentId(id) { activeTournamentId = id; }
 export function setSetupTournaments(data) { allTournaments = data; }
@@ -73,12 +87,8 @@ export function fillSetup(t) {
 
     const info = parseTurnierInfo(t);
     s('setupDeadline', info.registrationDeadline ? formatForDateTimeLocal(info.registrationDeadline) : '');
-    s('setupBewerbeHeadline', info.bewerbeHeadline);
-    s('setupBewerbeText', info.bewerbeText);
-    [1, 2, 3, 4].forEach(n => {
-        s(`setupFact${n}Title`, info[`fact${n}Title`]);
-        s(`setupFact${n}Text`, info[`fact${n}Text`]);
-    });
+    Object.entries(FORMAT_FIELDS).forEach(([key, f]) => s(f.id, htmlToMarkup(info[key], f)));
+    [1, 2, 3, 4].forEach(n => s(`setupFact${n}Title`, info[`fact${n}Title`]));
 
     $('setupShowSchedule').checked = !!info.showSchedule;
     $('scheduleContainer').innerHTML = '';
@@ -100,6 +110,9 @@ export function fillSetup(t) {
     generateQRCodes(t.oettv_url);
     updateDeadlineHint();
     markClean();
+    baseRow = structuredClone(t);
+    baseForm = readForm();
+    refreshPreview();
 }
 
 function updateOpenLabel(isOpen) {
@@ -113,6 +126,10 @@ export function setSetupOpenState(open) {
     $('setupIsOpen').checked = open;
     updateOpenLabel(open);
     if (wasClean) markClean();
+    // gilt als bereits gespeichert – nicht als eigene oder fremde Änderung werten
+    if (baseRow) baseRow.is_open = open;
+    if (baseForm) baseForm.columns.is_open = open;
+    refreshPreview();
 }
 
 function updateDeadlineHint() {
@@ -350,6 +367,91 @@ export function downloadQR(divId, filename) {
 }
 
 // ==========================================
+// FORMULAR AUSLESEN (ohne Uploads)
+// ==========================================
+/**
+ * Liest das Formular in die Form, in der es gespeichert wird. Neu gewählte Dateien
+ * (Titelfoto, Sponsor-Logos) stehen als file drin – hochgeladen wird erst beim Speichern.
+ */
+function readForm() {
+    const val = id => $(id)?.value.trim() || '';
+    const dateIso = $('setupDateIso').value;
+    const deadline = $('setupDeadline').value;
+
+    const schedule = [];
+    document.querySelectorAll('.schedule-row').forEach(row => {
+        const time = row.querySelector('.sched-time').value.trim();
+        const text = row.querySelector('.sched-text').value.trim();
+        if (time || text) schedule.push({ time, text });
+    });
+
+    const sponsors = [];
+    document.querySelectorAll('.sponsor-row').forEach(row => {
+        const logoPath = row.querySelector('.spon-logo-path').value.trim();
+        const file = row.querySelector('.spon-file').files[0] || null;
+        if (!logoPath && !file) return;
+        const name = row.querySelector('.spon-name').value.trim();
+        sponsors.push({ logoPath, link: row.querySelector('.spon-link').value.trim(), ...(name ? { name } : {}), file });
+    });
+
+    const info = {
+        showSchedule: $('setupShowSchedule').checked,
+        schedule,
+        heroPhoto: $('setupHeroPhotoPath').value.trim(),
+        showSponsors: $('setupShowSponsors').checked,
+        sponsors,
+        registrationDeadline: deadline ? new Date(deadline).toISOString() : '',
+    };
+    Object.entries(FORMAT_FIELDS).forEach(([key, f]) => { info[key] = markupToHtml(val(f.id), f); });
+    [1, 2, 3, 4].forEach(n => { info[`fact${n}Title`] = val(`setupFact${n}Title`); });
+
+    return {
+        columns: {
+            is_open: $('setupIsOpen').checked,
+            name: val('setupName') || 'NFS Trophy',
+            date_text: val('setupDateText'),
+            date_iso: dateIso ? new Date(dateIso).toISOString() : null,
+            subtitle: val('setupSubtitle'),
+            oettv_url: val('setupOettvUrl'),
+            fee_normal: parseFee($('setupFeeNormal').value, DEFAULT_FEE_NORMAL),
+            fee_nfs: parseFee($('setupFeeNfs').value, DEFAULT_FEE_NFS),
+            show_ttop_button: $('setupShowTtop').checked,
+            ttop_url: val('setupTtopUrl'),
+        },
+        bewerbe: getBewerbeFromDOM().map(({ _orig, ...b }) => {
+            if (!b.max_rc) delete b.max_rc;
+            return b;
+        }),
+        info,
+        heroFile: $('setupHeroPhoto').files[0] || null,
+        pdfFile: $('setupPdf')?.files[0] || null,
+    };
+}
+
+// Vorschau: neu gewählte Bilder als lokale Adresse (blob:), je Datei nur einmal erzeugt
+const blobUrls = new WeakMap();
+const blobUrl = file => {
+    if (!blobUrls.has(file)) blobUrls.set(file, URL.createObjectURL(file));
+    return blobUrls.get(file);
+};
+
+/** Ungespeicherter Stand als Turnier-Zeile – für die Live-Vorschau */
+function buildDraft() {
+    if (!baseRow) return null;
+    const f = readForm();
+    const info = { ...parseTurnierInfo(baseRow), ...f.info };
+    info.sponsors = f.info.sponsors.map(({ file, ...s }) => (file ? { ...s, _src: blobUrl(file) } : s));
+    if (f.heroFile) info._heroSrc = blobUrl(f.heroFile);
+    return {
+        ...baseRow,
+        ...f.columns,
+        date_iso: f.columns.date_iso || baseRow.date_iso,
+        bewerbe: JSON.stringify(f.bewerbe),
+        turnier_info: JSON.stringify(info),
+    };
+}
+
+// ==========================================
 // SPEICHERN
 // ==========================================
 /**
@@ -375,8 +477,172 @@ function validateBewerbe(list) {
     return null;
 }
 
+/** Bezeichnungen für die Meldung „hat inzwischen jemand anderes geändert“ */
+const LABELS = {
+    is_open: 'Anmeldung offen/geschlossen', name: 'Name', date_text: 'Datum', date_iso: 'Turnierbeginn',
+    subtitle: 'Untertitel', oettv_url: 'ÖTTV-Link', fee_normal: 'Nenngeld', fee_nfs: 'Nenngeld NFS',
+    show_ttop_button: 'TTOP-Knopf', ttop_url: 'TTOP-Link', bewerbe: 'Bewerbe',
+    bewerbeHeadline: 'Bewerbe-Überschrift', bewerbeText: 'Bewerbe-Beschreibung',
+    showSchedule: 'Zeitplan', schedule: 'Zeitplan', showSponsors: 'Sponsoren', sponsors: 'Sponsoren',
+    heroPhoto: 'Titelfoto', registrationDeadline: 'Anmeldeschluss',
+    fact1Title: 'Fakten-Kachel 1', fact1Text: 'Fakten-Kachel 1', fact2Title: 'Fakten-Kachel 2', fact2Text: 'Fakten-Kachel 2',
+    fact3Title: 'Fakten-Kachel 3', fact3Text: 'Fakten-Kachel 3', fact4Title: 'Fakten-Kachel 4', fact4Text: 'Fakten-Kachel 4',
+};
+
+/** Vergleichbare Darstellung: Datei → Name/Größe, Datumsangaben → Zeitpunkt, leer = leer */
+function norm(v) {
+    if (v === undefined || v === null || v === '') return '""';
+    if (typeof v === 'string' && /^\d{4}-\d\d-\d\dT/.test(v) && !isNaN(Date.parse(v))) return String(Date.parse(v));
+    return JSON.stringify(v, (k, x) => (x instanceof File ? `${x.name}:${x.size}` : x));
+}
+const changed = (a, b) => norm(a) !== norm(b);
+
+/**
+ * Vergleicht meine Eingaben (gegenüber dem Stand beim Laden) mit dem aktuellen Stand in der Datenbank.
+ * mine: was ich geändert habe; theirs: was jemand anderes seitdem gespeichert hat;
+ * conflicts: beide am selben Feld, mit unterschiedlichem Ergebnis.
+ */
+function diffAgainst(form, fresh) {
+    const baseInfo = parseTurnierInfo(baseRow), freshInfo = parseTurnierInfo(fresh);
+    const mine = { columns: [], bewerbe: false, info: [] };
+    const theirs = new Set(), conflicts = new Set();
+
+    for (const k of Object.keys(form.columns)) {
+        const meChanged = changed(form.columns[k], baseForm.columns[k]);
+        const otherChanged = changed(fresh[k], baseRow[k]);
+        if (meChanged) mine.columns.push(k);
+        if (otherChanged) (meChanged && changed(form.columns[k], fresh[k]) ? conflicts : theirs).add(LABELS[k] || k);
+    }
+
+    mine.bewerbe = changed(form.bewerbe, baseForm.bewerbe);
+    if (changed(parseBewerbe(fresh), parseBewerbe(baseRow))) (mine.bewerbe ? conflicts : theirs).add(LABELS.bewerbe);
+
+    const keys = new Set([...Object.keys(form.info), ...Object.keys(baseInfo), ...Object.keys(freshInfo)]);
+    for (const k of keys) {
+        const meChanged = k in form.info && changed(form.info[k], baseForm.info[k]);
+        const otherChanged = changed(freshInfo[k], baseInfo[k]);
+        if (meChanged) mine.info.push(k);
+        if (otherChanged) (meChanged && changed(form.info[k], freshInfo[k]) ? conflicts : theirs).add(LABELS[k] || k);
+    }
+    // Was ich selbst auch geändert habe, ist kein „übernommen“
+    conflicts.forEach(l => theirs.delete(l));
+    return { mine, theirs: [...theirs], conflicts: [...conflicts] };
+}
+
+/** Nur meine Änderungen auf den aktuellen Stand anwenden → Patch + erwartete Werte (gegen Überschreiben) */
+function makePatch(form, fresh, mine, uploaded, renames) {
+    const patch = {};
+    for (const k of mine.columns) patch[k] = form.columns[k];
+    if ('date_iso' in patch && !patch.date_iso) patch.date_iso = new Date().toISOString();
+    if (mine.bewerbe) patch.bewerbe = JSON.stringify(form.bewerbe);
+
+    if (mine.info.length) {
+        const merged = parseTurnierInfo(fresh);
+        for (const k of mine.info) merged[k] = form.info[k];
+        if (uploaded.heroPhoto) merged.heroPhoto = uploaded.heroPhoto;
+        if (mine.info.includes('sponsors')) {
+            merged.sponsors = form.info.sponsors
+                .map(({ file, ...s }, i) => (file ? { ...s, logoPath: uploaded.sponsors[i] || s.logoPath } : s))
+                .filter(s => s.logoPath);
+        }
+        patch.turnier_info = JSON.stringify(merged);
+    }
+    if (uploaded.pdf) patch.ausschreibung_path = uploaded.pdf;
+
+    // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
+    const hof = fresh.hall_of_fame;
+    if (hof && Object.keys(renames).some(k => hof[k])) {
+        patch.hall_of_fame = Object.fromEntries(Object.entries(hof).map(([k, v]) => [renames[k] || k, v]));
+    }
+
+    const expect = Object.fromEntries(Object.keys(patch).map(k => [k, fresh[k] ?? null]));
+    return { patch, expect };
+}
+
+/** Neu gewählte Dateien hochladen (einmal pro Speichern) */
+async function uploadFiles(form) {
+    const uploaded = { sponsors: [] };
+    if (form.heroFile) {
+        // Verkleinern klappt nicht? Dann das Original hochladen statt hängenzubleiben
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Zeitüberschreitung')), 15000));
+        const blob = await Promise.race([shrinkImage(form.heroFile, 1200, 0.82), timeout])
+            .catch(err => { console.warn('Verkleinern nicht möglich:', err); return null; });
+        const base = safeFileName(form.heroFile.name.replace(/\.[^.]+$/, ''));
+        const ext = blob ? 'jpg' : (form.heroFile.name.split('.').pop() || 'jpg').toLowerCase();
+        const { data: up, error } = await supabase.storage
+            .from('fotos')
+            .upload(`titelfoto/${Date.now()}_${base}.${ext}`, blob || form.heroFile, { contentType: blob ? 'image/jpeg' : form.heroFile.type });
+        if (error) {
+            console.error('Titelfoto-Upload fehlgeschlagen:', error);
+            showToast('Titelfoto konnte nicht hochgeladen werden: ' + error.message, true);
+        } else {
+            uploaded.heroPhoto = up.path;
+        }
+    }
+
+    for (const [i, s] of form.info.sponsors.entries()) {
+        if (!s.file) continue;
+        // SVG ausdrücklich als SVG kennzeichnen (manche Systeme liefern keinen Typ mit)
+        const isSvg = /\.svg$/i.test(s.file.name);
+        const { data: up, error } = await supabase.storage
+            .from('sponsoren')
+            .upload(`${Date.now()}_${safeFileName(s.file.name)}`, s.file, { contentType: isSvg ? 'image/svg+xml' : (s.file.type || undefined) });
+        if (error) {
+            console.error('Sponsor-Upload fehlgeschlagen:', error);
+            showToast('Sponsor-Bild konnte nicht hochgeladen werden: ' + error.message, true);
+        } else {
+            uploaded.sponsors[i] = up.path;
+        }
+    }
+
+    if (form.pdfFile) {
+        const { data, error } = await supabase.storage
+            .from('pdfs')
+            .upload(`${Date.now()}_${safeFileName(form.pdfFile.name)}`, form.pdfFile);
+        if (error) throw error;
+        uploaded.pdf = data.path;
+    }
+    return uploaded;
+}
+
+/** Wer hat das Turnier zuletzt geändert? (aus dem Änderungsprotokoll, für die Rückfrage) */
+async function lastEditor() {
+    try {
+        const { data } = await supabase.from('audit_log').select('actor, created_at')
+            .eq('table_name', 'tournaments').eq('record_id', String(activeTournamentId))
+            .order('created_at', { ascending: false }).limit(1);
+        const e = data?.[0];
+        if (!e) return '';
+        const when = new Date(e.created_at).toLocaleString('de-AT', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        return `${e.actor || 'Jemand'} (${when})`;
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Schreibt Turnier + Umbenennungen in einem Schritt (nfs_save_tournament, siehe supabase/setup-save.sql).
+ * Gibt es die Funktion noch nicht, wird wie bisher direkt gespeichert.
+ */
+async function writeTournament(patch, expect, renames) {
+    const { data, error } = await supabase.rpc('nfs_save_tournament', {
+        p_id: String(activeTournamentId), p_patch: patch, p_expect: expect, p_renames: renames,
+    });
+    if (error?.code === 'PGRST202') {
+        console.warn('nfs_save_tournament fehlt – setup-save.sql ausführen. Speichere wie bisher.');
+        if (Object.keys(patch).length) throwIfError(await supabase.from('tournaments').update(patch).eq('id', activeTournamentId));
+        let moved = 0;
+        for (const [from, to] of Object.entries(renames)) {
+            if (countInBewerb(from) > 0) moved += await renameBewerbInRegistrations(from, to);
+        }
+        return { ok: true, moved };
+    }
+    if (error) throw error;
+    return data;
+}
+
 export async function saveSetup() {
-    if (!activeTournamentId) {
+    if (!activeTournamentId || !baseRow) {
         showToast('Kein aktives Turnier.', true);
         return;
     }
@@ -388,141 +654,68 @@ export async function saveSetup() {
         document.querySelector('#setupTabs [data-panel="bewerbe"]').click();
         return;
     }
-    const renames = bewerbeList.filter(b => b._orig && b._orig !== b.name && countInBewerb(b._orig) > 0);
-    if (renames.length) {
+    const renameList = bewerbeList.filter(b => b._orig && b._orig !== b.name);
+    const withRegs = renameList.filter(b => countInBewerb(b._orig) > 0);
+    if (withRegs.length) {
         const ok = await confirmDialog({
             title: 'Bewerb umbenennen?',
-            message: renames.map(b => `„${b._orig}“ → „${b.name}“ (${countInBewerb(b._orig)} Nennungen werden mitgenommen)`).join('\n'),
+            message: withRegs.map(b => `„${b._orig}“ → „${b.name}“ (${countInBewerb(b._orig)} Nennungen werden mitgenommen)`).join('\n'),
             confirmText: 'Umbenennen & speichern',
         });
         if (!ok) return;
     }
+    const renames = Object.fromEntries(renameList.map(b => [b._orig, b.name]));
     const noTime = bewerbeList.filter(b => b.time && !/\d{1,2}[:.]\d{2}/.test(b.time));
 
     await withBusy($('saveSetupBtn'), async () => {
         try {
-            const val = id => $(id)?.value.trim() || '';
+            const form = readForm();
+            const accepted = new Set();
+            let uploaded = null, result = null, theirs = [];
 
-            const scheduleData = [];
-            document.querySelectorAll('.schedule-row').forEach(row => {
-                const time = row.querySelector('.sched-time').value.trim();
-                const text = row.querySelector('.sched-text').value.trim();
-                if (time || text) scheduleData.push({ time, text });
-            });
+            // Bis zu 3 Versuche: falls genau zwischen Prüfen und Schreiben jemand anderes speichert
+            for (let attempt = 0; attempt < 3 && !result; attempt++) {
+                const { data: fresh, error } = await supabase.from('tournaments').select('*').eq('id', activeTournamentId).single();
+                if (error) throw error;
 
-            // Titelfoto: neu gewählt → verkleinert hochladen
-            let heroPhoto = $('setupHeroPhotoPath').value.trim();
-            const heroFile = $('setupHeroPhoto').files[0];
-            if (heroFile) {
-                // Verkleinern klappt nicht? Dann das Original hochladen statt hängenzubleiben
-                const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Zeitüberschreitung')), 15000));
-                const blob = await Promise.race([shrinkImage(heroFile, 1200, 0.82), timeout])
-                    .catch(err => { console.warn('Verkleinern nicht möglich:', err); return null; });
-                const base = safeFileName(heroFile.name.replace(/\.[^.]+$/, ''));
-                const ext = blob ? 'jpg' : (heroFile.name.split('.').pop() || 'jpg').toLowerCase();
-                const { data: up, error: upErr } = await supabase.storage
-                    .from('fotos')
-                    .upload(`titelfoto/${Date.now()}_${base}.${ext}`, blob || heroFile, { contentType: blob ? 'image/jpeg' : heroFile.type });
-                if (upErr) {
-                    console.error('Titelfoto-Upload fehlgeschlagen:', upErr);
-                    showToast('Titelfoto konnte nicht hochgeladen werden: ' + upErr.message, true);
-                } else {
-                    heroPhoto = up.path;
-                }
-            }
-
-            const sponsorsData = [];
-            for (const row of document.querySelectorAll('.sponsor-row')) {
-                const link = row.querySelector('.spon-link').value.trim();
-                const name = row.querySelector('.spon-name').value.trim();
-                const fileInput = row.querySelector('.spon-file');
-                let logoPath = row.querySelector('.spon-logo-path').value.trim();
-
-                // Wenn neue Datei gewählt → hochladen
-                if (fileInput.files.length > 0) {
-                    const file = fileInput.files[0];
-                    // SVG ausdrücklich als SVG kennzeichnen (manche Systeme liefern keinen Typ mit)
-                    const isSvg = /\.svg$/i.test(file.name);
-                    const { data: up, error: upErr } = await supabase.storage
-                        .from('sponsoren')
-                        .upload(`${Date.now()}_${safeFileName(file.name)}`, file, { contentType: isSvg ? 'image/svg+xml' : (file.type || undefined) });
-                    if (upErr) {
-                        console.error('Sponsor-Upload fehlgeschlagen:', upErr);
-                        showToast('Sponsor-Bild konnte nicht hochgeladen werden: ' + upErr.message, true);
-                    } else if (up) {
-                        logoPath = up.path;
-                    }
+                const diff = diffAgainst(form, fresh);
+                theirs = diff.theirs;
+                const newConflicts = diff.conflicts.filter(c => !accepted.has(c));
+                if (newConflicts.length) {
+                    const who = await lastEditor();
+                    const ok = await confirmDialog({
+                        title: 'Inzwischen von jemand anderem geändert',
+                        message: `${who || 'Jemand'} hat während deiner Bearbeitung dieselben Felder gespeichert:\n• ${newConflicts.join('\n• ')}\n\n` +
+                            '„Meine Version speichern“ überschreibt diese Felder mit deinen Eingaben.\n' +
+                            'Andere Version ansehen: Abbrechen und Seite neu laden (F5) – deine Eingaben gehen dabei verloren.',
+                        confirmText: 'Meine Version speichern',
+                        danger: true,
+                    });
+                    if (!ok) return;
+                    newConflicts.forEach(c => accepted.add(c));
                 }
 
-                if (logoPath) sponsorsData.push({ logoPath, link, ...(name ? { name } : {}) });
+                const mineCount = diff.mine.columns.length + diff.mine.info.length + (diff.mine.bewerbe ? 1 : 0) + (form.pdfFile ? 1 : 0);
+                if (!mineCount && !renameList.length) {
+                    showToast('Keine Änderungen zu speichern.');
+                    baseline = '';
+                    await onSaved();
+                    return;
+                }
+
+                uploaded ??= await uploadFiles(form);
+                const { patch, expect } = makePatch(form, fresh, diff.mine, uploaded, renames);
+                const res = await writeTournament(patch, expect, renames);
+                if (res?.ok) result = res;
+                else if (res?.reason !== 'conflict') throw new Error(res?.message || res?.reason || 'Unbekannter Fehler');
             }
+            if (!result) throw new Error('Das Turnier wird gerade von jemand anderem bearbeitet – bitte gleich noch einmal speichern.');
 
-            const deadline = $('setupDeadline').value;
-            const infoObj = {
-                bewerbeHeadline: val('setupBewerbeHeadline'),
-                bewerbeText: val('setupBewerbeText'),
-                showSchedule: $('setupShowSchedule').checked,
-                schedule: scheduleData,
-                heroPhoto,
-                showSponsors: $('setupShowSponsors').checked,
-                sponsors: sponsorsData,
-                registrationDeadline: deadline ? new Date(deadline).toISOString() : '',
-            };
-            [1, 2, 3, 4].forEach(n => {
-                infoObj[`fact${n}Title`] = val(`setupFact${n}Title`);
-                infoObj[`fact${n}Text`] = val(`setupFact${n}Text`);
-            });
-
-            const cleanBewerbe = bewerbeList.map(({ _orig, ...b }) => {
-                if (!b.max_rc) delete b.max_rc;
-                return b;
-            });
-
-            const dateIso = $('setupDateIso').value;
-            const updateData = {
-                is_open: $('setupIsOpen').checked,
-                name: val('setupName') || 'NFS Trophy',
-                date_text: val('setupDateText'),
-                date_iso: dateIso ? new Date(dateIso).toISOString() : new Date().toISOString(),
-                subtitle: val('setupSubtitle'),
-                oettv_url: val('setupOettvUrl'),
-                fee_normal: parseFee($('setupFeeNormal').value, DEFAULT_FEE_NORMAL),
-                fee_nfs: parseFee($('setupFeeNfs').value, DEFAULT_FEE_NFS),
-                bewerbe: JSON.stringify(cleanBewerbe),
-                turnier_info: JSON.stringify(infoObj),
-                show_ttop_button: $('setupShowTtop').checked,
-                ttop_url: val('setupTtopUrl')
-            };
-
-            // Hall of Fame hängt am Bewerbsnamen → Umbenennungen übernehmen
-            const t = currentTournament();
-            const allRenames = bewerbeList.filter(b => b._orig && b._orig !== b.name);
-            if (t?.hall_of_fame && allRenames.some(b => t.hall_of_fame[b._orig])) {
-                const hof = {};
-                const map = Object.fromEntries(allRenames.map(b => [b._orig, b.name]));
-                Object.entries(t.hall_of_fame).forEach(([k, v]) => { hof[map[k] || k] = v; });
-                updateData.hall_of_fame = hof;
-            }
-
-            // PDF Upload
             const pdfInput = $('setupPdf');
-            if (pdfInput && pdfInput.files.length > 0) {
-                const file = pdfInput.files[0];
-                const { data: uploadData, error: uploadErr } = await supabase.storage
-                    .from('pdfs')
-                    .upload(`${Date.now()}_${safeFileName(file.name)}`, file);
-                if (uploadErr) throw uploadErr;
-                updateData.ausschreibung_path = uploadData.path;
-            }
-
-            throwIfError(await supabase.from('tournaments').update(updateData).eq('id', activeTournamentId));
-
-            // Nennungen auf neue Bewerbsnamen umstellen
-            let moved = 0;
-            for (const b of renames) moved += await renameBewerbInRegistrations(b._orig, b.name);
-
             if (pdfInput) { pdfInput.value = ''; pdfInput.dispatchEvent(new Event('change')); }
+            const moved = result.moved || 0;
             showToast(moved ? `Gespeichert – ${moved} Nennungen auf neue Bewerbsnamen umgestellt` : 'Turnier-Einstellungen gespeichert');
+            if (theirs.length) showToast(`Änderungen von jemand anderem (${theirs.join(', ')}) wurden übernommen und bleiben erhalten.`);
             if (noTime.length) showToast(`Hinweis: Startzeit von „${noTime[0].name}“ enthält keine Uhrzeit (z.B. „Sa 09:00“) – der Kalender-Eintrag auf der Website braucht sie.`, true);
             baseline = '';
             await onSaved();
@@ -616,6 +809,35 @@ export async function deleteTournament() {
 }
 
 // ==========================================
+// FORMATIERUNG (*fett*, _kursiv_)
+// ==========================================
+/** Knöpfe F / K an jedes Website-Textfeld, dazu Strg+B / Strg+I */
+function initFormatBars() {
+    document.querySelectorAll('#view-setup textarea[data-format]').forEach(ta => {
+        const wrap = document.createElement('div');
+        wrap.className = 'fmt-wrap';
+        ta.replaceWith(wrap);
+        wrap.append(ta);
+        const bar = document.createElement('div');
+        bar.className = 'fmt-bar';
+        bar.innerHTML = `<button type="button" data-wrap="*" title="Fett: *Text* (Strg+B)"><b>F</b></button><button type="button" data-wrap="_" title="Kursiv: _Text_ (Strg+I)"><i>K</i></button>`;
+        bar.addEventListener('mousedown', e => e.preventDefault());   // Markierung im Feld behalten
+        bar.addEventListener('click', e => {
+            const b = e.target.closest('[data-wrap]');
+            if (b) wrapSelection(ta, b.dataset.wrap);
+        });
+        wrap.append(bar);
+        ta.addEventListener('keydown', e => {
+            if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+            const mark = { b: '*', i: '_' }[e.key.toLowerCase()];
+            if (!mark) return;
+            e.preventDefault();
+            wrapSelection(ta, mark);
+        });
+    });
+}
+
+// ==========================================
 // EVENTS (einmalig binden)
 // ==========================================
 export function initSetupEvents() {
@@ -633,6 +855,8 @@ export function initSetupEvents() {
         names[names.length - 1]?.select();
     });
     on('saveSetupBtn', saveSetup);
+    initFormatBars();
+    initPreview({ draft: buildDraft });
     on('createNewTournamentBtn', createNewTournament);
     on('deleteTournamentBtn', deleteTournament);
     on('downloadQrAnmeldungBtn', () => downloadQR('qrAnmeldung', 'QR_Anmeldung.png'));

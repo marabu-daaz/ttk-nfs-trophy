@@ -2264,6 +2264,37 @@ footer .meta div {
     color: #8a5a00;
 }
 
+/* Nennung verwalten: mehrere Karten untereinander */
+.manage-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.manage-stack[hidden] {
+    display: none;
+}
+
+.manage-h {
+    font-size: 17px;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+.manage-bewerb .meta {
+    font-size: 13px;
+    color: var(--ink-2);
+}
+
+.manage-bewerb.disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.manage-form .manage-buttons {
+    margin-top: 4px;
+}
+
 /* ---------- Sponsoren ---------- */
 .partner-logo img {
     display: block;

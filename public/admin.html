@@ -373,27 +373,27 @@
 
                         <div class="card setup-group">
                             <h3>Abschnitt „Bewerbe“</h3>
-                            <p class="group-sub">Einfache Formatierung erlaubt: &lt;strong&gt;, &lt;em&gt;, &lt;br&gt;</p>
+                            <p class="group-sub fmt-legend"><b>*fett*</b> · <i>_kursiv_</i> (in der Überschrift grün) · Enter = neue Zeile. Unten „Vorschau“ zeigt, wie es auf der Website aussieht.</p>
                             <div class="form-grid">
                                 <div class="field full">
                                     <label for="setupBewerbeHeadline">Überschrift</label>
-                                    <input type="text" id="setupBewerbeHeadline" class="input" placeholder="Sechs Bewerbe,<br><em>ein Wochenende</em>">
+                                    <textarea id="setupBewerbeHeadline" class="input" rows="2" data-format placeholder="Sechs Bewerbe,&#10;_ein Wochenende_"></textarea>
                                 </div>
                                 <div class="field full">
                                     <label for="setupBewerbeText">Beschreibung</label>
-                                    <textarea id="setupBewerbeText" class="input" rows="3" placeholder="Gespielt wird in 5 Vorrunden-Gruppen…"></textarea>
+                                    <textarea id="setupBewerbeText" class="input" rows="4" data-format placeholder="Gespielt wird in 5 Vorrunden-Gruppen…"></textarea>
                                 </div>
                             </div>
                         </div>
 
                         <div class="card setup-group">
                             <h3>Fakten-Kacheln</h3>
-                            <p class="group-sub">Die vier Kacheln unter dem Countdown auf der Startseite.</p>
+                            <p class="group-sub fmt-legend">Die vier Kacheln unter dem Countdown. <b>*Fetter Text*</b> steht dort hell in einer eigenen Zeile, darunter normaler Text.</p>
                             <div class="fact-grid">
-                                <div class="fact-card"><span class="fact-nr">1</span><input type="text" id="setupFact1Title" class="input" placeholder="Titel, z.B. Spielgeräte"><input type="text" id="setupFact1Text" class="input" placeholder="<strong>Tische DONIC</strong>Bälle Nittaku"></div>
-                                <div class="fact-card"><span class="fact-nr">2</span><input type="text" id="setupFact2Title" class="input" placeholder="Titel, z.B. Halle"><input type="text" id="setupFact2Text" class="input" placeholder="Text"></div>
-                                <div class="fact-card"><span class="fact-nr">3</span><input type="text" id="setupFact3Title" class="input" placeholder="Titel, z.B. Anreise"><input type="text" id="setupFact3Text" class="input" placeholder="Text"></div>
-                                <div class="fact-card"><span class="fact-nr">4</span><input type="text" id="setupFact4Title" class="input" placeholder="Titel, z.B. Modus"><input type="text" id="setupFact4Text" class="input" placeholder="Text"></div>
+                                <div class="fact-card"><span class="fact-nr">1</span><input type="text" id="setupFact1Title" class="input" placeholder="Titel, z.B. Spielgeräte"><textarea id="setupFact1Text" class="input" rows="3" data-format="block" placeholder="*Tische: DONIC blau*&#10;Bälle: Nittaku Premium 40+"></textarea></div>
+                                <div class="fact-card"><span class="fact-nr">2</span><input type="text" id="setupFact2Title" class="input" placeholder="Titel, z.B. Halle"><textarea id="setupFact2Text" class="input" rows="3" data-format="block" placeholder="Text"></textarea></div>
+                                <div class="fact-card"><span class="fact-nr">3</span><input type="text" id="setupFact3Title" class="input" placeholder="Titel, z.B. Anreise"><textarea id="setupFact3Text" class="input" rows="3" data-format="block" placeholder="Text"></textarea></div>
+                                <div class="fact-card"><span class="fact-nr">4</span><input type="text" id="setupFact4Title" class="input" placeholder="Titel, z.B. Modus"><textarea id="setupFact4Text" class="input" rows="3" data-format="block" placeholder="Text"></textarea></div>
                             </div>
                         </div>
 
@@ -477,10 +477,29 @@
                     <div class="save-bar">
                         <span class="small" id="setupDirtyHint">Alles gespeichert</span>
                         <div style="display:flex; gap:8px;">
+                            <button type="button" class="btn ghost" id="previewBtn" aria-controls="previewPanel" aria-expanded="false"><i data-icon="eye"></i>Vorschau</button>
                             <a class="btn ghost" href="/" target="_blank" rel="noopener"><i data-icon="external"></i>Website</a>
                             <button id="saveSetupBtn" class="btn primary">Speichern</button>
                         </div>
                     </div>
+
+                    <!-- Live-Vorschau: echte Startseite mit den ungespeicherten Eingaben -->
+                    <aside class="preview-panel" id="previewPanel" hidden aria-label="Live-Vorschau der Website">
+                        <div class="preview-head">
+                            <div class="grow">
+                                <strong>Live-Vorschau</strong>
+                                <div class="small muted">So sieht die Startseite mit deinen Eingaben aus – noch nicht gespeichert.</div>
+                            </div>
+                            <div class="seg" id="previewMode" role="group" aria-label="Ansicht">
+                                <button type="button" data-mode="desktop" class="on">Computer</button>
+                                <button type="button" data-mode="phone">Handy</button>
+                            </div>
+                            <button type="button" class="icon-btn" id="previewClose" title="Vorschau schließen"><i data-icon="x"></i></button>
+                        </div>
+                        <div class="preview-stage" id="previewStage">
+                            <iframe id="previewFrame" title="Vorschau der Startseite" tabindex="-1"></iframe>
+                        </div>
+                    </aside>
                 </section>
 
                 <!-- ========== ARCHIV ========== -->

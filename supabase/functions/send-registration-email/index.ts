@@ -11,6 +11,12 @@
 //     - Bestaetigung an den Spieler, Info an die Turnierleitung
 //       inkl. naechstem Nachruecker auf der Warteliste
 //
+//  2b) { action: "update", token, data }          (oeffentlich, Seite "Nennung verwalten")
+//     - Angaben aendern (E-Mail, Telefon, Verein, RC, Anmerkung, Quittung)
+//       und Bewerbe dazunehmen (Warteliste wird serverseitig berechnet)
+//     - Bestaetigung an den Spieler (bei neuer Adresse auch an die alte),
+//       Info an die Turnierleitung
+//
 //  3) { action: "resend_link", email }           (oeffentlich)
 //     - schickt die Abmeldelinks erneut an genau diese Adresse
 //     - hoechstens alle 10 Minuten, Antwort verraet nicht,
@@ -193,7 +199,7 @@ const wrap = (inner: string) =>
 
 const cancelBox = (token: string) => `
   <p style="margin-top:20px;padding:12px 14px;background:#f3f6f2;border-radius:6px;font-size:13px;color:#3d5445;">
-    Du kannst doch nicht? Dann melde dich bitte hier ab – so rückt jemand von der Warteliste nach:<br>
+    Angaben ändern, Bewerb dazunehmen oder doch nicht dabei? Hier geht's – bei einer Abmeldung rückt jemand von der Warteliste nach:<br>
     <a href="${esc(cancelUrl(token))}" style="color:#1a4d2e;font-weight:bold;">Nennung verwalten / abmelden</a>
   </p>`;
 
@@ -317,6 +323,75 @@ async function handleCancel(token: string, bewerbe: string[] | null) {
   await Promise.all(tasks);
 
   return json({ ok: true, deleted: res.deleted, removed, remaining });
+}
+
+// ============================================================
+// 2b) Nennung selbst aendern (Angaben, Bewerbe dazunehmen)
+// ============================================================
+async function handleUpdate(token: string, data: Record<string, unknown>) {
+  if (!/^[0-9a-f-]{36}$/i.test(token || "")) return json({ ok: false, reason: "not_found" });
+
+  // Nur bekannte Felder weiterreichen
+  const clean: Record<string, unknown> = {};
+  for (const k of ["email", "telefon", "verein", "rc", "notiz"]) {
+    if (typeof data?.[k] === "string") clean[k] = data[k];
+  }
+  if (typeof data?.quittung === "boolean") clean.quittung = data.quittung;
+  if (Array.isArray(data?.add)) clean.add = (data.add as unknown[]).filter((b) => typeof b === "string").slice(0, 20);
+
+  const res = await db("rpc/update_registration_self", {
+    method: "POST",
+    body: JSON.stringify({ p_token: token, p_data: clean }),
+  });
+  if (!res?.ok) return json(res || { ok: false });
+
+  const name = `${res.vorname ?? ""} ${res.nachname ?? ""}`.trim();
+  const added: string[] = res.added || [];
+  const addedWl: string[] = res.added_waitlist || [];
+  const changes: Record<string, [string | null, string | null]> = res.changes || {};
+  const bewerbe: string[] = res.bewerbe || [];
+  const wl: string[] = res.warteliste || [];
+
+  const row = (label: string, value: string) =>
+    `<tr><td style="padding:4px 12px 4px 0;color:#666;vertical-align:top;">${esc(label)}</td><td>${value}</td></tr>`;
+  const changeRows = Object.entries(changes)
+    .map(([label, [alt, neu]]) => row(label, `${esc(alt) || "–"} → <strong>${esc(neu) || "–"}</strong>`)).join("");
+  const addedText = added.map((b) => `${esc(b)}${addedWl.includes(b) ? " (Warteliste)" : ""}`).join(", ");
+  const bewerbeText = bewerbe.map((b) => `${esc(b)}${wl.includes(b) ? " (Warteliste)" : ""}`).join(", ");
+
+  const playerHtml = wrap(`
+    <h2 style="color:#1a4d2e;margin:0 0 16px;">Nennung geändert</h2>
+    <p>Hallo ${esc(res.vorname)},</p>
+    <p>deine Änderungen sind gespeichert.</p>
+    <table style="border-collapse:collapse;font-size:14px;margin:12px 0;">
+      ${added.length ? row("Dazugenommen", addedText) : ""}
+      ${changeRows}
+      ${row("Deine Bewerbe", bewerbeText || "–")}
+    </table>
+    ${addedWl.length
+      ? `<p style="background:#fff4d6;padding:10px 14px;">Für ${addedWl.map(esc).join(", ")} stehst du auf der <strong>Warteliste</strong> und rückst bei freien Plätzen nach.</p>`
+      : ""}
+    <p>Falls du das nicht warst, melde dich bitte bei ${esc(ADMIN_EMAIL)}.</p>
+    ${cancelBox(token)}`);
+
+  const tasks: Promise<boolean>[] = [];
+  if (res.email) tasks.push(sendMail(res.email, "NFS Trophy: Nennung geändert", playerHtml));
+  // Adresse geändert → auch die alte Adresse informieren (falls jemand Fremdes den Link nutzt)
+  if (res.old_email && res.email && String(res.old_email).toLowerCase() !== String(res.email).toLowerCase()) {
+    tasks.push(sendMail(res.old_email, "NFS Trophy: E-Mail-Adresse deiner Nennung geändert", playerHtml, false));
+  }
+  tasks.push(sendMail(ADMIN_EMAIL, `Änderung: ${name}${added.length ? ` (+ ${added.join(", ")})` : ""}`, wrap(`
+    <h2 style="color:#1a4d2e;margin:0 0 16px;">Selbst-Änderung</h2>
+    <p><strong>${esc(name)}</strong> hat die Nennung geändert.</p>
+    <table style="border-collapse:collapse;font-size:14px;margin:12px 0;">
+      ${added.length ? row("Dazugenommen", addedText) : ""}
+      ${changeRows}
+      ${row("Bewerbe jetzt", bewerbeText || "–")}
+    </table>
+    ${changes["Verein"] ? `<p style="background:#fff4d6;padding:10px 14px;">Verein geändert – NFS-Tarif im Admin prüfen.</p>` : ""}`)));
+  await Promise.all(tasks);
+
+  return json({ ok: true, added, added_waitlist: addedWl, bewerbe, warteliste: wl, changes: Object.keys(changes) });
 }
 
 // ============================================================
@@ -678,6 +753,7 @@ Deno.serve(async (req) => {
     const payload = await req.json().catch(() => ({}));
 
     if (payload?.action === "cancel") return await handleCancel(payload.token, payload.bewerbe ?? null);
+    if (payload?.action === "update") return await handleUpdate(payload.token, payload.data ?? {});
     if (payload?.action === "resend_link") return await handleResendLink(payload.email);
 
     // Admin-Aktionen: nur mit Login eines Admins aus der Admin-Liste

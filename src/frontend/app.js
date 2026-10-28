@@ -11,6 +11,19 @@ let activeTournament = null;
 let cachedRegs = [];
 let galleries = {};
 
+/** Live-Vorschau im Admin (Seite läuft dort im Rahmen mit ?vorschau=1) */
+const PREVIEW = new URLSearchParams(location.search).has("vorschau") && window.parent !== window;
+
+// Standardtexte aus dem HTML merken – werden wieder gezeigt, wenn ein Feld im Admin leer ist
+const htmlOf = id => document.getElementById(id)?.innerHTML ?? "";
+const DEFAULT_HTML = {
+    tagline: document.getElementById("heroTagline")?.textContent.trim() ?? "",
+    headline: htmlOf("pubBewerbeHeadline"),
+    text: htmlOf("pubBewerbeText"),
+    facts: htmlOf("pubFactsGrid"),
+};
+const heroPhotoWrap = document.getElementById("heroPhotoWrap");
+
 // ==========================================
 // INIT
 // ==========================================
@@ -59,7 +72,7 @@ async function init() {
         renderTurnierInfo(activeTournament);
         renderBewerbe(activeTournament);
         renderForm(activeTournament);
-        prefillFromInvitation();
+        if (!PREVIEW) prefillFromInvitation();
         if (regsFailed) showNennstandError();
         else renderNennstand(activeTournament, cachedRegs);
         renderCurrentFiles(activeTournament);
@@ -83,7 +96,38 @@ async function init() {
         document.getElementById("heroPhotoWrap")?.remove();
         const heroDate = document.getElementById("heroDate");
         if (heroDate) heroDate.textContent = "Wien";
+    } finally {
+        // Admin-Vorschau: Bescheid geben, dass Entwürfe angenommen werden
+        if (PREVIEW) window.parent.postMessage({ type: "nfs-preview-ready" }, location.origin);
     }
+}
+
+// ==========================================
+// LIVE-VORSCHAU (nur im Admin-Rahmen)
+// ==========================================
+if (PREVIEW) {
+    window.addEventListener("message", async e => {
+        if (e.origin !== location.origin || e.source !== window.parent) return;
+        const msg = e.data || {};
+        if (msg.type === "nfs-preview-scroll") {
+            const el = document.getElementById(msg.target);
+            // knapp unter der fixen Menüleiste
+            const navH = document.querySelector("nav")?.offsetHeight || 0;
+            if (el) window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - navH - 12, behavior: "instant" });
+        }
+        if (msg.type === "nfs-preview" && msg.tournament) {
+            const t = { ...msg.tournament };
+            t.parsedBewerbe = parseBewerbe(t);
+            if (t.id !== activeTournament?.id) cachedRegs = await loadRegs(t.id).catch(() => []);
+            activeTournament = t;
+            renderHero(t);
+            renderTurnierInfo(t);
+            renderBewerbe(t);
+            renderForm(t);
+            renderNennstand(t, cachedRegs);
+            renderCurrentFiles(t);
+        }
+    });
 }
 
 // ==========================================
@@ -168,7 +212,7 @@ function renderHero(t) {
     const heroTagline = document.getElementById("heroTagline");
     // Wörter mit Bindestrich (z.B. „Wien-Donaustadt“) nicht auseinanderbrechen
     const keepHyphens = text => esc(text).replace(/\S+-\S+/g, w => `<span class="t-part">${w}</span>`);
-    if (heroTagline) heroTagline.innerHTML = keepHyphens(t.subtitle || heroTagline.textContent.trim());
+    if (heroTagline) heroTagline.innerHTML = keepHyphens(t.subtitle || DEFAULT_HTML.tagline);
 
     const aus = document.getElementById("heroAusschreibung");
     if (aus && t.ausschreibung_path) {
@@ -247,22 +291,32 @@ function toggleSection(sectionId, visible) {
 }
 
 /** Titelfoto (im Admin pro Turnier): rechts im Kopfbereich, Countdown als Karte darunter */
-function renderHeroPhoto(path) {
-    const wrap = document.getElementById('heroPhotoWrap');
+function renderHeroPhoto(path, previewSrc) {
+    const wrap = heroPhotoWrap;
     if (!wrap) return;
-    const src = path ? publicFotoUrl(path) : null;
+    const src = previewSrc || (path ? publicFotoUrl(path) : null);
+    const hero = document.querySelector('header.hero');
     if (!src) {
         wrap.remove();   // kein Foto: nur der Countdown
+        hero?.classList.remove('has-photo');
         return;
     }
-    if (wrap.querySelector('img')) return;
-    wrap.innerHTML = `<img class="hero-photo" src="${esc(src)}" alt="Siegerehrung bei der NFS Trophy" fetchpriority="high">`;
-    document.querySelector('header.hero')?.classList.add('has-photo');
+    // (Vorschau) wieder einsetzen, falls vorher ohne Foto entfernt
+    if (!wrap.isConnected) document.querySelector('.hero-visual .countdown-box')?.before(wrap);
+    const img = wrap.querySelector('img');
+    if (img) {
+        if (img.getAttribute('src') !== src) img.src = src;
+    } else {
+        wrap.innerHTML = `<img class="hero-photo" src="${esc(src)}" alt="Siegerehrung bei der NFS Trophy" fetchpriority="high">`;
+    }
+    hero?.classList.add('has-photo');
 }
 
 function renderTurnierInfo(t) {
     const tInfo = parseTurnierInfo(t);
-    renderHeroPhoto(tInfo.heroPhoto);
+    // _heroSrc / _src: im Admin gewählte, noch nicht hochgeladene Bilder (nur Vorschau)
+    const previewSrc = src => (PREVIEW && /^blob:/.test(src || "") ? src : null);
+    renderHeroPhoto(tInfo.heroPhoto, previewSrc(tInfo._heroSrc));
 
     // Zeitplan
     const timelineGrid = document.getElementById("timelineGrid");
@@ -285,9 +339,10 @@ function renderTurnierInfo(t) {
         partnerGrid.innerHTML = tInfo.sponsors.map(s => {
             // Logo über die eigene Domain (/partner-logo/…, Netlify-Weiterleitung) – kein fremder Server,
             // kein „sponsoren“ in der Adresse. Rückfall: direkt vom Speicherdienst. Alt: logoUrl (externe URL)
-            const direct = s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl);
+            const local = previewSrc(s._src);
+            const direct = local || (s.logoPath ? publicSponsorUrl(s.logoPath) : safeUrl(s.logoUrl));
             if (!direct) return '';
-            const src = s.logoPath ? `/partner-logo/${encodeURIComponent(s.logoPath)}` : direct;
+            const src = !local && s.logoPath ? `/partner-logo/${encodeURIComponent(s.logoPath)}` : direct;
             const name = String(s.name || '').trim();
             // Fotos ohne Transparenz (JPG) bekommen eine Kachel; SVG/PNG-Logos stehen frei auf dem Band
             const opaque = /\.jpe?g$/i.test(s.logoPath || s.logoUrl || '');
@@ -304,20 +359,19 @@ function renderTurnierInfo(t) {
         });
     }
 
-    if (tInfo.bewerbeHeadline) {
-        const h = document.getElementById("pubBewerbeHeadline");
-        if (h) h.innerHTML = sanitizeHtml(tInfo.bewerbeHeadline);
-    }
-    if (tInfo.bewerbeText) {
-        const pt = document.getElementById("pubBewerbeText");
-        if (pt) pt.innerHTML = sanitizeHtml(tInfo.bewerbeText);
-    }
+    // Leere Felder → Standardtext aus dem HTML
+    const h = document.getElementById("pubBewerbeHeadline");
+    if (h) h.innerHTML = tInfo.bewerbeHeadline ? sanitizeHtml(tInfo.bewerbeHeadline) : DEFAULT_HTML.headline;
+    const pt = document.getElementById("pubBewerbeText");
+    if (pt) pt.innerHTML = tInfo.bewerbeText ? sanitizeHtml(tInfo.bewerbeText) : DEFAULT_HTML.text;
 
     const factsGrid = document.getElementById("pubFactsGrid");
-    if (factsGrid && tInfo.fact1Title) {
-        factsGrid.innerHTML = [1, 2, 3, 4].map(n => `
+    if (factsGrid) {
+        factsGrid.innerHTML = tInfo.fact1Title
+            ? [1, 2, 3, 4].map(n => `
             <div class="fact"><div class="k mono">${esc(tInfo[`fact${n}Title`])}</div><div class="v">${sanitizeHtml(tInfo[`fact${n}Text`])}</div></div>
-        `).join("");
+        `).join("")
+            : DEFAULT_HTML.facts;
     }
 }
 
@@ -422,13 +476,16 @@ function renderForm(t) {
     const btn = document.getElementById("submitBtn");
     if (!form) return;
 
-    if (!open) {
-        form.style.opacity = ".5";
-        form.style.pointerEvents = "none";
-    }
+    form.style.opacity = open ? "" : ".5";
+    form.style.pointerEvents = open ? "" : "none";
 
     form.onsubmit = async (e) => {
         e.preventDefault();
+
+        if (PREVIEW) {
+            showToast("Vorschau – hier wird nichts abgeschickt.", true);
+            return;
+        }
 
         // erneut prüfen – der Anmeldeschluss kann erreicht sein, während die Seite offen ist
         if (!registrationState(t).open) {
@@ -521,7 +578,16 @@ function renderForm(t) {
             if (error) {
                 // 23505 = unique_violation (diese Person ist für dieses Turnier bereits genannt)
                 if (error.code === '23505') {
-                    showToast(`${v("vorname")} ${v("nachname")} ist für dieses Turnier bereits genannt. Für Änderungen bitte bei der Turnierleitung melden.`, true);
+                    showToast(`${v("vorname")} ${v("nachname")} ist für dieses Turnier bereits genannt. Bewerbe dazunehmen oder Angaben ändern kannst du über „Nennung verwalten“ (Link in deiner Bestätigungsmail).`, true);
+                    return;
+                }
+                // P0001 = Meldung der Datenbank (Anmeldung geschlossen, Anmeldeschluss vorbei, Bewerbe geändert)
+                if (error.code === 'P0001' && error.message) {
+                    showToast(error.message, true);
+                    if (/geschlossen|Anmeldeschluss/.test(error.message)) {
+                        // Formular sperren, wie es beim Neuladen der Seite aussähe
+                        renderForm({ ...t, is_open: false });
+                    }
                     return;
                 }
                 throw error;

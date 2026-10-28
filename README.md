@@ -174,6 +174,15 @@ Person zugeordnet (gleicher Name → gleiche Person). Alte Excel-Listen einmalig
 `python tools/import_players.py "<Excel-Ordner>"` in eine SQL-Datei umwandeln und im SQL-Editor
 ausführen. Die Datei enthält Personendaten und wird deshalb außerhalb des Repos abgelegt.
 
+`supabase/setup-save.sql` (Projekt A): Turnier-Setup in einem Schritt speichern (`nfs_save_tournament`) –
+nur geänderte Felder, Warnung wenn ein anderer Admin dieselben Felder inzwischen gespeichert hat,
+Bewerbe samt Nennungen umbenennen (alles oder nichts, Website-Nennungen warten solange).
+Ohne diese Datei speichert der Admin wie früher direkt.
+
+`supabase/self-service-edit.sql` (Projekt A, nach setup-save.sql): „Nennung verwalten“ –
+Angaben ändern und Bewerbe dazunehmen (`update_registration_self`, läuft über die Edge Function
+mit Aktion `update`).
+
 `supabase/live-realtime.sql` (Projekt B): gibt `matches`/`players` für Supabase Realtime frei,
 damit Ergebnisse sofort im Live-Ticker erscheinen. Ohne Freigabe lädt der Ticker alle 20 s nach.
 
